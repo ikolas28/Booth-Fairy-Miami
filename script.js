@@ -41,6 +41,10 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
       throw new Error("Form submission failed");
     }
 
+    if (typeof window.fbq === "function") {
+      window.fbq("track", "Lead");
+    }
+
     button.textContent = "Inquiry Sent";
     form.reset();
   } catch (error) {
