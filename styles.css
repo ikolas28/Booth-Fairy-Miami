@@ -105,17 +105,10 @@ textarea {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 2.65rem;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #fff;
-  font-family: "Syne", sans-serif;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  box-shadow: 0 10px 26px rgba(159, 77, 255, 0.3);
+  height: 2.65rem;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 10px 26px rgba(159, 77, 255, 0.22));
 }
 
 .brand-text {

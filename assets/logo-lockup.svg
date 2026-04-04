@@ -1,0 +1,19 @@
+<svg width="520" height="180" viewBox="0 0 520 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lockupOrb" x1="18" y1="12" x2="142" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF6C9A"/>
+      <stop offset="0.52" stop-color="#FF5F87"/>
+      <stop offset="1" stop-color="#9F4DFF"/>
+    </linearGradient>
+    <linearGradient id="lockupGlow" x1="34" y1="18" x2="126" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="90" r="64" fill="url(#lockupOrb)"/>
+  <circle cx="80" cy="90" r="64" fill="url(#lockupGlow)"/>
+  <path d="M52 60.5H92.4C103.868 60.5 111.3 66.8022 111.3 76.3015C111.3 82.3963 107.829 87.0418 101.85 89.1597C109.368 90.9508 113.7 96.1639 113.7 103.861C113.7 114.755 104.839 121.5 91.312 121.5H52V60.5ZM84.22 84.2119C89.5634 84.2119 92.774 82.1713 92.774 77.9985C92.774 73.8493 89.5634 71.7864 84.22 71.7864H66.769V84.2119H84.22ZM86.726 110.192C92.5026 110.192 95.9705 107.971 95.9705 103.23C95.9705 98.5133 92.5026 96.2917 86.726 96.2917H66.769V110.192H86.726Z" fill="white"/>
+  <path d="M47 57.5H58.6C66.2543 57.5 71 61.7028 71 68.2572C71 73.3074 68.403 76.8216 63.6904 78.2941C69.5888 79.3816 72.9 83.2997 72.9 89.4577C72.9 97.1583 67.6018 101.5 58.8388 101.5H47V57.5ZM56.8842 74.3216C60.4257 74.3216 62.5837 72.9619 62.5837 70.0119C62.5837 67.0908 60.4257 65.7279 56.8842 65.7279H54.5812V74.3216H56.8842ZM57.8027 93.2759C61.6572 93.2759 63.9517 91.7995 63.9517 88.4718C63.9517 85.1731 61.6572 83.6934 57.8027 83.6934H54.5812V93.2759H57.8027Z" fill="#FFE7F4"/>
+  <text x="174" y="84" fill="#171125" font-family="Syne, Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="-0.05em">Booth Fairy</text>
+  <text x="176" y="117" fill="#6E647D" font-family="Manrope, Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="-0.02em">Miami</text>
+</svg>

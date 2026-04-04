@@ -1,0 +1,24 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="44" x2="1068" y2="592" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF1EE"/>
+      <stop offset="0.55" stop-color="#FFF9F8"/>
+      <stop offset="1" stop-color="#F8F1FF"/>
+    </linearGradient>
+    <linearGradient id="orb" x1="135" y1="92" x2="359" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF6C9A"/>
+      <stop offset="0.52" stop-color="#FF5F87"/>
+      <stop offset="1" stop-color="#9F4DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="0" fill="url(#bg)"/>
+  <circle cx="248" cy="190" r="112" fill="url(#orb)"/>
+  <circle cx="248" cy="190" r="112" fill="white" fill-opacity="0.08"/>
+  <path d="M199 144H269.7C289.769 144 302.775 155.029 302.775 171.652C302.775 182.319 296.7 190.453 286.237 194.159C299.393 197.293 306.975 206.417 306.975 219.885C306.975 238.946 291.466 250.75 267.796 250.75H199V144ZM255.385 185.521C264.736 185.521 270.356 181.95 270.356 174.647C270.356 167.385 264.736 163.775 255.385 163.775H224.846V185.521H255.385ZM259.77 231.014C269.88 231.014 275.949 227.126 275.949 218.828C275.949 210.572 269.88 206.683 259.77 206.683H224.846V231.014H259.77Z" fill="white"/>
+  <path d="M190 139H210.3C223.695 139 232 146.355 232 157.825C232 166.663 227.455 172.813 219.208 175.39C229.53 177.293 235.325 184.149 235.325 194.926C235.325 208.402 226.053 216 210.718 216H190V139ZM207.297 168.443C213.494 168.443 217.271 166.063 217.271 160.896C217.271 155.781 213.494 153.394 207.297 153.394H203.017V168.443H207.297ZM208.905 201.633C215.65 201.633 219.666 199.05 219.666 193.229C219.666 187.458 215.65 184.87 208.905 184.87H203.017V201.633H208.905Z" fill="#FFE7F4"/>
+  <text x="392" y="198" fill="#171125" font-family="Syne, Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-0.06em">Booth Fairy</text>
+  <text x="398" y="256" fill="#6E647D" font-family="Manrope, Arial, sans-serif" font-size="42" font-weight="700" letter-spacing="-0.02em">Miami</text>
+  <text x="392" y="360" fill="#171125" font-family="Syne, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-0.06em">Luxury DSLR-style</text>
+  <text x="392" y="434" fill="#171125" font-family="Syne, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-0.06em">photo booth experiences</text>
+  <text x="392" y="508" fill="#6E647D" font-family="Manrope, Arial, sans-serif" font-size="34" font-weight="600">Weddings, birthdays, luxury parties, and corporate events across Miami.</text>
+</svg>

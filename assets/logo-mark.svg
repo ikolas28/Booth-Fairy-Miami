@@ -1,0 +1,17 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="boothFairyOrb" x1="24" y1="18" x2="136" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF6C9A"/>
+      <stop offset="0.52" stop-color="#FF5F87"/>
+      <stop offset="1" stop-color="#9F4DFF"/>
+    </linearGradient>
+    <linearGradient id="boothFairyGlow" x1="40" y1="26" x2="126" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="64" fill="url(#boothFairyOrb)"/>
+  <circle cx="80" cy="80" r="64" fill="url(#boothFairyGlow)"/>
+  <path d="M52 50.5H92.4C103.868 50.5 111.3 56.8022 111.3 66.3015C111.3 72.3963 107.829 77.0418 101.85 79.1597C109.368 80.9508 113.7 86.1639 113.7 93.8609C113.7 104.755 104.839 111.5 91.312 111.5H52V50.5ZM84.22 74.2119C89.5634 74.2119 92.774 72.1713 92.774 67.9985C92.774 63.8493 89.5634 61.7864 84.22 61.7864H66.769V74.2119H84.22ZM86.726 100.192C92.5026 100.192 95.9705 97.9707 95.9705 93.2299C95.9705 88.5133 92.5026 86.2917 86.726 86.2917H66.769V100.192H86.726Z" fill="white"/>
+  <path d="M47 47.5H58.6C66.2543 47.5 71 51.7028 71 58.2572C71 63.3074 68.403 66.8216 63.6904 68.2941C69.5888 69.3816 72.9 73.2997 72.9 79.4577C72.9 87.1583 67.6018 91.5 58.8388 91.5H47V47.5ZM56.8842 64.3216C60.4257 64.3216 62.5837 62.9619 62.5837 60.0119C62.5837 57.0908 60.4257 55.7279 56.8842 55.7279H54.5812V64.3216H56.8842ZM57.8027 83.2759C61.6572 83.2759 63.9517 81.7995 63.9517 78.4718C63.9517 75.1731 61.6572 73.6934 57.8027 73.6934H54.5812V83.2759H57.8027Z" fill="#FFE7F4"/>
+</svg>
