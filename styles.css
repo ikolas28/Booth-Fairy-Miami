@@ -150,6 +150,10 @@ textarea {
   gap: 0.85rem;
 }
 
+.nav-text-cta {
+  white-space: nowrap;
+}
+
 .nav-social {
   color: var(--muted);
   font-weight: 700;
@@ -332,6 +336,12 @@ textarea {
 .hero-badge-row,
 .footer-links,
 .contact-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.contact-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.85rem;
