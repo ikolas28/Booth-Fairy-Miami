@@ -66,6 +66,14 @@ textarea {
   font: inherit;
 }
 
+.form-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .container {
   width: min(calc(100% - (var(--gutter) * 2)), var(--container));
   margin: 0 auto;

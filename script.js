@@ -20,8 +20,10 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
 
   const form = event.currentTarget;
   const button = form.querySelector("button[type='submit']");
+  const honeypot = form.querySelector("input[name='website']");
 
   if (!button) return;
+  if (honeypot?.value) return;
 
   const originalText = button.textContent;
 
