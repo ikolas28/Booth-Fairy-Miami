@@ -560,6 +560,30 @@ textarea {
   gap: 1.25rem;
 }
 
+.package-filter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0 0 2rem;
+}
+
+.package-filter span {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(109, 72, 152, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.package-filter .is-active {
+  background: linear-gradient(135deg, rgba(255, 95, 135, 0.14), rgba(159, 77, 255, 0.14));
+  color: var(--text);
+  border-color: rgba(255, 95, 135, 0.18);
+}
+
 .services-layout {
   grid-template-columns: repeat(3, 1fr);
 }
@@ -570,6 +594,116 @@ textarea {
   border-radius: var(--radius-md);
   padding: 1.75rem;
   background: rgba(255, 255, 255, 0.78);
+}
+
+.service-card,
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.package-visual {
+  display: grid;
+  place-items: center;
+  min-height: 9rem;
+  margin-bottom: 1rem;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top, rgba(255, 95, 135, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 251, 0.9));
+}
+
+.booth-figure {
+  position: relative;
+  width: 5.4rem;
+  height: 7rem;
+  border-radius: 1.6rem;
+  background: linear-gradient(180deg, #ffffff, #f6efff);
+  border: 1px solid rgba(159, 77, 255, 0.14);
+  box-shadow: 0 20px 36px rgba(23, 17, 37, 0.08);
+}
+
+.booth-figure::before {
+  content: "";
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #161127;
+  transform: translateX(-50%);
+}
+
+.booth-figure::after {
+  content: "";
+  position: absolute;
+  bottom: -2.4rem;
+  left: 50%;
+  width: 0.75rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8f1ff, #d8cde7);
+  transform: translateX(-50%);
+  box-shadow: 0 2.8rem 0 0 rgba(240, 231, 248, 0.9);
+}
+
+.booth-figure-classic {
+  width: 4.8rem;
+}
+
+.booth-figure-luxe {
+  width: 5.8rem;
+  box-shadow: 0 24px 46px rgba(159, 77, 255, 0.14);
+}
+
+.booth-figure-luxe::before {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.booth-figure-activation {
+  width: 5rem;
+  border-radius: 1.2rem;
+}
+
+.package-badge {
+  align-self: center;
+  margin-bottom: 1rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 95, 135, 0.14), rgba(159, 77, 255, 0.16));
+  color: var(--accent-deep);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.package-rate {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.package-rate strong {
+  font-family: "Syne", sans-serif;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.package-rate span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.package-addon {
+  margin: 0 0 1rem !important;
+  color: var(--muted-strong) !important;
+  font-style: italic;
+  font-size: 0.94rem;
 }
 
 .service-card h3,
@@ -597,6 +731,11 @@ textarea {
   margin-top: 0.85rem !important;
   color: var(--muted-strong) !important;
   font-weight: 700;
+}
+
+.package-button {
+  width: 100%;
+  margin-top: auto;
 }
 
 .service-card:hover,
@@ -765,6 +904,7 @@ textarea {
 
 .pricing-card {
   position: relative;
+  min-height: 100%;
 }
 
 .pricing-card.featured {
