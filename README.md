@@ -87,6 +87,18 @@ Preferred admin route:
 - Tidio
 - Instagram
 
+## Tidio CRM Intake
+
+The repo now includes a secure Tidio lead intake endpoint:
+
+- [api/tidio/lead.js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\tidio\lead.js)
+
+Recommended setup:
+- use Tidio `Flows -> API call`
+- send `POST` requests to `/api/tidio/lead`
+- protect the endpoint with a bearer token stored as `TIDIO_WEBHOOK_SECRET`
+- use `SUPABASE_SERVICE_ROLE_KEY` in Vercel so the endpoint can safely write to the CRM
+
 ## CRM Auth And Data
 
 The admin CRM at `/admin` now supports:
