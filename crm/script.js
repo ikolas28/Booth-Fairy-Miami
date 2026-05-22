@@ -1,6 +1,10 @@
-const ADMIN_EMAIL = "admin@boothfairymiami.com";
-const ADMIN_PASSWORD = "BoothFairyAdmin!";
-const SESSION_KEY = "bfmAdminAuthenticated";
+const SUPABASE_PROJECT_ID = "hwwhyrpwfewxevocjjzk";
+const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3d2h5cnB3ZmV3eGV2b2NqanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MDAzMDksImV4cCI6MjA5NDk3NjMwOX0.-55qhrFYuzcAqQRhO01oxP4EJP3jyR9qU-qNDW_pAxI";
+const LOCAL_ADMIN_EMAIL = "admin@boothfairymiami.com";
+const LOCAL_ADMIN_PASSWORD = "BoothFairyAdmin!";
+const ALLOWED_ADMIN_EMAILS = ["boothfairyllc@gmail.com"];
+const AUTH_SESSION_KEY = "bfmSupabaseSession";
 const STORAGE_KEYS = {
   leads: "bfmCrmLeads",
   followups: "bfmCrmFollowups",
@@ -22,6 +26,7 @@ const LEAD_STATUSES = [
 
 const BOOKING_STATUSES = new Set(["Deposit Pending", "Booked", "Paid", "Completed"]);
 const CONFIRMED_STATUSES = new Set(["Booked", "Paid", "Completed"]);
+const REMOTE_COLLECTIONS = ["leads", "followups", "payments", "campaigns"];
 
 const seedLeads = [
   {
@@ -41,7 +46,8 @@ const seedLeads = [
     paymentStatus: "Pending",
     calendarChecked: "No",
     source: "Website",
-    createdAt: "2026-05-18"
+    createdAt: "2026-05-18",
+    updatedAt: "2026-05-18"
   },
   {
     id: crypto.randomUUID(),
@@ -60,7 +66,8 @@ const seedLeads = [
     paymentStatus: "Not Requested",
     calendarChecked: "Yes",
     source: "Gmail",
-    createdAt: "2026-05-16"
+    createdAt: "2026-05-16",
+    updatedAt: "2026-05-16"
   },
   {
     id: crypto.randomUUID(),
@@ -79,7 +86,8 @@ const seedLeads = [
     paymentStatus: "Pending",
     calendarChecked: "Yes",
     source: "Tidio",
-    createdAt: "2026-05-20"
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   },
   {
     id: crypto.randomUUID(),
@@ -98,7 +106,8 @@ const seedLeads = [
     paymentStatus: "Not Requested",
     calendarChecked: "No",
     source: "Instagram",
-    createdAt: "2026-05-19"
+    createdAt: "2026-05-19",
+    updatedAt: "2026-05-19"
   },
   {
     id: crypto.randomUUID(),
@@ -117,7 +126,8 @@ const seedLeads = [
     paymentStatus: "Not Requested",
     calendarChecked: "No",
     source: "Website",
-    createdAt: "2026-05-17"
+    createdAt: "2026-05-17",
+    updatedAt: "2026-05-17"
   }
 ];
 
@@ -128,7 +138,9 @@ const seedFollowups = [
     dueDate: "2026-05-22",
     channel: "Email",
     status: "Open",
-    notes: "Send refined proposal with booth + DJ bundle options."
+    notes: "Send refined proposal with booth + DJ bundle options.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   },
   {
     id: crypto.randomUUID(),
@@ -136,7 +148,9 @@ const seedFollowups = [
     dueDate: "2026-05-21",
     channel: "Text",
     status: "Open",
-    notes: "Check whether client received deposit link and answer timing questions."
+    notes: "Check whether client received deposit link and answer timing questions.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   }
 ];
 
@@ -148,7 +162,9 @@ const seedPayments = [
     amount: 200,
     status: "Pending",
     link: "https://stripe.example.com/pay/alyssa-deposit",
-    notes: "Deposit placeholder until live Stripe sync is connected."
+    notes: "Deposit placeholder until live Stripe sync is connected.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   }
 ];
 
@@ -159,7 +175,9 @@ const seedCampaigns = [
     channel: "Instagram",
     status: "Idea",
     priority: "High",
-    notes: "Show editorial booth coverage plus premium guest experience at a Miami venue."
+    notes: "Show editorial booth coverage plus premium guest experience at a Miami venue.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   },
   {
     id: crypto.randomUUID(),
@@ -167,7 +185,9 @@ const seedCampaigns = [
     channel: "Email",
     status: "Drafting",
     priority: "Medium",
-    notes: "Warm current booth leads with an elegant DJ upsell flow."
+    notes: "Warm current booth leads with an elegant DJ upsell flow.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   },
   {
     id: crypto.randomUUID(),
@@ -175,9 +195,38 @@ const seedCampaigns = [
     channel: "Website SEO",
     status: "Ready for Review",
     priority: "High",
-    notes: "Target local wedding intent and link back to the main booking page."
+    notes: "Target local wedding intent and link back to the main booking page.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
   }
 ];
+
+const COLLECTION_CONFIG = {
+  leads: {
+    table: "leads",
+    toDb: mapLeadToDb,
+    fromDb: mapLeadFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(a.eventDate, b.eventDate) || compareDates(b.createdAt, a.createdAt))
+  },
+  followups: {
+    table: "followups",
+    toDb: mapFollowupToDb,
+    fromDb: mapFollowupFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(a.dueDate, b.dueDate) || compareDates(b.createdAt, a.createdAt))
+  },
+  payments: {
+    table: "payments",
+    toDb: mapPaymentToDb,
+    fromDb: mapPaymentFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(b.createdAt, a.createdAt))
+  },
+  campaigns: {
+    table: "campaigns",
+    toDb: mapCampaignToDb,
+    fromDb: mapCampaignFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(b.createdAt, a.createdAt))
+  }
+};
 
 const state = {
   leads: loadData(STORAGE_KEYS.leads, seedLeads),
@@ -186,7 +235,15 @@ const state = {
   campaigns: loadData(STORAGE_KEYS.campaigns, seedCampaigns),
   activeSection: "dashboard",
   leadSearch: "",
-  leadStatusFilter: "all"
+  leadStatusFilter: "all",
+  syncMode: "Local cache",
+  syncDetail: "Sign in to sync your CRM."
+};
+
+const authState = {
+  session: null,
+  user: null,
+  isLocalFallback: false
 };
 
 const authShell = document.getElementById("auth-shell");
@@ -197,23 +254,44 @@ const sections = [...document.querySelectorAll(".section")];
 const loginForm = document.getElementById("login-form");
 const authError = document.getElementById("auth-error");
 const logoutButton = document.getElementById("logout-button");
+const googleLoginButton = document.getElementById("google-login-button");
+const authLocalNote = document.getElementById("auth-local-note");
+const userEmailLabel = document.getElementById("user-email");
+const syncModeLabel = document.getElementById("sync-mode-label");
+const supabaseStatusChip = document.getElementById("supabase-status-chip");
+const setupBanner = document.getElementById("setup-banner");
+const emailLoginButton = document.getElementById("email-login-button");
 
-init();
+init().catch((error) => {
+  console.error("CRM init failed", error);
+  showAuthError("The admin CRM could not finish loading. Please refresh and try again.");
+});
 
-function init() {
+async function init() {
   populateStatusSelects();
   attachEventListeners();
-  refreshSelectMenus();
+  showLocalDevNote();
+  updateConnectionIndicators();
   renderAll();
 
-  if (sessionStorage.getItem(SESSION_KEY) === "true") {
-    unlockApp();
+  const oauthState = handleOAuthReturn();
+  if (oauthState.error) {
+    showAuthError(oauthState.error);
   }
+
+  const restored = await restoreSession();
+  if (!restored) {
+    return;
+  }
+
+  unlockApp();
+  await hydrateData();
 }
 
 function attachEventListeners() {
   loginForm.addEventListener("submit", handleLogin);
   logoutButton.addEventListener("click", handleLogout);
+  googleLoginButton.addEventListener("click", handleGoogleLogin);
 
   navButtons.forEach((button) => {
     button.addEventListener("click", () => setSection(button.dataset.section));
@@ -237,7 +315,9 @@ function attachEventListeners() {
 
   document.getElementById("drawer-close").addEventListener("click", closeDrawer);
   document.getElementById("lead-drawer").addEventListener("click", (event) => {
-    if (event.target.id === "lead-drawer") closeDrawer();
+    if (event.target.id === "lead-drawer") {
+      closeDrawer();
+    }
   });
 
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
@@ -247,7 +327,9 @@ function attachEventListeners() {
   ["lead-modal", "followup-modal", "payment-modal", "campaign-modal"].forEach((id) => {
     const modal = document.getElementById(id);
     modal.addEventListener("click", (event) => {
-      if (event.target.id === id) closeModal(id);
+      if (event.target.id === id) {
+        closeModal(id);
+      }
     });
   });
 
@@ -257,36 +339,354 @@ function attachEventListeners() {
   document.getElementById("campaign-form").addEventListener("submit", handleCampaignSubmit);
 }
 
-function handleLogin(event) {
-  event.preventDefault();
-  const email = document.getElementById("login-email").value.trim().toLowerCase();
-  const password = document.getElementById("login-password").value;
-
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    authError.hidden = true;
-    sessionStorage.setItem(SESSION_KEY, "true");
-    unlockApp();
-    return;
-  }
-
-  authError.hidden = false;
+function showLocalDevNote() {
+  authLocalNote.hidden = !isLocalhost();
 }
 
-function handleLogout() {
-  sessionStorage.removeItem(SESSION_KEY);
+function handleOAuthReturn() {
+  if (!window.location.hash.startsWith("#")) {
+    return { error: "" };
+  }
+
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  const expiresIn = Number(params.get("expires_in") || 0);
+  const errorDescription = params.get("error_description") || params.get("error");
+
+  if (errorDescription) {
+    clearLocationHash();
+    return { error: decodeURIComponent(errorDescription) };
+  }
+
+  if (!accessToken) {
+    return { error: "" };
+  }
+
+  authState.session = {
+    accessToken,
+    refreshToken,
+    tokenType: params.get("token_type") || "bearer",
+    expiresAt: Date.now() + Math.max(expiresIn - 60, 60) * 1000
+  };
+  saveSession(authState.session);
+  clearLocationHash();
+  return { error: "" };
+}
+
+async function restoreSession() {
+  if (authState.session) {
+    return validateSession();
+  }
+
+  const stored = loadJson(AUTH_SESSION_KEY);
+  if (!stored) {
+    return false;
+  }
+
+  authState.session = stored;
+  if (needsRefresh(stored) && stored.refreshToken) {
+    const refreshed = await refreshSession(stored.refreshToken);
+    if (!refreshed) {
+      clearSavedSession();
+      return false;
+    }
+  }
+
+  return validateSession();
+}
+
+async function validateSession() {
+  if (authState.isLocalFallback) {
+    authState.user = { email: LOCAL_ADMIN_EMAIL };
+    state.syncMode = "Localhost demo";
+    state.syncDetail = "Running on localhost with local-only demo credentials.";
+    showSetupBanner("Localhost demo mode is active. Supabase sign-in is still available, but this session is intentionally local-only.", "info");
+    return true;
+  }
+
+  if (!authState.session?.accessToken) {
+    return false;
+  }
+
+  const user = await fetchCurrentUser(authState.session.accessToken);
+  if (!user && authState.session.refreshToken) {
+    const refreshed = await refreshSession(authState.session.refreshToken);
+    if (!refreshed) {
+      clearSavedSession();
+      return false;
+    }
+    return validateSession();
+  }
+
+  if (!user || !isAllowedAdminEmail(user.email)) {
+    await clearRemoteSession();
+    showAuthError("This Google or email account is not approved for Booth Fairy Miami admin access yet.");
+    return false;
+  }
+
+  authState.user = user;
+  return true;
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  showAuthError("");
+  emailLoginButton.disabled = true;
+  emailLoginButton.textContent = "Signing In...";
+
+  try {
+    const email = document.getElementById("login-email").value.trim().toLowerCase();
+    const password = document.getElementById("login-password").value;
+
+    if (isLocalhost() && email === LOCAL_ADMIN_EMAIL.toLowerCase() && password === LOCAL_ADMIN_PASSWORD) {
+      authState.isLocalFallback = true;
+      authState.session = null;
+      authState.user = { email: LOCAL_ADMIN_EMAIL };
+      unlockApp();
+      await hydrateData();
+      loginForm.reset();
+      return;
+    }
+
+    const session = await signInWithPassword(email, password);
+    if (!session?.access_token) {
+      throw new Error("Supabase did not return a valid session.");
+    }
+
+    authState.isLocalFallback = false;
+    authState.session = {
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+      tokenType: session.token_type || "bearer",
+      expiresAt: Date.now() + Math.max((session.expires_in || 3600) - 60, 60) * 1000
+    };
+    saveSession(authState.session);
+
+    const valid = await validateSession();
+    if (!valid) {
+      throw new Error("Your account is not approved for admin access.");
+    }
+
+    unlockApp();
+    await hydrateData();
+    loginForm.reset();
+  } catch (error) {
+    console.error(error);
+    showAuthError(getFriendlyError(error, "Sign-in failed. Double-check your Supabase admin user and password."));
+  } finally {
+    emailLoginButton.disabled = false;
+    emailLoginButton.textContent = "Sign In With Email";
+  }
+}
+
+function handleGoogleLogin() {
+  showAuthError("");
+  const redirectTo = getAuthRedirectUrl();
+  const url = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  window.location.href = url;
+}
+
+async function handleLogout() {
+  if (!authState.isLocalFallback) {
+    await clearRemoteSession();
+  }
+
+  authState.session = null;
+  authState.user = null;
+  authState.isLocalFallback = false;
+  clearSavedSession();
   appShell.hidden = true;
   authShell.hidden = false;
+  hideSetupBanner();
+  state.syncMode = "Local cache";
+  state.syncDetail = "Sign in to sync your CRM.";
+  updateConnectionIndicators();
 }
 
 function unlockApp() {
   authShell.hidden = true;
   appShell.hidden = false;
+  userEmailLabel.textContent = authState.user?.email || "Signed in";
+}
+
+async function hydrateData() {
+  if (authState.isLocalFallback) {
+    state.syncMode = "Localhost demo";
+    state.syncDetail = "Local-only records. Supabase tables are bypassed in this session.";
+    showSetupBanner("Localhost demo mode is active. Supabase sign-in is still available, but this session is intentionally local-only.", "info");
+    updateConnectionIndicators();
+    renderAll();
+    return;
+  }
+
+  const loaded = await loadRemoteCollections();
+  if (loaded) {
+    hideSetupBanner();
+  }
+
+  updateConnectionIndicators();
+  renderAll();
+}
+
+async function loadRemoteCollections() {
+  try {
+    const [leads, followups, payments, campaigns] = await Promise.all([
+      fetchCollection("leads"),
+      fetchCollection("followups"),
+      fetchCollection("payments"),
+      fetchCollection("campaigns")
+    ]);
+
+    state.leads = leads;
+    state.followups = followups;
+    state.payments = payments;
+    state.campaigns = campaigns;
+    state.syncMode = "Supabase live";
+    state.syncDetail = "Real CRM records are syncing with Supabase.";
+    persistAll();
+    return true;
+  } catch (error) {
+    console.error("Supabase load failed", error);
+    state.syncMode = "Local cache";
+    state.syncDetail = "Using local cache until the CRM tables are ready.";
+    showSetupBanner("Supabase auth is connected, but the CRM tables are not ready yet. Run database/supabase/schema.sql in the Supabase SQL Editor, then refresh the admin CRM.", "warning");
+    return false;
+  }
+}
+
+async function fetchCollection(resourceKey) {
+  const config = COLLECTION_CONFIG[resourceKey];
+  const rows = await supabaseRest(`/${config.table}?select=*`);
+  return config.sort(rows.map(config.fromDb));
+}
+
+async function handleLeadSubmit(event) {
+  event.preventDefault();
+  const existingLead = getLeadById(document.getElementById("lead-id").value);
+  const lead = {
+    id: document.getElementById("lead-id").value || crypto.randomUUID(),
+    clientName: document.getElementById("lead-client-name").value.trim(),
+    phone: document.getElementById("lead-phone").value.trim(),
+    email: document.getElementById("lead-email").value.trim(),
+    eventType: document.getElementById("lead-event-type").value.trim(),
+    eventDate: document.getElementById("lead-event-date").value,
+    venue: document.getElementById("lead-venue").value.trim(),
+    city: document.getElementById("lead-city").value.trim(),
+    serviceRequested: document.getElementById("lead-service-requested").value,
+    guestCount: Number(document.getElementById("lead-guest-count").value || 0),
+    budget: Number(document.getElementById("lead-budget").value || 0),
+    source: document.getElementById("lead-source").value,
+    status: document.getElementById("lead-status").value,
+    paymentStatus: document.getElementById("lead-payment-status").value,
+    calendarChecked: document.getElementById("lead-calendar-checked").value,
+    notes: document.getElementById("lead-notes").value.trim(),
+    createdAt: existingLead?.createdAt || todayIso(),
+    updatedAt: todayIso()
+  };
+
+  try {
+    const savedLead = await upsertResource("leads", lead);
+    upsertLocalItem(state.leads, savedLead);
+    closeModal("lead-modal");
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Lead could not be saved."));
+  }
+}
+
+async function handleFollowupSubmit(event) {
+  event.preventDefault();
+  const existing = state.followups.find((item) => item.id === document.getElementById("followup-id").value);
+  const followup = {
+    id: document.getElementById("followup-id").value || crypto.randomUUID(),
+    leadId: document.getElementById("followup-lead-id").value,
+    dueDate: document.getElementById("followup-due-date").value,
+    channel: document.getElementById("followup-channel").value,
+    status: document.getElementById("followup-status").value,
+    notes: document.getElementById("followup-notes").value.trim(),
+    createdAt: existing?.createdAt || todayIso(),
+    updatedAt: todayIso()
+  };
+
+  try {
+    const savedFollowup = await upsertResource("followups", followup);
+    upsertLocalItem(state.followups, savedFollowup);
+    closeModal("followup-modal");
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Follow-up could not be saved."));
+  }
+}
+
+async function handlePaymentSubmit(event) {
+  event.preventDefault();
+  const existing = state.payments.find((item) => item.id === document.getElementById("payment-id").value);
+  const payment = {
+    id: document.getElementById("payment-id").value || crypto.randomUUID(),
+    leadId: document.getElementById("payment-lead-id").value,
+    type: document.getElementById("payment-type").value,
+    amount: Number(document.getElementById("payment-amount").value || 0),
+    status: document.getElementById("payment-status").value,
+    link: document.getElementById("payment-link").value.trim(),
+    notes: document.getElementById("payment-notes").value.trim(),
+    createdAt: existing?.createdAt || todayIso(),
+    updatedAt: todayIso()
+  };
+
+  try {
+    const savedPayment = await upsertResource("payments", payment);
+    upsertLocalItem(state.payments, savedPayment);
+    const lead = state.leads.find((item) => item.id === savedPayment.leadId);
+    if (lead && savedPayment.status === "Paid") {
+      lead.paymentStatus = "Paid";
+      lead.updatedAt = todayIso();
+      const savedLead = await upsertResource("leads", lead);
+      upsertLocalItem(state.leads, savedLead);
+    }
+    closeModal("payment-modal");
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Payment record could not be saved."));
+  }
+}
+
+async function handleCampaignSubmit(event) {
+  event.preventDefault();
+  const existing = state.campaigns.find((item) => item.id === document.getElementById("campaign-id").value);
+  const campaign = {
+    id: document.getElementById("campaign-id").value || crypto.randomUUID(),
+    title: document.getElementById("campaign-title").value.trim(),
+    channel: document.getElementById("campaign-channel").value,
+    status: document.getElementById("campaign-status").value,
+    priority: document.getElementById("campaign-priority").value,
+    notes: document.getElementById("campaign-notes").value.trim(),
+    createdAt: existing?.createdAt || todayIso(),
+    updatedAt: todayIso()
+  };
+
+  try {
+    const savedCampaign = await upsertResource("campaigns", campaign);
+    upsertLocalItem(state.campaigns, savedCampaign);
+    closeModal("campaign-modal");
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Campaign could not be saved."));
+  }
 }
 
 function setSection(sectionName) {
   state.activeSection = sectionName;
-  navButtons.forEach((button) => button.classList.toggle("active", button.dataset.section === sectionName));
-  sections.forEach((section) => section.classList.toggle("active", section.dataset.section === sectionName));
+  navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === sectionName);
+  });
+  sections.forEach((section) => {
+    section.classList.toggle("active", section.dataset.section === sectionName);
+  });
   sectionTitle.textContent = getSectionTitle(sectionName);
 }
 
@@ -305,6 +705,7 @@ function getSectionTitle(sectionName) {
 }
 
 function renderAll() {
+  sortCollections();
   renderKpis();
   renderStatusGrid();
   renderNextFollowups();
@@ -319,51 +720,53 @@ function renderAll() {
   renderCampaigns();
   refreshSelectMenus();
   persistAll();
+  updateConnectionIndicators();
 }
 
 function renderKpis() {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const openLeads = state.leads.filter((lead) => !["Completed", "Lost"].includes(lead.status)).length;
   const bookedCount = state.leads.filter((lead) => CONFIRMED_STATUSES.has(lead.status)).length;
   const followupCount = state.followups.filter((followup) => followup.status === "Open").length;
   const pendingPayments = state.payments.filter((payment) => payment.status === "Pending").length;
-  const leadsThisMonth = state.leads.filter((lead) => lead.createdAt.startsWith("2026-05")).length;
+  const leadsThisMonth = state.leads.filter((lead) => (lead.createdAt || "").startsWith(currentMonth)).length;
 
   const cards = [
-    ["Open leads", state.leads.filter((lead) => lead.status !== "Completed" && lead.status !== "Lost").length, "Active inquiries across all channels"],
+    ["Open leads", openLeads, "Active inquiries across all channels"],
     ["Confirmed bookings", bookedCount, "Only count after calendar and payment checks"],
     ["Open follow-ups", followupCount, "Reminders still needing action"],
     ["Pending payments", pendingPayments, "Deposit or invoice links awaiting payment"],
-    ["May lead volume", leadsThisMonth, "Current seeded month snapshot"],
+    [`${formatMonthLabel(currentMonth)} lead volume`, leadsThisMonth, "Current CRM month snapshot"],
     ["DJ opportunities", state.leads.filter((lead) => lead.serviceRequested.includes("DJ")).length, "Leads where DJ services are part of the request"],
     ["Instagram inquiries", state.leads.filter((lead) => lead.source === "Instagram").length, "DM and social lead opportunities"],
-    ["Website conversion pipeline", state.leads.filter((lead) => lead.source === "Website").length, "Website and form-based inquiries"]
+    ["Website pipeline", state.leads.filter((lead) => lead.source === "Website").length, "Website and form-based inquiries"]
   ];
 
   document.getElementById("kpi-grid").innerHTML = cards.map(([label, value, meta]) => `
     <article class="kpi-card">
-      <p>${label}</p>
-      <strong>${value}</strong>
-      <p>${meta}</p>
+      <p>${escapeHtml(label)}</p>
+      <strong>${escapeHtml(String(value))}</strong>
+      <p>${escapeHtml(meta)}</p>
     </article>
   `).join("");
 }
 
 function renderStatusGrid() {
-  const html = LEAD_STATUSES.map((status) => {
+  document.getElementById("status-grid").innerHTML = LEAD_STATUSES.map((status) => {
     const count = state.leads.filter((lead) => lead.status === status).length;
     return `
       <article class="status-card">
-        <p>${status}</p>
+        <p>${escapeHtml(status)}</p>
         <strong>${count}</strong>
       </article>
     `;
   }).join("");
-  document.getElementById("status-grid").innerHTML = html;
 }
 
 function renderNextFollowups() {
   const list = [...state.followups]
     .filter((followup) => followup.status === "Open")
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .sort((a, b) => compareDates(a.dueDate, b.dueDate))
     .slice(0, 4);
 
   const container = document.getElementById("next-followups");
@@ -377,10 +780,10 @@ function renderNextFollowups() {
     return `
       <div class="stack-item">
         <div>
-          <strong>${lead?.clientName || "Unknown Lead"}</strong>
-          <p>${followup.channel} follow-up due ${formatDate(followup.dueDate)}</p>
+          <strong>${escapeHtml(lead?.clientName || "Unknown Lead")}</strong>
+          <p>${escapeHtml(followup.channel)} follow-up due ${escapeHtml(formatDate(followup.dueDate))}</p>
         </div>
-        <span class="chip chip-muted">${followup.status}</span>
+        <span class="chip chip-muted">${escapeHtml(followup.status)}</span>
       </div>
     `;
   }).join("");
@@ -389,15 +792,15 @@ function renderNextFollowups() {
 function renderUpcomingBookings() {
   const rows = [...state.leads]
     .filter((lead) => BOOKING_STATUSES.has(lead.status))
-    .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+    .sort((a, b) => compareDates(a.eventDate, b.eventDate))
     .slice(0, 6)
     .map((lead) => `
       <tr>
-        <td>${lead.clientName}</td>
-        <td>${formatDate(lead.eventDate)}</td>
-        <td>${lead.serviceRequested}</td>
+        <td>${escapeHtml(lead.clientName)}</td>
+        <td>${escapeHtml(formatDate(lead.eventDate))}</td>
+        <td>${escapeHtml(lead.serviceRequested)}</td>
         <td>${statusChip(lead.status)}</td>
-        <td>${lead.paymentStatus}</td>
+        <td>${escapeHtml(lead.paymentStatus)}</td>
       </tr>
     `)
     .join("");
@@ -418,18 +821,18 @@ function renderLeadCards() {
     <article class="card">
       <div class="card-top">
         <div>
-          <strong>${lead.clientName}</strong>
-          <p class="card-meta">${lead.eventType} · ${lead.city || "City pending"}</p>
+          <strong>${escapeHtml(lead.clientName)}</strong>
+          <p class="card-meta">${escapeHtml(`${lead.eventType} | ${lead.city || "City pending"}`)}</p>
         </div>
         ${statusChip(lead.status)}
       </div>
       <div class="card-meta">
-        <span>${formatDate(lead.eventDate)}</span>
-        <span>${lead.serviceRequested}</span>
-        <span>${lead.source}</span>
-        <span>${lead.guestCount || 0} guests</span>
+        <span>${escapeHtml(formatDate(lead.eventDate))}</span>
+        <span>${escapeHtml(lead.serviceRequested)}</span>
+        <span>${escapeHtml(lead.source)}</span>
+        <span>${escapeHtml(String(lead.guestCount || 0))} guests</span>
       </div>
-      <p class="card-notes">${lead.notes || "No notes yet."}</p>
+      <p class="card-notes">${escapeHtml(lead.notes || "No notes yet.")}</p>
       <div class="card-actions">
         <button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">View</button>
         <button class="button button-secondary" onclick="openLeadModal('${lead.id}')">Edit</button>
@@ -441,20 +844,20 @@ function renderLeadCards() {
 
 function renderBookings() {
   const rows = [...state.leads]
-    .filter((lead) => lead.eventDate)
-    .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+    .filter((lead) => !!lead.eventDate)
+    .sort((a, b) => compareDates(a.eventDate, b.eventDate))
     .map((lead) => `
       <tr>
-        <td>${lead.clientName}</td>
-        <td>${formatDate(lead.eventDate)}</td>
-        <td>${lead.serviceRequested}</td>
-        <td>${lead.venue || "Pending venue"}</td>
-        <td>${lead.paymentStatus}</td>
+        <td>${escapeHtml(lead.clientName)}</td>
+        <td>${escapeHtml(formatDate(lead.eventDate))}</td>
+        <td>${escapeHtml(lead.serviceRequested)}</td>
+        <td>${escapeHtml(lead.venue || "Pending venue")}</td>
+        <td>${escapeHtml(lead.paymentStatus)}</td>
         <td>
           <select class="select-inline" onchange="updateLeadStatus('${lead.id}', this.value)">
             ${LEAD_STATUSES.map((status) => `<option value="${status}" ${status === lead.status ? "selected" : ""}>${status}</option>`).join("")}
           </select>
-          <p class="status-note">${lead.calendarChecked === "Yes" ? "Calendar checked" : "Availability still needs confirmation"}</p>
+          <p class="status-note">${escapeHtml(lead.calendarChecked === "Yes" ? "Calendar checked" : "Availability still needs confirmation")}</p>
         </td>
         <td class="row-actions">
           <button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">View</button>
@@ -475,19 +878,19 @@ function renderFollowups() {
   }
 
   container.innerHTML = [...state.followups]
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .sort((a, b) => compareDates(a.dueDate, b.dueDate))
     .map((followup) => {
       const lead = state.leads.find((item) => item.id === followup.leadId);
       return `
         <article class="timeline-item">
           <div class="source-card-top">
-            <strong>${lead?.clientName || "Unknown Lead"}</strong>
-            <span class="chip ${followup.status === "Completed" ? "chip-muted" : ""}">${followup.status}</span>
+            <strong>${escapeHtml(lead?.clientName || "Unknown Lead")}</strong>
+            <span class="chip ${followup.status === "Completed" ? "chip-muted" : ""}">${escapeHtml(followup.status)}</span>
           </div>
-          <p>${followup.notes}</p>
+          <p>${escapeHtml(followup.notes)}</p>
           <div class="card-meta">
-            <span>${followup.channel}</span>
-            <span>${formatDate(followup.dueDate)}</span>
+            <span>${escapeHtml(followup.channel)}</span>
+            <span>${escapeHtml(formatDate(followup.dueDate))}</span>
           </div>
           <div class="timeline-actions">
             <button class="button button-secondary" onclick="openFollowupModal('${followup.id}')">Edit</button>
@@ -504,11 +907,11 @@ function renderPayments() {
     const lead = state.leads.find((item) => item.id === payment.leadId);
     return `
       <tr>
-        <td>${lead?.clientName || "Unknown Lead"}</td>
-        <td>${payment.type}</td>
-        <td>${formatCurrency(payment.amount)}</td>
-        <td>${payment.status}</td>
-        <td><a href="${payment.link}" target="_blank" rel="noreferrer">Open link</a></td>
+        <td>${escapeHtml(lead?.clientName || "Unknown Lead")}</td>
+        <td>${escapeHtml(payment.type)}</td>
+        <td>${escapeHtml(formatCurrency(payment.amount))}</td>
+        <td>${escapeHtml(payment.status)}</td>
+        <td><a href="${escapeAttribute(payment.link)}" target="_blank" rel="noreferrer">Open link</a></td>
         <td class="row-actions">
           <button class="button button-secondary" onclick="openPaymentModal('${payment.id}')">Edit</button>
           <button class="button button-danger" onclick="deletePayment('${payment.id}')">Delete</button>
@@ -529,13 +932,13 @@ function renderSourceLeads(source, container) {
   container.innerHTML = leads.map((lead) => `
     <article class="source-card">
       <div class="source-card-top">
-        <strong>${lead.clientName}</strong>
+        <strong>${escapeHtml(lead.clientName)}</strong>
         ${statusChip(lead.status)}
       </div>
-      <p>${lead.eventType} on ${formatDate(lead.eventDate)} · ${lead.serviceRequested}</p>
+      <p>${escapeHtml(`${lead.eventType} on ${formatDate(lead.eventDate)} | ${lead.serviceRequested}`)}</p>
       <div class="card-meta">
-        <span>${lead.email}</span>
-        <span>${lead.phone}</span>
+        <span>${escapeHtml(lead.email)}</span>
+        <span>${escapeHtml(lead.phone)}</span>
       </div>
       <div class="card-actions">
         <button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">View</button>
@@ -553,16 +956,16 @@ function renderCampaigns() {
     const items = state.campaigns.filter((campaign) => campaign.status === column);
     return `
       <section class="campaign-column">
-        <h3>${column}</h3>
+        <h3>${escapeHtml(column)}</h3>
         ${items.length ? items.map((campaign) => `
           <article class="campaign-item">
             <div class="campaign-head">
-              <strong>${campaign.title}</strong>
-              <span class="chip chip-muted">${campaign.priority}</span>
+              <strong>${escapeHtml(campaign.title)}</strong>
+              <span class="chip chip-muted">${escapeHtml(campaign.priority)}</span>
             </div>
-            <p>${campaign.notes}</p>
+            <p>${escapeHtml(campaign.notes)}</p>
             <div class="card-meta">
-              <span>${campaign.channel}</span>
+              <span>${escapeHtml(campaign.channel)}</span>
             </div>
             <div class="card-actions">
               <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
@@ -575,84 +978,6 @@ function renderCampaigns() {
   }).join("");
 }
 
-function handleLeadSubmit(event) {
-  event.preventDefault();
-  const existingLead = getLeadById(document.getElementById("lead-id").value);
-  const lead = {
-    id: document.getElementById("lead-id").value || crypto.randomUUID(),
-    clientName: document.getElementById("lead-client-name").value.trim(),
-    phone: document.getElementById("lead-phone").value.trim(),
-    email: document.getElementById("lead-email").value.trim(),
-    eventType: document.getElementById("lead-event-type").value.trim(),
-    eventDate: document.getElementById("lead-event-date").value,
-    venue: document.getElementById("lead-venue").value.trim(),
-    city: document.getElementById("lead-city").value.trim(),
-    serviceRequested: document.getElementById("lead-service-requested").value,
-    guestCount: Number(document.getElementById("lead-guest-count").value || 0),
-    budget: Number(document.getElementById("lead-budget").value || 0),
-    source: document.getElementById("lead-source").value,
-    status: document.getElementById("lead-status").value,
-    paymentStatus: document.getElementById("lead-payment-status").value,
-    calendarChecked: document.getElementById("lead-calendar-checked").value,
-    notes: document.getElementById("lead-notes").value.trim(),
-    createdAt: existingLead?.createdAt || new Date().toISOString().slice(0, 10)
-  };
-
-  upsertItem(state.leads, lead);
-  closeModal("lead-modal");
-  renderAll();
-}
-
-function handleFollowupSubmit(event) {
-  event.preventDefault();
-  const followup = {
-    id: document.getElementById("followup-id").value || crypto.randomUUID(),
-    leadId: document.getElementById("followup-lead-id").value,
-    dueDate: document.getElementById("followup-due-date").value,
-    channel: document.getElementById("followup-channel").value,
-    status: document.getElementById("followup-status").value,
-    notes: document.getElementById("followup-notes").value.trim()
-  };
-  upsertItem(state.followups, followup);
-  closeModal("followup-modal");
-  renderAll();
-}
-
-function handlePaymentSubmit(event) {
-  event.preventDefault();
-  const payment = {
-    id: document.getElementById("payment-id").value || crypto.randomUUID(),
-    leadId: document.getElementById("payment-lead-id").value,
-    type: document.getElementById("payment-type").value,
-    amount: Number(document.getElementById("payment-amount").value || 0),
-    status: document.getElementById("payment-status").value,
-    link: document.getElementById("payment-link").value.trim(),
-    notes: document.getElementById("payment-notes").value.trim()
-  };
-  upsertItem(state.payments, payment);
-  const lead = state.leads.find((item) => item.id === payment.leadId);
-  if (lead && payment.status === "Paid") {
-    lead.paymentStatus = "Paid";
-  }
-  closeModal("payment-modal");
-  renderAll();
-}
-
-function handleCampaignSubmit(event) {
-  event.preventDefault();
-  const campaign = {
-    id: document.getElementById("campaign-id").value || crypto.randomUUID(),
-    title: document.getElementById("campaign-title").value.trim(),
-    channel: document.getElementById("campaign-channel").value,
-    status: document.getElementById("campaign-status").value,
-    priority: document.getElementById("campaign-priority").value,
-    notes: document.getElementById("campaign-notes").value.trim()
-  };
-  upsertItem(state.campaigns, campaign);
-  closeModal("campaign-modal");
-  renderAll();
-}
-
 function openLeadModal(leadId = "") {
   document.getElementById("lead-form").reset();
   document.getElementById("lead-id").value = "";
@@ -660,7 +985,9 @@ function openLeadModal(leadId = "") {
 
   if (leadId) {
     const lead = getLeadById(leadId);
-    if (!lead) return;
+    if (!lead) {
+      return;
+    }
     document.getElementById("lead-id").value = lead.id;
     document.getElementById("lead-client-name").value = lead.clientName;
     document.getElementById("lead-phone").value = lead.phone;
@@ -670,8 +997,8 @@ function openLeadModal(leadId = "") {
     document.getElementById("lead-venue").value = lead.venue;
     document.getElementById("lead-city").value = lead.city;
     document.getElementById("lead-service-requested").value = lead.serviceRequested;
-    document.getElementById("lead-guest-count").value = lead.guestCount;
-    document.getElementById("lead-budget").value = lead.budget;
+    document.getElementById("lead-guest-count").value = lead.guestCount || "";
+    document.getElementById("lead-budget").value = lead.budget || "";
     document.getElementById("lead-source").value = lead.source;
     document.getElementById("lead-status").value = lead.status;
     document.getElementById("lead-payment-status").value = lead.paymentStatus;
@@ -689,7 +1016,9 @@ function openFollowupModal(followupId = "") {
 
   if (followupId) {
     const followup = state.followups.find((item) => item.id === followupId);
-    if (!followup) return;
+    if (!followup) {
+      return;
+    }
     document.getElementById("followup-id").value = followup.id;
     document.getElementById("followup-lead-id").value = followup.leadId;
     document.getElementById("followup-due-date").value = followup.dueDate;
@@ -708,7 +1037,9 @@ function openPaymentModal(paymentId = "") {
 
   if (paymentId) {
     const payment = state.payments.find((item) => item.id === paymentId);
-    if (!payment) return;
+    if (!payment) {
+      return;
+    }
     document.getElementById("payment-id").value = payment.id;
     document.getElementById("payment-lead-id").value = payment.leadId;
     document.getElementById("payment-type").value = payment.type;
@@ -728,7 +1059,9 @@ function openCampaignModal(campaignId = "") {
 
   if (campaignId) {
     const campaign = state.campaigns.find((item) => item.id === campaignId);
-    if (!campaign) return;
+    if (!campaign) {
+      return;
+    }
     document.getElementById("campaign-id").value = campaign.id;
     document.getElementById("campaign-title").value = campaign.title;
     document.getElementById("campaign-channel").value = campaign.channel;
@@ -742,7 +1075,9 @@ function openCampaignModal(campaignId = "") {
 
 function openLeadDrawer(leadId) {
   const lead = getLeadById(leadId);
-  if (!lead) return;
+  if (!lead) {
+    return;
+  }
 
   const relatedFollowups = state.followups.filter((item) => item.leadId === leadId);
   const relatedPayments = state.payments.filter((item) => item.leadId === leadId);
@@ -751,31 +1086,31 @@ function openLeadDrawer(leadId) {
     <div class="drawer-content">
       <div>
         <p class="panel-kicker">Lead Detail</p>
-        <h2>${lead.clientName}</h2>
-        <p class="card-notes">${lead.notes || "No notes recorded yet."}</p>
+        <h2>${escapeHtml(lead.clientName)}</h2>
+        <p class="card-notes">${escapeHtml(lead.notes || "No notes recorded yet.")}</p>
       </div>
       <div class="drawer-grid">
-        <div><dt>Status</dt><dd>${lead.status}</dd></div>
-        <div><dt>Source</dt><dd>${lead.source}</dd></div>
-        <div><dt>Event type</dt><dd>${lead.eventType}</dd></div>
-        <div><dt>Event date</dt><dd>${formatDate(lead.eventDate)}</dd></div>
-        <div><dt>Service</dt><dd>${lead.serviceRequested}</dd></div>
-        <div><dt>Guests</dt><dd>${lead.guestCount || 0}</dd></div>
-        <div><dt>Venue</dt><dd>${lead.venue || "Pending"}</dd></div>
-        <div><dt>City</dt><dd>${lead.city || "Pending"}</dd></div>
-        <div><dt>Phone</dt><dd>${lead.phone}</dd></div>
-        <div><dt>Email</dt><dd>${lead.email}</dd></div>
-        <div><dt>Budget</dt><dd>${formatCurrency(lead.budget || 0)}</dd></div>
-        <div><dt>Payment</dt><dd>${lead.paymentStatus}</dd></div>
-        <div><dt>Calendar checked</dt><dd>${lead.calendarChecked}</dd></div>
+        <div><dt>Status</dt><dd>${escapeHtml(lead.status)}</dd></div>
+        <div><dt>Source</dt><dd>${escapeHtml(lead.source)}</dd></div>
+        <div><dt>Event type</dt><dd>${escapeHtml(lead.eventType)}</dd></div>
+        <div><dt>Event date</dt><dd>${escapeHtml(formatDate(lead.eventDate))}</dd></div>
+        <div><dt>Service</dt><dd>${escapeHtml(lead.serviceRequested)}</dd></div>
+        <div><dt>Guests</dt><dd>${escapeHtml(String(lead.guestCount || 0))}</dd></div>
+        <div><dt>Venue</dt><dd>${escapeHtml(lead.venue || "Pending")}</dd></div>
+        <div><dt>City</dt><dd>${escapeHtml(lead.city || "Pending")}</dd></div>
+        <div><dt>Phone</dt><dd>${escapeHtml(lead.phone)}</dd></div>
+        <div><dt>Email</dt><dd>${escapeHtml(lead.email)}</dd></div>
+        <div><dt>Budget</dt><dd>${escapeHtml(formatCurrency(lead.budget || 0))}</dd></div>
+        <div><dt>Payment</dt><dd>${escapeHtml(lead.paymentStatus)}</dd></div>
+        <div><dt>Calendar checked</dt><dd>${escapeHtml(lead.calendarChecked)}</dd></div>
       </div>
       <div class="stack-list">
         <div class="stack-item"><strong>Follow-ups</strong><span>${relatedFollowups.length}</span></div>
-        ${relatedFollowups.length ? relatedFollowups.map((item) => `<div class="stack-item"><div><strong>${item.channel}</strong><p>${formatDate(item.dueDate)} · ${item.notes}</p></div><span class="chip chip-muted">${item.status}</span></div>`).join("") : emptyState("No reminders", "No follow-up tasks are attached to this lead.")}
+        ${relatedFollowups.length ? relatedFollowups.map((item) => `<div class="stack-item"><div><strong>${escapeHtml(item.channel)}</strong><p>${escapeHtml(`${formatDate(item.dueDate)} | ${item.notes}`)}</p></div><span class="chip chip-muted">${escapeHtml(item.status)}</span></div>`).join("") : emptyState("No reminders", "No follow-up tasks are attached to this lead.")}
       </div>
       <div class="stack-list">
         <div class="stack-item"><strong>Payments</strong><span>${relatedPayments.length}</span></div>
-        ${relatedPayments.length ? relatedPayments.map((item) => `<div class="stack-item"><div><strong>${item.type}</strong><p>${formatCurrency(item.amount)} · ${item.status}</p></div><a href="${item.link}" target="_blank" rel="noreferrer">Open</a></div>`).join("") : emptyState("No payments", "No Stripe or invoice links are saved yet.")}
+        ${relatedPayments.length ? relatedPayments.map((item) => `<div class="stack-item"><div><strong>${escapeHtml(item.type)}</strong><p>${escapeHtml(`${formatCurrency(item.amount)} | ${item.status}`)}</p></div><a href="${escapeAttribute(item.link)}" target="_blank" rel="noreferrer">Open</a></div>`).join("") : emptyState("No payments", "No Stripe or invoice links are saved yet.")}
       </div>
       <div class="card-actions">
         <button class="button button-secondary" onclick="openLeadModal('${lead.id}'); closeDrawer();">Edit Lead</button>
@@ -803,40 +1138,101 @@ function closeModal(id) {
   }
 }
 
-function deleteLead(id) {
-  if (!confirm("Delete this lead? This also removes its follow-ups and payment tracking.")) return;
-  state.leads = state.leads.filter((lead) => lead.id !== id);
-  state.followups = state.followups.filter((item) => item.leadId !== id);
-  state.payments = state.payments.filter((item) => item.leadId !== id);
-  renderAll();
+async function deleteLead(id) {
+  if (!confirm("Delete this lead? This also removes its follow-ups and payment tracking.")) {
+    return;
+  }
+
+  try {
+    const followupIds = state.followups.filter((item) => item.leadId === id).map((item) => item.id);
+    const paymentIds = state.payments.filter((item) => item.leadId === id).map((item) => item.id);
+
+    for (const followupId of followupIds) {
+      await deleteResource("followups", followupId);
+    }
+    for (const paymentId of paymentIds) {
+      await deleteResource("payments", paymentId);
+    }
+    await deleteResource("leads", id);
+
+    state.leads = state.leads.filter((lead) => lead.id !== id);
+    state.followups = state.followups.filter((item) => item.leadId !== id);
+    state.payments = state.payments.filter((item) => item.leadId !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Lead could not be deleted."));
+  }
 }
 
-function deleteFollowup(id) {
-  if (!confirm("Delete this follow-up reminder?")) return;
-  state.followups = state.followups.filter((item) => item.id !== id);
-  renderAll();
+async function deleteFollowup(id) {
+  if (!confirm("Delete this follow-up reminder?")) {
+    return;
+  }
+
+  try {
+    await deleteResource("followups", id);
+    state.followups = state.followups.filter((item) => item.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Follow-up could not be deleted."));
+  }
 }
 
-function deletePayment(id) {
-  if (!confirm("Delete this payment record?")) return;
-  state.payments = state.payments.filter((item) => item.id !== id);
-  renderAll();
+async function deletePayment(id) {
+  if (!confirm("Delete this payment record?")) {
+    return;
+  }
+
+  try {
+    await deleteResource("payments", id);
+    state.payments = state.payments.filter((item) => item.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Payment could not be deleted."));
+  }
 }
 
-function deleteCampaign(id) {
-  if (!confirm("Delete this campaign item?")) return;
-  state.campaigns = state.campaigns.filter((item) => item.id !== id);
-  renderAll();
+async function deleteCampaign(id) {
+  if (!confirm("Delete this campaign item?")) {
+    return;
+  }
+
+  try {
+    await deleteResource("campaigns", id);
+    state.campaigns = state.campaigns.filter((item) => item.id !== id);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Campaign could not be deleted."));
+  }
 }
 
-function updateLeadStatus(leadId, nextStatus) {
+async function updateLeadStatus(leadId, nextStatus) {
   const lead = getLeadById(leadId);
-  if (!lead) return;
+  if (!lead) {
+    return;
+  }
+
+  const previousStatus = lead.status;
   lead.status = nextStatus;
   if (nextStatus === "Paid") {
     lead.paymentStatus = "Paid";
   }
-  renderAll();
+  lead.updatedAt = todayIso();
+
+  try {
+    const savedLead = await upsertResource("leads", lead);
+    upsertLocalItem(state.leads, savedLead);
+    renderAll();
+  } catch (error) {
+    lead.status = previousStatus;
+    console.error(error);
+    alert(getFriendlyError(error, "Status could not be updated."));
+    renderAll();
+  }
 }
 
 function populateStatusSelects() {
@@ -848,10 +1244,8 @@ function populateStatusSelects() {
 }
 
 function refreshSelectMenus() {
-  const leadOptions = state.leads
-    .sort((a, b) => a.clientName.localeCompare(b.clientName))
-    .map((lead) => `<option value="${lead.id}">${lead.clientName} · ${lead.eventType} · ${formatDate(lead.eventDate)}</option>`)
-    .join("");
+  const sortedLeads = [...state.leads].sort((a, b) => a.clientName.localeCompare(b.clientName));
+  const leadOptions = sortedLeads.map((lead) => `<option value="${lead.id}">${escapeHtml(`${lead.clientName} | ${lead.eventType} | ${formatDate(lead.eventDate)}`)}</option>`).join("");
 
   document.getElementById("followup-lead-id").innerHTML = leadOptions;
   document.getElementById("payment-lead-id").innerHTML = leadOptions;
@@ -878,13 +1272,42 @@ function getLeadById(id) {
   return state.leads.find((lead) => lead.id === id);
 }
 
-function upsertItem(collection, item) {
-  const index = collection.findIndex((entry) => entry.id === item.id);
-  if (index >= 0) {
-    collection[index] = item;
-  } else {
-    collection.unshift(item);
+async function upsertResource(resourceKey, item) {
+  if (authState.isLocalFallback || state.syncMode !== "Supabase live") {
+    return item;
   }
+
+  const config = COLLECTION_CONFIG[resourceKey];
+  const existing = state[resourceKey].some((entry) => entry.id === item.id);
+  const payload = config.toDb(item);
+
+  if (existing) {
+    const rows = await supabaseRest(`/${config.table}?id=eq.${encodeURIComponent(item.id)}`, {
+      method: "PATCH",
+      body: payload,
+      prefer: "return=representation"
+    });
+    return config.fromDb(rows[0] || payload);
+  }
+
+  const rows = await supabaseRest(`/${config.table}`, {
+    method: "POST",
+    body: payload,
+    prefer: "return=representation"
+  });
+  return config.fromDb(rows[0] || payload);
+}
+
+async function deleteResource(resourceKey, id) {
+  if (authState.isLocalFallback || state.syncMode !== "Supabase live") {
+    return;
+  }
+
+  const config = COLLECTION_CONFIG[resourceKey];
+  await supabaseRest(`/${config.table}?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    prefer: "return=minimal"
+  });
 }
 
 function persistAll() {
@@ -896,13 +1319,42 @@ function persistAll() {
 
 function loadData(key, fallback) {
   const raw = localStorage.getItem(key);
-  if (!raw) return structuredClone(fallback);
+  if (!raw) {
+    return structuredClone(fallback);
+  }
+
   try {
     return JSON.parse(raw);
   } catch (error) {
     console.error(`Failed to parse ${key}`, error);
     return structuredClone(fallback);
   }
+}
+
+function loadJson(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error(`Failed to parse ${key}`, error);
+    return null;
+  }
+}
+
+function saveSession(session) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+}
+
+function clearSavedSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+function needsRefresh(session) {
+  return !session?.expiresAt || Date.now() >= session.expiresAt;
 }
 
 function statusChip(status) {
@@ -913,15 +1365,26 @@ function statusChip(status) {
       : status === "Missing Info" || status === "Follow-Up Needed" || status === "Deposit Pending"
         ? "attention"
         : "new";
-  return `<span class="chip" data-tone="${tone}">${status}</span>`;
+  return `<span class="chip" data-tone="${tone}">${escapeHtml(status)}</span>`;
 }
 
 function formatDate(value) {
-  if (!value) return "Pending";
-  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+  if (!value) {
+    return "Pending";
+  }
+
+  const normalized = value.length > 10 ? value.slice(0, 10) : value;
+  return new Date(`${normalized}T12:00:00`).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
+  });
+}
+
+function formatMonthLabel(isoMonth) {
+  const [year, month] = isoMonth.split("-");
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("en-US", {
+    month: "short"
   });
 }
 
@@ -934,7 +1397,358 @@ function formatCurrency(value) {
 }
 
 function emptyState(title, copy) {
-  return `<div class="empty-state"><strong>${title}</strong><p>${copy}</p></div>`;
+  return `<div class="empty-state"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(copy)}</p></div>`;
+}
+
+function sortCollections() {
+  REMOTE_COLLECTIONS.forEach((resourceKey) => {
+    state[resourceKey] = COLLECTION_CONFIG[resourceKey].sort([...state[resourceKey]]);
+  });
+}
+
+function upsertLocalItem(collection, item) {
+  const index = collection.findIndex((entry) => entry.id === item.id);
+  if (index >= 0) {
+    collection[index] = item;
+  } else {
+    collection.unshift(item);
+  }
+}
+
+function compareDates(a, b) {
+  const first = a ? new Date(a).getTime() : 0;
+  const second = b ? new Date(b).getTime() : 0;
+  if (first === second) {
+    return 0;
+  }
+  return first > second ? 1 : -1;
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function updateConnectionIndicators() {
+  syncModeLabel.textContent = state.syncDetail;
+  if (state.syncMode === "Supabase live") {
+    supabaseStatusChip.textContent = "Tables live";
+  } else if (authState.isLocalFallback) {
+    supabaseStatusChip.textContent = "Local demo";
+  } else if (authState.user) {
+    supabaseStatusChip.textContent = "Auth connected";
+  } else {
+    supabaseStatusChip.textContent = "Sign in required";
+  }
+}
+
+function showSetupBanner(message, tone = "info") {
+  setupBanner.hidden = false;
+  setupBanner.dataset.tone = tone;
+  setupBanner.innerHTML = `<strong>${tone === "warning" ? "Setup still needed" : "CRM note"}</strong><span>${escapeHtml(message)}</span>`;
+}
+
+function hideSetupBanner() {
+  setupBanner.hidden = true;
+  delete setupBanner.dataset.tone;
+  setupBanner.innerHTML = "";
+}
+
+function showAuthError(message) {
+  if (!message) {
+    authError.hidden = true;
+    authError.textContent = "";
+    return;
+  }
+
+  authError.hidden = false;
+  authError.textContent = message;
+}
+
+function getAuthRedirectUrl() {
+  return `${window.location.origin}/admin`;
+}
+
+function isLocalhost() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
+function isAllowedAdminEmail(email) {
+  return ALLOWED_ADMIN_EMAILS.includes((email || "").trim().toLowerCase());
+}
+
+function clearLocationHash() {
+  history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+}
+
+async function signInWithPassword(email, password) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ email, password })
+  });
+
+  const payload = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(payload?.msg || payload?.message || "Supabase sign-in failed.");
+  }
+  return payload;
+}
+
+async function refreshSession(refreshToken) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
+
+  const payload = await parseResponse(response);
+  if (!response.ok || !payload?.access_token) {
+    return false;
+  }
+
+  authState.session = {
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token,
+    tokenType: payload.token_type || "bearer",
+    expiresAt: Date.now() + Math.max((payload.expires_in || 3600) - 60, 60) * 1000
+  };
+  saveSession(authState.session);
+  return true;
+}
+
+async function fetchCurrentUser(accessToken) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+async function clearRemoteSession() {
+  try {
+    if (authState.session?.accessToken) {
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${authState.session.accessToken}`
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Supabase logout failed", error);
+  }
+
+  clearSavedSession();
+}
+
+async function supabaseRest(path, options = {}) {
+  if (!authState.session?.accessToken) {
+    throw new Error("Supabase session missing.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    method: options.method || "GET",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${authState.session.accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: options.prefer || "return=representation"
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+
+  const payload = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.hint || "Supabase data request failed.");
+  }
+  return payload;
+}
+
+async function parseResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function getFriendlyError(error, fallback) {
+  const message = error?.message || "";
+  if (message.includes("Invalid login credentials")) {
+    return "Supabase did not accept that email or password yet. Create the admin user in Supabase Auth first, then try again.";
+  }
+  if (message.includes("Email not confirmed")) {
+    return "This admin user still needs email confirmation in Supabase Auth.";
+  }
+  if (message.includes("relation") && message.includes("does not exist")) {
+    return "The CRM tables are not created yet in Supabase. Run database/supabase/schema.sql in the SQL Editor first.";
+  }
+  return message || fallback;
+}
+
+function mapLeadToDb(lead) {
+  return {
+    id: lead.id,
+    client_name: lead.clientName,
+    phone: lead.phone,
+    email: lead.email,
+    event_type: lead.eventType,
+    event_date: lead.eventDate || null,
+    venue: lead.venue || null,
+    city: lead.city || null,
+    service_requested: lead.serviceRequested,
+    guest_count: lead.guestCount || 0,
+    budget: lead.budget || 0,
+    notes: lead.notes || null,
+    status: lead.status,
+    payment_status: lead.paymentStatus,
+    calendar_checked: lead.calendarChecked === "Yes",
+    source: lead.source,
+    created_at: lead.createdAt || todayIso(),
+    updated_at: todayIso()
+  };
+}
+
+function mapLeadFromDb(row) {
+  return {
+    id: row.id,
+    clientName: row.client_name || "",
+    phone: row.phone || "",
+    email: row.email || "",
+    eventType: row.event_type || "",
+    eventDate: normalizeDateValue(row.event_date),
+    venue: row.venue || "",
+    city: row.city || "",
+    serviceRequested: row.service_requested || "Luxury DSLR Digital Booth",
+    guestCount: Number(row.guest_count || 0),
+    budget: Number(row.budget || 0),
+    notes: row.notes || "",
+    status: row.status || "New Lead",
+    paymentStatus: row.payment_status || "Not Requested",
+    calendarChecked: row.calendar_checked ? "Yes" : "No",
+    source: row.source || "Website",
+    createdAt: normalizeDateValue(row.created_at) || todayIso(),
+    updatedAt: normalizeDateValue(row.updated_at) || todayIso()
+  };
+}
+
+function mapFollowupToDb(followup) {
+  return {
+    id: followup.id,
+    lead_id: followup.leadId,
+    due_date: followup.dueDate || null,
+    channel: followup.channel,
+    status: followup.status,
+    notes: followup.notes || null,
+    created_at: followup.createdAt || todayIso(),
+    updated_at: todayIso()
+  };
+}
+
+function mapFollowupFromDb(row) {
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    dueDate: normalizeDateValue(row.due_date),
+    channel: row.channel || "Email",
+    status: row.status || "Open",
+    notes: row.notes || "",
+    createdAt: normalizeDateValue(row.created_at) || todayIso(),
+    updatedAt: normalizeDateValue(row.updated_at) || todayIso()
+  };
+}
+
+function mapPaymentToDb(payment) {
+  return {
+    id: payment.id,
+    lead_id: payment.leadId,
+    type: payment.type,
+    amount: payment.amount || 0,
+    status: payment.status,
+    link: payment.link || null,
+    notes: payment.notes || null,
+    created_at: payment.createdAt || todayIso(),
+    updated_at: todayIso()
+  };
+}
+
+function mapPaymentFromDb(row) {
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    type: row.type || "Stripe Payment Link",
+    amount: Number(row.amount || 0),
+    status: row.status || "Pending",
+    link: row.link || "",
+    notes: row.notes || "",
+    createdAt: normalizeDateValue(row.created_at) || todayIso(),
+    updatedAt: normalizeDateValue(row.updated_at) || todayIso()
+  };
+}
+
+function mapCampaignToDb(campaign) {
+  return {
+    id: campaign.id,
+    title: campaign.title,
+    channel: campaign.channel,
+    status: campaign.status,
+    priority: campaign.priority,
+    notes: campaign.notes || null,
+    created_at: campaign.createdAt || todayIso(),
+    updated_at: todayIso()
+  };
+}
+
+function mapCampaignFromDb(row) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    channel: row.channel || "Instagram",
+    status: row.status || "Idea",
+    priority: row.priority || "Medium",
+    notes: row.notes || "",
+    createdAt: normalizeDateValue(row.created_at) || todayIso(),
+    updatedAt: normalizeDateValue(row.updated_at) || todayIso()
+  };
+}
+
+function normalizeDateValue(value) {
+  if (!value) {
+    return "";
+  }
+  return String(value).slice(0, 10);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
 }
 
 window.openLeadModal = openLeadModal;

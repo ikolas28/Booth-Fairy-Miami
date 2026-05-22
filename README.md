@@ -87,6 +87,20 @@ Preferred admin route:
 - Tidio
 - Instagram
 
+## CRM Auth And Data
+
+The admin CRM at `/admin` now supports:
+
+- Supabase email/password sign-in
+- Google OAuth button wiring
+- approved-admin email gating for `boothfairyllc@gmail.com`
+- local cached fallback if the Supabase schema is not installed yet
+
+Supabase schema files now live in:
+
+- [database/supabase/schema.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\schema.sql)
+- [database/supabase/README.md](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\README.md)
+
 ## Business Rules Summary
 
 - Booth Fairy Miami offers DSLR photo booth services

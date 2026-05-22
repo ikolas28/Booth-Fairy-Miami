@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -13,31 +13,44 @@
 <body>
   <div class="admin-auth-shell" id="auth-shell">
     <div class="auth-panel">
-      <div class="auth-brand">
-        <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="auth-logo" />
-        <span class="auth-badge">Private Admin CRM</span>
-      </div>
       <div class="auth-copy">
-        <h1>Manage leads, bookings, follow-ups, payments, and marketing in one place.</h1>
+        <div class="auth-brand">
+          <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="auth-logo" />
+          <span class="auth-badge">Private Admin CRM</span>
+        </div>
+        <h1>Run Booth Fairy Miami from one elegant admin workspace.</h1>
         <p>
-          This is an admin-only placeholder access layer for Booth Fairy Miami. It keeps the CRM separated from the public website while we prepare for future Supabase, Stripe, Gmail, Tidio, Instagram, and calendar integrations.
+          Sign in with your approved admin email, or continue with Google after the provider is enabled in Supabase. This CRM stays separate from the public website and is ready for future Gmail, Tidio, Stripe, Instagram, and calendar automations.
         </p>
+        <div class="auth-stack">
+          <div class="auth-feature">
+            <strong>What this protects</strong>
+            <span>Leads, bookings, reminders, payment links, and campaign planning stay inside the admin route.</span>
+          </div>
+          <div class="auth-feature">
+            <strong>What still needs dashboard setup</strong>
+            <span>Create your admin user in Supabase, run the SQL schema, and enable Google OAuth when you are ready.</span>
+          </div>
+        </div>
       </div>
       <form class="auth-form" id="login-form">
         <label>
           Admin Email
-          <input type="email" id="login-email" placeholder="admin@boothfairymiami.com" required />
+          <input type="email" id="login-email" placeholder="boothfairyllc@gmail.com" required />
         </label>
         <label>
           Password
           <input type="password" id="login-password" placeholder="Enter admin password" required />
         </label>
-        <button type="submit" class="button button-primary button-block">Access Admin CRM</button>
+        <button type="submit" class="button button-primary button-block" id="email-login-button">Sign In With Email</button>
+        <button type="button" class="button button-secondary button-block" id="google-login-button">Continue With Google</button>
         <p class="auth-hint">
-          Placeholder login for now. Replace with Supabase Auth or another real server-side auth provider before storing live customer data.
+          Recommended production setup: disable public signups in Supabase and create admin users manually.
         </p>
-        <p class="auth-demo">Demo login: <strong>admin@boothfairymiami.com</strong> / <strong>BoothFairyAdmin!</strong></p>
-        <p class="auth-error" id="auth-error" hidden>That login did not match the current admin placeholder.</p>
+        <p class="auth-local-note" id="auth-local-note" hidden>
+          Local demo fallback is available on localhost only: <strong>admin@boothfairymiami.com</strong> / <strong>BoothFairyAdmin!</strong>
+        </p>
+        <p class="auth-error" id="auth-error" hidden></p>
       </form>
     </div>
   </div>
@@ -48,6 +61,10 @@
         <div class="sidebar-brand">
           <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="sidebar-logo" />
           <span class="sidebar-badge">Admin</span>
+        </div>
+        <div class="sidebar-user">
+          <strong id="user-email">Signed in</strong>
+          <span id="sync-mode-label">Syncing...</span>
         </div>
         <nav class="sidebar-nav" aria-label="CRM Sections">
           <button class="nav-item active" data-section="dashboard">Dashboard</button>
@@ -86,6 +103,8 @@
           <button class="button button-primary" id="quick-add-lead">Add Lead</button>
         </div>
       </header>
+
+      <div class="setup-banner" id="setup-banner" hidden></div>
 
       <section class="section active" data-section="dashboard">
         <div class="kpi-grid" id="kpi-grid"></div>
@@ -142,7 +161,7 @@
               </div>
             </div>
             <div class="integration-list">
-              <div class="integration-item"><span>Supabase</span><span class="chip chip-muted">Schema ready</span></div>
+              <div class="integration-item"><span>Supabase</span><span class="chip chip-muted" id="supabase-status-chip">Checking...</span></div>
               <div class="integration-item"><span>Stripe</span><span class="chip chip-muted">Payment links next</span></div>
               <div class="integration-item"><span>Gmail</span><span class="chip chip-muted">Placeholder API module</span></div>
               <div class="integration-item"><span>Tidio</span><span class="chip chip-muted">Widget live, lead sync pending</span></div>
@@ -468,4 +487,3 @@
   <script src="./script.js"></script>
 </body>
 </html>
-

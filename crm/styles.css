@@ -135,9 +135,11 @@ body.modal-open {
 .auth-copy p,
 .auth-hint,
 .auth-demo,
+.auth-local-note,
 .toolbar-copy p,
 .source-header p,
 .rule-card li,
+.sidebar-user span,
 .integration-item,
 .stack-item p,
 .card-meta,
@@ -155,6 +157,25 @@ body.modal-open {
   background: var(--surface-strong);
   border-radius: 28px;
   box-shadow: var(--shadow-soft);
+}
+
+.auth-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-feature {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(126, 91, 146, 0.1);
+}
+
+.auth-feature strong,
+.sidebar-user strong {
+  font-size: 0.95rem;
 }
 
 label {
@@ -224,6 +245,12 @@ textarea {
 .auth-error {
   color: var(--red);
   font-weight: 700;
+}
+
+.sidebar-user {
+  margin-top: 18px;
+  display: grid;
+  gap: 4px;
 }
 
 .app-shell {
@@ -297,6 +324,37 @@ textarea {
 
 .main-panel {
   padding: 28px;
+}
+
+.setup-banner {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 91, 146, 0.12);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow-soft);
+}
+
+.setup-banner strong {
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.setup-banner span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.setup-banner[data-tone="warning"] {
+  border-color: rgba(221, 147, 69, 0.3);
+  background: rgba(255, 245, 232, 0.92);
+}
+
+.setup-banner[data-tone="warning"] strong {
+  color: #9b621f;
 }
 
 .topbar {
