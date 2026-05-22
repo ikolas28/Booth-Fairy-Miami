@@ -259,6 +259,7 @@ const authLocalNote = document.getElementById("auth-local-note");
 const userEmailLabel = document.getElementById("user-email");
 const syncModeLabel = document.getElementById("sync-mode-label");
 const supabaseStatusChip = document.getElementById("supabase-status-chip");
+const tidioStatusChip = document.getElementById("tidio-status-chip");
 const setupBanner = document.getElementById("setup-banner");
 const emailLoginButton = document.getElementById("email-login-button");
 
@@ -931,7 +932,10 @@ function renderSourceLeads(source, container) {
   const leads = state.leads.filter((lead) => lead.source === source);
 
   if (!leads.length) {
-    container.innerHTML = emptyState(`No ${source} leads yet`, `Once ${source} sync is connected, this section can auto-populate.`);
+    const emptyCopy = source === "Tidio"
+      ? "New chat inquiries will appear here as soon as the Tidio flow posts them into the CRM."
+      : `Once ${source} sync is connected, this section can auto-populate.`;
+    container.innerHTML = emptyState(`No ${source} leads yet`, emptyCopy);
     return;
   }
 
@@ -1455,6 +1459,17 @@ function updateConnectionIndicators() {
     supabaseStatusChip.textContent = "Auth connected";
   } else {
     supabaseStatusChip.textContent = "Sign in required";
+  }
+
+  const tidioLeadCount = state.leads.filter((lead) => lead.source === "Tidio").length;
+  if (state.syncMode === "Supabase live" && tidioLeadCount > 0) {
+    tidioStatusChip.textContent = `${tidioLeadCount} live lead${tidioLeadCount === 1 ? "" : "s"} synced`;
+  } else if (state.syncMode === "Supabase live") {
+    tidioStatusChip.textContent = "Webhook live";
+  } else if (authState.user) {
+    tidioStatusChip.textContent = "Auth ready";
+  } else {
+    tidioStatusChip.textContent = "Sign in to verify";
   }
 }
 
