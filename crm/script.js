@@ -268,6 +268,8 @@ init().catch((error) => {
 });
 
 async function init() {
+  clearLegacyAuthStorage();
+  resetUiState();
   populateStatusSelects();
   attachEventListeners();
   showLocalDevNote();
@@ -281,6 +283,8 @@ async function init() {
 
   const restored = await restoreSession();
   if (!restored) {
+    authShell.hidden = false;
+    appShell.hidden = true;
     return;
   }
 
@@ -496,6 +500,7 @@ async function handleLogout() {
   authState.user = null;
   authState.isLocalFallback = false;
   clearSavedSession();
+  resetUiState();
   appShell.hidden = true;
   authShell.hidden = false;
   hideSetupBanner();
@@ -505,6 +510,7 @@ async function handleLogout() {
 }
 
 function unlockApp() {
+  resetUiState();
   authShell.hidden = true;
   appShell.hidden = false;
   userEmailLabel.textContent = authState.user?.email || "Signed in";
@@ -1332,7 +1338,7 @@ function loadData(key, fallback) {
 }
 
 function loadJson(key) {
-  const raw = localStorage.getItem(key);
+  const raw = sessionStorage.getItem(key);
   if (!raw) {
     return null;
   }
@@ -1346,11 +1352,22 @@ function loadJson(key) {
 }
 
 function saveSession(session) {
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
 }
 
 function clearSavedSession() {
+  sessionStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+function clearLegacyAuthStorage() {
   localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+function resetUiState() {
+  document.querySelectorAll(".modal, .drawer").forEach((element) => {
+    element.hidden = true;
+  });
+  document.body.classList.remove("modal-open");
 }
 
 function needsRefresh(session) {
