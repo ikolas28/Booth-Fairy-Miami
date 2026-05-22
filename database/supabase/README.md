@@ -12,6 +12,8 @@ This folder now contains the first real Supabase setup for the Booth Fairy Miami
 - `followups`
 - `payments`
 - `campaigns`
+- `gmail_connections`
+- `gmail_imports`
 - `updated_at` triggers
 - RLS policies that only allow the approved admin email to read and write CRM data
 

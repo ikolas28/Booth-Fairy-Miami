@@ -12,6 +12,7 @@ Current implementation:
 - localStorage cache for offline/dev fallback
 - Supabase-backed records for leads, bookings, follow-ups, payments, and campaigns once the schema is installed
 - source-specific lead views for Gmail, Tidio, and Instagram
+- Gmail connect/sync controls inside `/admin`
 - data structure prepared for future Supabase and API integrations
 
 Important:

@@ -163,7 +163,7 @@
             <div class="integration-list">
               <div class="integration-item"><span>Supabase</span><span class="chip chip-muted" id="supabase-status-chip">Checking...</span></div>
               <div class="integration-item"><span>Stripe</span><span class="chip chip-muted">Payment links next</span></div>
-              <div class="integration-item"><span>Gmail</span><span class="chip chip-muted">Placeholder API module</span></div>
+              <div class="integration-item"><span>Gmail</span><span class="chip chip-muted" id="gmail-status-chip">Checking...</span></div>
               <div class="integration-item"><span>Tidio</span><span class="chip chip-muted" id="tidio-status-chip">Checking...</span></div>
               <div class="integration-item"><span>Instagram</span><span class="chip chip-muted">Lead capture prep</span></div>
               <div class="integration-item"><span>Calendar</span><span class="chip chip-muted">Availability check pending</span></div>
@@ -254,9 +254,17 @@
       </section>
 
       <section class="section" data-section="gmail">
-        <div class="source-header">
-          <h2>Gmail Leads</h2>
-          <p>Placeholder list for future Gmail inbox sync and draft reply workflows.</p>
+        <div class="source-header source-header-split">
+          <div>
+            <h2>Gmail Leads</h2>
+            <p id="gmail-section-copy">Connect the Booth Fairy Gmail inbox and sync labeled inquiries into the CRM.</p>
+            <p class="section-note" id="gmail-status-note">Checking Gmail connection...</p>
+          </div>
+          <div class="source-actions">
+            <button class="button button-secondary" id="gmail-connect-button">Connect Gmail</button>
+            <button class="button button-secondary" id="gmail-sync-button">Sync Gmail Leads</button>
+            <button class="button button-secondary" id="gmail-disconnect-button" hidden>Disconnect</button>
+          </div>
         </div>
         <div class="source-grid" id="gmail-leads"></div>
       </section>

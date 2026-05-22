@@ -105,6 +105,28 @@ create table if not exists public.campaigns (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.gmail_connections (
+  id text primary key,
+  connected_email text not null,
+  access_token text not null,
+  refresh_token text not null,
+  token_type text,
+  scope text,
+  expires_at timestamptz,
+  connected_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.gmail_imports (
+  id uuid primary key default gen_random_uuid(),
+  gmail_message_id text not null unique,
+  gmail_thread_id text,
+  lead_id uuid references public.leads(id) on delete set null,
+  subject text,
+  from_email text,
+  imported_at timestamptz not null default timezone('utc', now())
+);
+
 create index if not exists leads_event_date_idx on public.leads (event_date);
 create index if not exists leads_status_idx on public.leads (status);
 create index if not exists leads_source_idx on public.leads (source);
@@ -112,6 +134,7 @@ create index if not exists followups_lead_id_idx on public.followups (lead_id);
 create index if not exists followups_due_date_idx on public.followups (due_date);
 create index if not exists payments_lead_id_idx on public.payments (lead_id);
 create index if not exists campaigns_status_idx on public.campaigns (status);
+create index if not exists gmail_imports_imported_at_idx on public.gmail_imports (imported_at);
 
 drop trigger if exists set_leads_updated_at on public.leads;
 create trigger set_leads_updated_at
@@ -134,6 +157,12 @@ execute function public.set_updated_at();
 drop trigger if exists set_campaigns_updated_at on public.campaigns;
 create trigger set_campaigns_updated_at
 before update on public.campaigns
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_gmail_connections_updated_at on public.gmail_connections;
+create trigger set_gmail_connections_updated_at
+before update on public.gmail_connections
 for each row
 execute function public.set_updated_at();
 

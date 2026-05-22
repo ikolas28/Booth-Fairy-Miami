@@ -237,7 +237,17 @@ const state = {
   leadSearch: "",
   leadStatusFilter: "all",
   syncMode: "Local cache",
-  syncDetail: "Sign in to sync your CRM."
+  syncDetail: "Sign in to sync your CRM.",
+  gmail: {
+    configured: false,
+    connected: false,
+    connectedEmail: "",
+    syncQuery: "",
+    allowedMailbox: "info@boothfairymiami.com",
+    lastUpdatedAt: "",
+    lastSyncSummary: ""
+  },
+  pendingBanner: null
 };
 
 const authState = {
@@ -259,9 +269,15 @@ const authLocalNote = document.getElementById("auth-local-note");
 const userEmailLabel = document.getElementById("user-email");
 const syncModeLabel = document.getElementById("sync-mode-label");
 const supabaseStatusChip = document.getElementById("supabase-status-chip");
+const gmailStatusChip = document.getElementById("gmail-status-chip");
 const tidioStatusChip = document.getElementById("tidio-status-chip");
 const setupBanner = document.getElementById("setup-banner");
 const emailLoginButton = document.getElementById("email-login-button");
+const gmailConnectButton = document.getElementById("gmail-connect-button");
+const gmailSyncButton = document.getElementById("gmail-sync-button");
+const gmailDisconnectButton = document.getElementById("gmail-disconnect-button");
+const gmailStatusNote = document.getElementById("gmail-status-note");
+const gmailSectionCopy = document.getElementById("gmail-section-copy");
 
 init().catch((error) => {
   console.error("CRM init failed", error);
@@ -274,8 +290,11 @@ async function init() {
   populateStatusSelects();
   attachEventListeners();
   showLocalDevNote();
+  await refreshGmailStatus();
   updateConnectionIndicators();
   renderAll();
+
+  handleGmailQueryReturn();
 
   const oauthState = handleOAuthReturn();
   if (oauthState.error) {
@@ -286,17 +305,22 @@ async function init() {
   if (!restored) {
     authShell.hidden = false;
     appShell.hidden = true;
+    applyPendingBanner();
     return;
   }
 
   unlockApp();
   await hydrateData();
+  applyPendingBanner();
 }
 
 function attachEventListeners() {
   loginForm.addEventListener("submit", handleLogin);
   logoutButton.addEventListener("click", handleLogout);
   googleLoginButton.addEventListener("click", handleGoogleLogin);
+  gmailConnectButton.addEventListener("click", handleGmailConnect);
+  gmailSyncButton.addEventListener("click", handleGmailSync);
+  gmailDisconnectButton.addEventListener("click", handleGmailDisconnect);
 
   navButtons.forEach((button) => {
     button.addEventListener("click", () => setSection(button.dataset.section));
@@ -346,6 +370,37 @@ function attachEventListeners() {
 
 function showLocalDevNote() {
   authLocalNote.hidden = !isLocalhost();
+}
+
+function handleGmailQueryReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get("gmail_connected");
+  const error = params.get("gmail_error");
+
+  if (connected === "1") {
+    state.pendingBanner = {
+      message: "Gmail connected successfully. You can sync labeled inbox leads into the CRM now.",
+      tone: "success"
+    };
+  } else if (error) {
+    state.pendingBanner = {
+      message: `Gmail connection issue: ${error}`,
+      tone: "warning"
+    };
+  }
+
+  if (connected || error) {
+    history.replaceState(null, "", window.location.pathname);
+  }
+}
+
+function applyPendingBanner() {
+  if (!state.pendingBanner) {
+    return;
+  }
+
+  showSetupBanner(state.pendingBanner.message, state.pendingBanner.tone);
+  state.pendingBanner = null;
 }
 
 function handleOAuthReturn() {
@@ -492,6 +547,77 @@ function handleGoogleLogin() {
   window.location.href = url;
 }
 
+function handleGmailConnect() {
+  window.location.href = "/api/gmail/connect";
+}
+
+async function handleGmailSync() {
+  if (!authState.session?.accessToken) {
+    showSetupBanner("Sign in to the CRM before syncing Gmail leads.", "warning");
+    return;
+  }
+
+  gmailSyncButton.disabled = true;
+  gmailSyncButton.textContent = "Syncing...";
+
+  try {
+    const response = await fetch("/api/gmail/sync", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authState.session.accessToken}`
+      }
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Gmail sync could not be completed.");
+    }
+
+    state.gmail.lastSyncSummary = `Imported ${payload.importedCount} new lead${payload.importedCount === 1 ? "" : "s"} from ${payload.scannedCount} Gmail message${payload.scannedCount === 1 ? "" : "s"}.`;
+    showSetupBanner(state.gmail.lastSyncSummary, "success");
+    await refreshGmailStatus();
+    await hydrateData();
+    setSection("gmail");
+  } catch (error) {
+    showSetupBanner(`Gmail sync issue: ${getFriendlyError(error, "Could not sync Gmail leads.")}`, "warning");
+  } finally {
+    gmailSyncButton.disabled = false;
+    gmailSyncButton.textContent = "Sync Gmail Leads";
+  }
+}
+
+async function handleGmailDisconnect() {
+  if (!authState.session?.accessToken) {
+    showSetupBanner("Sign in to the CRM before disconnecting Gmail.", "warning");
+    return;
+  }
+
+  gmailDisconnectButton.disabled = true;
+  gmailDisconnectButton.textContent = "Disconnecting...";
+
+  try {
+    const response = await fetch("/api/gmail/disconnect", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authState.session.accessToken}`
+      }
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not disconnect Gmail.");
+    }
+
+    state.gmail.lastSyncSummary = "";
+    showSetupBanner("Gmail has been disconnected from the CRM.", "info");
+    await refreshGmailStatus();
+    renderAll();
+  } catch (error) {
+    showSetupBanner(`Gmail disconnect issue: ${getFriendlyError(error, "Could not disconnect Gmail.")}`, "warning");
+  } finally {
+    gmailDisconnectButton.disabled = false;
+    gmailDisconnectButton.textContent = "Disconnect";
+  }
+}
+
 async function handleLogout() {
   if (!authState.isLocalFallback) {
     await clearRemoteSession();
@@ -522,6 +648,7 @@ async function hydrateData() {
     state.syncMode = "Localhost demo";
     state.syncDetail = "Local-only records. Supabase tables are bypassed in this session.";
     showSetupBanner("Localhost demo mode is active. Supabase sign-in is still available, but this session is intentionally local-only.", "info");
+    await refreshGmailStatus();
     updateConnectionIndicators();
     renderAll();
     return;
@@ -532,8 +659,36 @@ async function hydrateData() {
     hideSetupBanner();
   }
 
+  await refreshGmailStatus();
   updateConnectionIndicators();
   renderAll();
+}
+
+async function refreshGmailStatus() {
+  try {
+    const response = await fetch("/api/gmail/status");
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not read Gmail status.");
+    }
+
+    state.gmail = {
+      ...state.gmail,
+      configured: Boolean(payload.configured),
+      connected: Boolean(payload.connected),
+      connectedEmail: payload.connectedEmail || "",
+      syncQuery: payload.syncQuery || "",
+      allowedMailbox: payload.allowedMailbox || state.gmail.allowedMailbox,
+      lastUpdatedAt: payload.lastUpdatedAt || ""
+    };
+  } catch (error) {
+    console.error("Gmail status check failed", error);
+    state.gmail = {
+      ...state.gmail,
+      configured: false,
+      connected: false
+    };
+  }
 }
 
 async function loadRemoteCollections() {
@@ -728,6 +883,7 @@ function renderAll() {
   refreshSelectMenus();
   persistAll();
   updateConnectionIndicators();
+  updateGmailSection();
 }
 
 function renderKpis() {
@@ -934,7 +1090,9 @@ function renderSourceLeads(source, container) {
   if (!leads.length) {
     const emptyCopy = source === "Tidio"
       ? "New chat inquiries will appear here as soon as the Tidio flow posts them into the CRM."
-      : `Once ${source} sync is connected, this section can auto-populate.`;
+      : source === "Gmail"
+        ? "Once Gmail is connected and synced, labeled inbox inquiries will appear here."
+        : `Once ${source} sync is connected, this section can auto-populate.`;
     container.innerHTML = emptyState(`No ${source} leads yet`, emptyCopy);
     return;
   }
@@ -1461,6 +1619,14 @@ function updateConnectionIndicators() {
     supabaseStatusChip.textContent = "Sign in required";
   }
 
+  if (!state.gmail.configured) {
+    gmailStatusChip.textContent = "OAuth setup needed";
+  } else if (state.gmail.connected) {
+    gmailStatusChip.textContent = `Connected: ${state.gmail.connectedEmail}`;
+  } else {
+    gmailStatusChip.textContent = "Ready to connect";
+  }
+
   const tidioLeadCount = state.leads.filter((lead) => lead.source === "Tidio").length;
   if (state.syncMode === "Supabase live" && tidioLeadCount > 0) {
     tidioStatusChip.textContent = `${tidioLeadCount} live lead${tidioLeadCount === 1 ? "" : "s"} synced`;
@@ -1471,6 +1637,27 @@ function updateConnectionIndicators() {
   } else {
     tidioStatusChip.textContent = "Sign in to verify";
   }
+}
+
+function updateGmailSection() {
+  gmailConnectButton.hidden = state.gmail.connected;
+  gmailDisconnectButton.hidden = !state.gmail.connected;
+  gmailSyncButton.disabled = !state.gmail.connected || !authState.session?.accessToken;
+
+  if (!state.gmail.configured) {
+    gmailSectionCopy.textContent = "Add Google OAuth credentials in Vercel, then connect info@boothfairymiami.com to start syncing inbox leads.";
+    gmailStatusNote.textContent = "Gmail API credentials are not configured in Vercel yet.";
+    return;
+  }
+
+  if (state.gmail.connected) {
+    gmailSectionCopy.textContent = "The CRM can now import labeled Gmail inquiries from the connected Booth Fairy inbox.";
+    gmailStatusNote.textContent = state.gmail.lastSyncSummary || `Connected to ${state.gmail.connectedEmail}. Sync query: ${state.gmail.syncQuery}`;
+    return;
+  }
+
+  gmailSectionCopy.textContent = `Connect ${state.gmail.allowedMailbox} and sync only the inbox leads you label for the CRM.`;
+  gmailStatusNote.textContent = `Ready to connect. Current sync query: ${state.gmail.syncQuery}`;
 }
 
 function showSetupBanner(message, tone = "info") {
