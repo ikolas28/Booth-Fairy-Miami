@@ -254,9 +254,10 @@ async function listGmailMessages(accessToken, query) {
 }
 
 async function fetchGmailMessage(accessToken, id) {
-  const params = new URLSearchParams({
-    format: "metadata",
-    metadataHeaders: ["From", "Subject", "Date"]
+  const params = new URLSearchParams();
+  params.set("format", "metadata");
+  ["From", "Reply-To", "Sender", "Subject", "Date"].forEach((header) => {
+    params.append("metadataHeaders", header);
   });
   const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
