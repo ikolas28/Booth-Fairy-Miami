@@ -1,5 +1,68 @@
 {
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "/crm/index.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/crm/index.html"
+    },
+    {
+      "source": "/admin/styles.css",
+      "destination": "/crm/styles.css"
+    },
+    {
+      "source": "/admin/script.js",
+      "destination": "/crm/script.js"
+    },
+    {
+      "source": "/",
+      "destination": "/website/index.html"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/website/styles.css"
+    },
+    {
+      "source": "/script.js",
+      "destination": "/website/script.js"
+    },
+    {
+      "source": "/thank-you.html",
+      "destination": "/website/thank-you.html"
+    },
+    {
+      "source": "/wedding-photo-booth-miami.html",
+      "destination": "/website/wedding-photo-booth-miami.html"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/website/robots.txt"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/website/sitemap.xml"
+    },
+    {
+      "source": "/google04f5f8c2c05f04bb.html",
+      "destination": "/website/google04f5f8c2c05f04bb.html"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "/website/assets/:path*"
+    }
+  ],
   "headers": [
+    {
+      "source": "/admin(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

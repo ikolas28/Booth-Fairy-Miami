@@ -1,0 +1,471 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booth Fairy Miami Admin CRM</title>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="admin-auth-shell" id="auth-shell">
+    <div class="auth-panel">
+      <div class="auth-brand">
+        <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="auth-logo" />
+        <span class="auth-badge">Private Admin CRM</span>
+      </div>
+      <div class="auth-copy">
+        <h1>Manage leads, bookings, follow-ups, payments, and marketing in one place.</h1>
+        <p>
+          This is an admin-only placeholder access layer for Booth Fairy Miami. It keeps the CRM separated from the public website while we prepare for future Supabase, Stripe, Gmail, Tidio, Instagram, and calendar integrations.
+        </p>
+      </div>
+      <form class="auth-form" id="login-form">
+        <label>
+          Admin Email
+          <input type="email" id="login-email" placeholder="admin@boothfairymiami.com" required />
+        </label>
+        <label>
+          Password
+          <input type="password" id="login-password" placeholder="Enter admin password" required />
+        </label>
+        <button type="submit" class="button button-primary button-block">Access Admin CRM</button>
+        <p class="auth-hint">
+          Placeholder login for now. Replace with Supabase Auth or another real server-side auth provider before storing live customer data.
+        </p>
+        <p class="auth-demo">Demo login: <strong>admin@boothfairymiami.com</strong> / <strong>BoothFairyAdmin!</strong></p>
+        <p class="auth-error" id="auth-error" hidden>That login did not match the current admin placeholder.</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="app-shell" id="app-shell" hidden>
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="sidebar-logo" />
+          <span class="sidebar-badge">Admin</span>
+        </div>
+        <nav class="sidebar-nav" aria-label="CRM Sections">
+          <button class="nav-item active" data-section="dashboard">Dashboard</button>
+          <button class="nav-item" data-section="leads">Leads</button>
+          <button class="nav-item" data-section="bookings">Bookings</button>
+          <button class="nav-item" data-section="followups">Follow-Ups</button>
+          <button class="nav-item" data-section="payments">Payments</button>
+          <button class="nav-item" data-section="gmail">Gmail Leads</button>
+          <button class="nav-item" data-section="tidio">Tidio Leads</button>
+          <button class="nav-item" data-section="instagram">Instagram Leads</button>
+          <button class="nav-item" data-section="marketing">Marketing Campaigns</button>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <div class="rule-card">
+          <h3>Business Rules</h3>
+          <ul>
+            <li>Digital DSLR booth only for now</li>
+            <li>Do not offer prints</li>
+            <li>DJ services are available</li>
+            <li>Never confirm without calendar + payment</li>
+          </ul>
+        </div>
+        <button id="logout-button" class="button button-secondary button-block">Log Out</button>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Booth Fairy Miami</p>
+          <h1 id="section-title">Dashboard</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="button button-secondary" id="quick-add-followup">New Follow-Up</button>
+          <button class="button button-primary" id="quick-add-lead">Add Lead</button>
+        </div>
+      </header>
+
+      <section class="section active" data-section="dashboard">
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div class="dashboard-grid">
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Pipeline Overview</p>
+                <h2>Lead status snapshot</h2>
+              </div>
+            </div>
+            <div class="status-grid" id="status-grid"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Today</p>
+                <h2>Next follow-ups</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="next-followups"></div>
+          </article>
+
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Upcoming Events</p>
+                <h2>Bookings to watch</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th>Service</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                  </tr>
+                </thead>
+                <tbody id="upcoming-bookings"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Integrations</p>
+                <h2>Connection readiness</h2>
+              </div>
+            </div>
+            <div class="integration-list">
+              <div class="integration-item"><span>Supabase</span><span class="chip chip-muted">Schema ready</span></div>
+              <div class="integration-item"><span>Stripe</span><span class="chip chip-muted">Payment links next</span></div>
+              <div class="integration-item"><span>Gmail</span><span class="chip chip-muted">Placeholder API module</span></div>
+              <div class="integration-item"><span>Tidio</span><span class="chip chip-muted">Widget live, lead sync pending</span></div>
+              <div class="integration-item"><span>Instagram</span><span class="chip chip-muted">Lead capture prep</span></div>
+              <div class="integration-item"><span>Calendar</span><span class="chip chip-muted">Availability check pending</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" data-section="leads">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Lead pipeline</h2>
+            <p>Track every inquiry from first contact to final outcome.</p>
+          </div>
+          <div class="toolbar-actions">
+            <input type="search" id="lead-search" placeholder="Search leads, city, service, or source" />
+            <select id="lead-status-filter">
+              <option value="all">All statuses</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-grid" id="lead-cards"></div>
+      </section>
+
+      <section class="section" data-section="bookings">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Bookings</h2>
+            <p>Only confirm once calendar availability and deposit/payment are both confirmed.</p>
+          </div>
+        </div>
+        <div class="table-wrap panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Event date</th>
+                <th>Service</th>
+                <th>Venue</th>
+                <th>Deposit</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="booking-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" data-section="followups">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Follow-ups</h2>
+            <p>Create reminders so no warm lead slips away.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-primary" id="new-followup-button">Create Reminder</button>
+          </div>
+        </div>
+        <div class="timeline" id="followup-list"></div>
+      </section>
+
+      <section class="section" data-section="payments">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Payments</h2>
+            <p>Store Stripe payment links or invoices and track what is pending.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-primary" id="new-payment-button">Add Payment Link</button>
+          </div>
+        </div>
+        <div class="table-wrap panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="payment-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" data-section="gmail">
+        <div class="source-header">
+          <h2>Gmail Leads</h2>
+          <p>Placeholder list for future Gmail inbox sync and draft reply workflows.</p>
+        </div>
+        <div class="source-grid" id="gmail-leads"></div>
+      </section>
+
+      <section class="section" data-section="tidio">
+        <div class="source-header">
+          <h2>Tidio Leads</h2>
+          <p>Keep website chat leads visible until the Tidio integration sync is ready.</p>
+        </div>
+        <div class="source-grid" id="tidio-leads"></div>
+      </section>
+
+      <section class="section" data-section="instagram">
+        <div class="source-header">
+          <h2>Instagram Leads</h2>
+          <p>Track DMs, story replies, and profile inquiries that turn into bookings.</p>
+        </div>
+        <div class="source-grid" id="instagram-leads"></div>
+      </section>
+
+      <section class="section" data-section="marketing">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Marketing Campaigns</h2>
+            <p>Organize content ideas before they become posts, emails, or ad campaigns.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-primary" id="new-campaign-button">Add Campaign Idea</button>
+          </div>
+        </div>
+        <div class="campaign-board" id="campaign-board"></div>
+      </section>
+    </main>
+  </div>
+
+  <aside class="drawer" id="lead-drawer" hidden>
+    <div class="drawer-card">
+      <button class="drawer-close" id="drawer-close" aria-label="Close">&times;</button>
+      <div id="drawer-content"></div>
+    </div>
+  </aside>
+
+  <div class="modal" id="lead-modal" hidden>
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <div>
+          <p class="panel-kicker">Lead Record</p>
+          <h2 id="lead-modal-title">Add Lead</h2>
+        </div>
+        <button class="drawer-close" data-close-modal="lead-modal" aria-label="Close">&times;</button>
+      </div>
+      <form id="lead-form" class="form-grid">
+        <input type="hidden" id="lead-id" />
+        <label>Client name<input type="text" id="lead-client-name" required /></label>
+        <label>Phone<input type="tel" id="lead-phone" required /></label>
+        <label>Email<input type="email" id="lead-email" required /></label>
+        <label>Event type<input type="text" id="lead-event-type" placeholder="Wedding, birthday, corporate event" required /></label>
+        <label>Event date<input type="date" id="lead-event-date" required /></label>
+        <label>Venue<input type="text" id="lead-venue" /></label>
+        <label>City<input type="text" id="lead-city" /></label>
+        <label>Service requested
+          <select id="lead-service-requested" required>
+            <option value="Luxury DSLR Digital Booth">Luxury DSLR Digital Booth</option>
+            <option value="High-End DJ Services">High-End DJ Services</option>
+            <option value="Booth + DJ Services">Booth + DJ Services</option>
+          </select>
+        </label>
+        <label>Guest count<input type="number" id="lead-guest-count" min="0" /></label>
+        <label>Budget<input type="number" id="lead-budget" min="0" step="50" /></label>
+        <label>Lead source
+          <select id="lead-source">
+            <option value="Website">Website</option>
+            <option value="Gmail">Gmail</option>
+            <option value="Tidio">Tidio</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Referral">Referral</option>
+          </select>
+        </label>
+        <label>Lead status
+          <select id="lead-status"></select>
+        </label>
+        <label>Deposit/payment status
+          <select id="lead-payment-status">
+            <option value="Not Requested">Not Requested</option>
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+          </select>
+        </label>
+        <label>Calendar checked
+          <select id="lead-calendar-checked">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+        </label>
+        <label class="span-2">Notes<textarea id="lead-notes" rows="4" placeholder="Event details, vibe, timeline, pricing notes, missing info, next steps."></textarea></label>
+        <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" data-close-modal="lead-modal">Cancel</button>
+          <button type="submit" class="button button-primary">Save Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="followup-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="panel-kicker">Reminder</p>
+          <h2 id="followup-modal-title">Create Follow-Up</h2>
+        </div>
+        <button class="drawer-close" data-close-modal="followup-modal" aria-label="Close">&times;</button>
+      </div>
+      <form id="followup-form" class="form-grid compact-grid">
+        <input type="hidden" id="followup-id" />
+        <label>Lead
+          <select id="followup-lead-id" required></select>
+        </label>
+        <label>Due date<input type="date" id="followup-due-date" required /></label>
+        <label>Channel
+          <select id="followup-channel">
+            <option value="Email">Email</option>
+            <option value="Phone">Phone</option>
+            <option value="Text">Text</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Tidio">Tidio</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="followup-status">
+            <option value="Open">Open</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </label>
+        <label class="span-2">Reminder notes<textarea id="followup-notes" rows="3" required></textarea></label>
+        <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" data-close-modal="followup-modal">Cancel</button>
+          <button type="submit" class="button button-primary">Save Reminder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="payment-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="panel-kicker">Payment Tracking</p>
+          <h2 id="payment-modal-title">Add Payment Link</h2>
+        </div>
+        <button class="drawer-close" data-close-modal="payment-modal" aria-label="Close">&times;</button>
+      </div>
+      <form id="payment-form" class="form-grid compact-grid">
+        <input type="hidden" id="payment-id" />
+        <label>Lead
+          <select id="payment-lead-id" required></select>
+        </label>
+        <label>Type
+          <select id="payment-type">
+            <option value="Stripe Payment Link">Stripe Payment Link</option>
+            <option value="Invoice">Invoice</option>
+            <option value="Deposit Request">Deposit Request</option>
+          </select>
+        </label>
+        <label>Amount<input type="number" id="payment-amount" min="0" step="50" required /></label>
+        <label>Status
+          <select id="payment-status">
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+            <option value="Expired">Expired</option>
+          </select>
+        </label>
+        <label class="span-2">Stripe or invoice link<input type="url" id="payment-link" placeholder="https://" required /></label>
+        <label class="span-2">Notes<textarea id="payment-notes" rows="3"></textarea></label>
+        <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" data-close-modal="payment-modal">Cancel</button>
+          <button type="submit" class="button button-primary">Save Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="campaign-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="panel-kicker">Campaign Planning</p>
+          <h2 id="campaign-modal-title">Add Campaign Idea</h2>
+        </div>
+        <button class="drawer-close" data-close-modal="campaign-modal" aria-label="Close">&times;</button>
+      </div>
+      <form id="campaign-form" class="form-grid compact-grid">
+        <input type="hidden" id="campaign-id" />
+        <label>Campaign title<input type="text" id="campaign-title" required /></label>
+        <label>Channel
+          <select id="campaign-channel">
+            <option value="Instagram">Instagram</option>
+            <option value="Email">Email</option>
+            <option value="Google Business">Google Business</option>
+            <option value="Meta Ads">Meta Ads</option>
+            <option value="Website SEO">Website SEO</option>
+          </select>
+        </label>
+        <label>Status
+          <select id="campaign-status">
+            <option value="Idea">Idea</option>
+            <option value="Drafting">Drafting</option>
+            <option value="Ready for Review">Ready for Review</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Published">Published</option>
+          </select>
+        </label>
+        <label>Priority
+          <select id="campaign-priority">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </label>
+        <label class="span-2">Campaign notes<textarea id="campaign-notes" rows="4" required></textarea></label>
+        <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" data-close-modal="campaign-modal">Cancel</button>
+          <button type="submit" class="button button-primary">Save Campaign</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>
+
