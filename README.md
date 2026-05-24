@@ -99,6 +99,64 @@ Recommended setup:
 - protect the endpoint with a bearer token stored as `TIDIO_WEBHOOK_SECRET`
 - use `SUPABASE_SERVICE_ROLE_KEY` in Vercel so the endpoint can safely write to the CRM
 
+## Website Lead Intake
+
+The public contact form now posts to:
+
+- [api/website/lead.js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\website\lead.js)
+
+The endpoint stores website inquiries in Supabase, marks leads as `Missing Info` when the event date, venue/city, or phone number is missing, and keeps calendar availability unchecked until the receptionist agent or admin CRM verifies it.
+
+## CRM Spreadsheet
+
+The Google Sheets CRM includes auto-generated lead IDs like `BFM-0001`, package templates, and quote response templates:
+
+- Leads
+- Contacts
+- Bookings
+- FollowUps
+- Quotes
+- Payments
+- MarketingCampaigns
+- MessageHistory
+- PackageTemplates
+- QuoteTemplates
+
+Starter Digital Package pricing:
+
+- 2 hours: $450
+- 3 hours: $575
+- 4 hours: $700
+- 50% non-refundable retainer/deposit due at contract signing
+- Remaining 50% due on the day of the event
+
+## Calendar Availability
+
+The admin CRM can call:
+
+- [api/calendar/availability.js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\calendar\availability.js)
+
+This endpoint checks Google Calendar free/busy status. Gmail/Google must be reconnected after deploying the updated OAuth scopes so the account grants `calendar.freebusy` access.
+
+## Receptionist Contract And Deposit Step
+
+After a lead's calendar availability is checked open, the admin CRM can run **Prepare Contract + Deposit**.
+
+This does not confirm the booking. It:
+
+- moves the lead to `Deposit Pending`
+- creates a deposit payment record
+- creates a next-day follow-up
+- creates a Gmail draft when Gmail has compose permission
+- creates a Stripe Checkout retainer link when `STRIPE_SECRET_KEY` is configured
+
+Required for full automation:
+
+- reconnect Gmail after deployment so Google grants `gmail.compose`
+- add `STRIPE_SECRET_KEY` in Vercel
+- optionally set `SERVICE_AGREEMENT_URL` to override the public read-only agreement page at `https://www.boothfairymiami.com/service-agreement.html`
+- set `STRIPE_WEBHOOK_SECRET` after creating the Stripe webhook endpoint so paid retainers are confirmed in the CRM automatically
+
 ## CRM Auth And Data
 
 The admin CRM at `/admin` now supports:

@@ -9,13 +9,29 @@ This folder now contains the first real Supabase setup for the Booth Fairy Miami
 ## What `schema.sql` creates
 
 - `leads`
+- `contacts`
+- `bookings`
 - `followups`
+- `quotes`
 - `payments`
 - `campaigns`
+- `message_history`
+- `package_templates`
+- `quote_templates`
 - `gmail_connections`
 - `gmail_imports`
+- `lead_code_seq` for IDs like `BFM-0001`
+- Stripe session/payment intent tracking columns on `payments`
 - `updated_at` triggers
 - RLS policies that only allow the approved admin email to read and write CRM data
+
+The seeded package templates include the Starter Digital Package:
+
+- 2 hours: $450
+- 3 hours: $575
+- 4 hours: $700
+- 50% retainer/deposit
+- remaining 50% balance
 
 Approved admin email in the current policy:
 - `boothfairyllc@gmail.com`

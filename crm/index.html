@@ -15,21 +15,21 @@
     <div class="auth-panel">
       <div class="auth-copy">
         <div class="auth-brand">
-          <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="auth-logo" />
-          <span class="auth-badge">Private Admin CRM</span>
+          <img src="/assets/booth-fairy-mark.png" alt="Booth Fairy Miami" class="auth-logo" />
+          <span class="auth-badge">Admin CRM</span>
         </div>
-        <h1>Run Booth Fairy Miami from one elegant admin workspace.</h1>
+        <h1>Booth Fairy Miami CRM</h1>
         <p>
-          Sign in with your approved admin email, or continue with Google after the provider is enabled in Supabase. This CRM stays separate from the public website and is ready for future Gmail, Tidio, Stripe, Instagram, and calendar automations.
+          Sign in to manage leads, bookings, follow-ups, payments, and campaign drafts.
         </p>
         <div class="auth-stack">
           <div class="auth-feature">
-            <strong>What this protects</strong>
-            <span>Leads, bookings, reminders, payment links, and campaign planning stay inside the admin route.</span>
+            <strong>Booking rule</strong>
+            <span>Never confirm a date until calendar availability and payment are checked.</span>
           </div>
           <div class="auth-feature">
-            <strong>What still needs dashboard setup</strong>
-            <span>Create your admin user in Supabase, run the SQL schema, and enable Google OAuth when you are ready.</span>
+            <strong>Service rule</strong>
+            <span>Digital DSLR booth and DJ services only. No print packages.</span>
           </div>
         </div>
       </div>
@@ -45,7 +45,7 @@
         <button type="submit" class="button button-primary button-block" id="email-login-button">Sign In With Email</button>
         <button type="button" class="button button-secondary button-block" id="google-login-button">Continue With Google</button>
         <p class="auth-hint">
-          Recommended production setup: disable public signups in Supabase and create admin users manually.
+          Use your approved Booth Fairy Miami admin account.
         </p>
         <p class="auth-local-note" id="auth-local-note" hidden>
           Local demo fallback is available on localhost only: <strong>admin@boothfairymiami.com</strong> / <strong>BoothFairyAdmin!</strong>
@@ -59,8 +59,11 @@
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="/assets/logo-lockup.svg" alt="Booth Fairy Miami" class="sidebar-logo" />
-          <span class="sidebar-badge">Admin</span>
+          <img src="/assets/booth-fairy-mark.png" alt="Booth Fairy Miami" class="sidebar-logo" />
+          <div>
+            <strong>Booth Fairy</strong>
+            <span class="sidebar-badge">CRM</span>
+          </div>
         </div>
         <div class="sidebar-user">
           <strong id="user-email">Signed in</strong>
@@ -68,26 +71,18 @@
         </div>
         <nav class="sidebar-nav" aria-label="CRM Sections">
           <button class="nav-item active" data-section="dashboard">Dashboard</button>
+          <button class="nav-item" data-section="approvals">Approvals</button>
           <button class="nav-item" data-section="leads">Leads</button>
           <button class="nav-item" data-section="bookings">Bookings</button>
           <button class="nav-item" data-section="followups">Follow-Ups</button>
           <button class="nav-item" data-section="payments">Payments</button>
-          <button class="nav-item" data-section="gmail">Gmail Leads</button>
-          <button class="nav-item" data-section="tidio">Tidio Leads</button>
-          <button class="nav-item" data-section="instagram">Instagram Leads</button>
-          <button class="nav-item" data-section="marketing">Marketing Campaigns</button>
+          <button class="nav-item" data-section="gmail">Gmail</button>
+          <button class="nav-item" data-section="tidio">Tidio</button>
+          <button class="nav-item" data-section="instagram">Instagram</button>
+          <button class="nav-item" data-section="marketing">Marketing</button>
         </nav>
       </div>
       <div class="sidebar-footer">
-        <div class="rule-card">
-          <h3>Business Rules</h3>
-          <ul>
-            <li>Digital DSLR booth only for now</li>
-            <li>Do not offer prints</li>
-            <li>DJ services are available</li>
-            <li>Never confirm without calendar + payment</li>
-          </ul>
-        </div>
         <button id="logout-button" class="button button-secondary button-block">Log Out</button>
       </div>
     </aside>
@@ -95,7 +90,7 @@
     <main class="main-panel">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Booth Fairy Miami</p>
+          <p class="eyebrow">Admin</p>
           <h1 id="section-title">Dashboard</h1>
         </div>
         <div class="topbar-actions">
@@ -107,14 +102,26 @@
       <div class="setup-banner" id="setup-banner" hidden></div>
 
       <section class="section active" data-section="dashboard">
+        <div class="automation-bar panel">
+          <div>
+            <p class="panel-kicker">Agents</p>
+            <h2>Prepare work, approve before sending</h2>
+            <p>Receptionist keeps lead follow-ups, deposit steps, payment checks, and booking records organized.</p>
+          </div>
+          <div class="automation-actions">
+            <button class="button button-secondary" id="run-receptionist-button">Run Receptionist</button>
+            <button class="button button-secondary" id="run-marketing-button">Run Marketing</button>
+          </div>
+        </div>
+
         <div class="kpi-grid" id="kpi-grid"></div>
 
         <div class="dashboard-grid">
           <article class="panel panel-wide">
             <div class="panel-header">
               <div>
-                <p class="panel-kicker">Pipeline Overview</p>
-                <h2>Lead status snapshot</h2>
+                <p class="panel-kicker">Pipeline</p>
+                <h2>Status snapshot</h2>
               </div>
             </div>
             <div class="status-grid" id="status-grid"></div>
@@ -130,11 +137,52 @@
             <div class="stack-list" id="next-followups"></div>
           </article>
 
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Calendar</p>
+                <h2>Sync status</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="calendar-sync-summary"></div>
+          </article>
+
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Lead Intelligence</p>
+                <h2>Scores, tags, duplicates</h2>
+              </div>
+              <button class="button button-secondary button-small" id="lead-intel-refresh-button">Refresh</button>
+            </div>
+            <div class="intel-grid">
+              <div>
+                <h3 class="mini-heading">Highest score leads</h3>
+                <div class="intel-list" id="lead-score-list"></div>
+              </div>
+              <div>
+                <h3 class="mini-heading">Duplicate warnings</h3>
+                <div class="intel-list" id="duplicate-warning-list"></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Automation</p>
+                <h2>Recent runs</h2>
+              </div>
+            </div>
+            <div class="intel-list" id="automation-run-list"></div>
+            <button class="button button-secondary button-small subtle-action" id="automation-run-archive-button" hidden>View all automation runs</button>
+          </article>
+
           <article class="panel panel-wide">
             <div class="panel-header">
               <div>
                 <p class="panel-kicker">Upcoming Events</p>
-                <h2>Bookings to watch</h2>
+                <h2>Upcoming bookings</h2>
               </div>
             </div>
             <div class="table-wrap">
@@ -153,23 +201,20 @@
             </div>
           </article>
 
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Integrations</p>
-                <h2>Connection readiness</h2>
-              </div>
-            </div>
-            <div class="integration-list">
-              <div class="integration-item"><span>Supabase</span><span class="chip chip-muted" id="supabase-status-chip">Checking...</span></div>
-              <div class="integration-item"><span>Stripe</span><span class="chip chip-muted">Payment links next</span></div>
-              <div class="integration-item"><span>Gmail</span><span class="chip chip-muted" id="gmail-status-chip">Checking...</span></div>
-              <div class="integration-item"><span>Tidio</span><span class="chip chip-muted" id="tidio-status-chip">Checking...</span></div>
-              <div class="integration-item"><span>Instagram</span><span class="chip chip-muted">Lead capture prep</span></div>
-              <div class="integration-item"><span>Calendar</span><span class="chip chip-muted">Availability check pending</span></div>
-            </div>
-          </article>
         </div>
+      </section>
+
+      <section class="section" data-section="approvals">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Approval Queue</h2>
+            <p>Review Gmail drafts, pending booking steps, open follow-ups, and marketing drafts before anything is sent or published.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-secondary" id="approval-refresh-button">Refresh Queue</button>
+          </div>
+        </div>
+        <div class="approval-grid" id="approval-queue"></div>
       </section>
 
       <section class="section" data-section="leads">
@@ -204,6 +249,7 @@
                 <th>Service</th>
                 <th>Venue</th>
                 <th>Deposit</th>
+                <th>Calendar</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -256,13 +302,13 @@
       <section class="section" data-section="gmail">
         <div class="source-header source-header-split">
           <div>
-            <h2>Gmail Leads</h2>
-            <p id="gmail-section-copy">Connect the Booth Fairy Gmail inbox and sync labeled inquiries into the CRM.</p>
+            <h2>Gmail</h2>
+            <p id="gmail-section-copy">Sync labeled inbox inquiries into the CRM.</p>
             <p class="section-note" id="gmail-status-note">Checking Gmail connection...</p>
           </div>
           <div class="source-actions">
             <button class="button button-secondary" id="gmail-connect-button">Connect Gmail</button>
-            <button class="button button-secondary" id="gmail-sync-button">Sync Gmail Leads</button>
+            <button class="button button-secondary" id="gmail-sync-button">Sync Gmail</button>
             <button class="button button-secondary" id="gmail-disconnect-button" hidden>Disconnect</button>
           </div>
         </div>
@@ -271,16 +317,23 @@
 
       <section class="section" data-section="tidio">
         <div class="source-header">
-          <h2>Tidio Leads</h2>
-          <p>Website chat leads now sync into the CRM through the live Tidio webhook flow.</p>
+          <h2>Tidio</h2>
+          <p>Website chat inquiries captured through the Tidio webhook flow.</p>
         </div>
         <div class="source-grid" id="tidio-leads"></div>
       </section>
 
       <section class="section" data-section="instagram">
-        <div class="source-header">
-          <h2>Instagram Leads</h2>
-          <p>Track DMs, story replies, and profile inquiries that turn into bookings.</p>
+        <div class="source-header source-header-split">
+          <div>
+            <h2>Instagram</h2>
+            <p>Track Instagram inquiries and connection status for CRM intake.</p>
+            <p class="section-note" id="instagram-status-note">Checking Instagram integration...</p>
+          </div>
+          <div class="source-actions">
+            <a class="button button-secondary" href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">Meta Apps</a>
+            <button class="button button-secondary" id="instagram-refresh-button">Refresh Status</button>
+          </div>
         </div>
         <div class="source-grid" id="instagram-leads"></div>
       </section>
@@ -288,11 +341,11 @@
       <section class="section" data-section="marketing">
         <div class="toolbar">
           <div class="toolbar-copy">
-            <h2>Marketing Campaigns</h2>
+            <h2>Marketing</h2>
             <p>Organize content ideas before they become posts, emails, or ad campaigns.</p>
           </div>
           <div class="toolbar-actions">
-            <button class="button button-primary" id="new-campaign-button">Add Campaign Idea</button>
+            <button class="button button-primary" id="new-campaign-button">Add Idea</button>
           </div>
         </div>
         <div class="campaign-board" id="campaign-board"></div>
@@ -323,13 +376,15 @@
         <label>Email<input type="email" id="lead-email" required /></label>
         <label>Event type<input type="text" id="lead-event-type" placeholder="Wedding, birthday, corporate event" required /></label>
         <label>Event date<input type="date" id="lead-event-date" required /></label>
+        <label>Start time<input type="time" id="lead-start-time" /></label>
+        <label>End time<input type="time" id="lead-end-time" /></label>
         <label>Venue<input type="text" id="lead-venue" /></label>
         <label>City<input type="text" id="lead-city" /></label>
         <label>Service requested
           <select id="lead-service-requested" required>
-            <option value="Luxury DSLR Digital Booth">Luxury DSLR Digital Booth</option>
-            <option value="High-End DJ Services">High-End DJ Services</option>
-            <option value="Booth + DJ Services">Booth + DJ Services</option>
+            <option value="DSLR Photo Booth - Digital Sharing">DSLR Photo Booth - Digital Sharing</option>
+            <option value="Premium DJ Services">Premium DJ Services</option>
+            <option value="Photo Booth + DJ Bundle">Photo Booth + DJ Bundle</option>
           </select>
         </label>
         <label>Guest count<input type="number" id="lead-guest-count" min="0" /></label>
@@ -361,6 +416,8 @@
         </label>
         <label class="span-2">Notes<textarea id="lead-notes" rows="4" placeholder="Event details, vibe, timeline, pricing notes, missing info, next steps."></textarea></label>
         <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" id="lead-check-calendar-button">Check Calendar</button>
+          <button type="button" class="button button-primary" id="lead-prepare-booking-button">Prepare Deposit</button>
           <button type="button" class="button button-secondary" data-close-modal="lead-modal">Cancel</button>
           <button type="submit" class="button button-primary">Save Lead</button>
         </div>

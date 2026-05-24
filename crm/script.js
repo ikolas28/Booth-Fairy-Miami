@@ -1,4 +1,4 @@
-const SUPABASE_PROJECT_ID = "hwwhyrpwfewxevocjjzk";
+﻿const SUPABASE_PROJECT_ID = "hwwhyrpwfewxevocjjzk";
 const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3d2h5cnB3ZmV3eGV2b2NqanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MDAzMDksImV4cCI6MjA5NDk3NjMwOX0.-55qhrFYuzcAqQRhO01oxP4EJP3jyR9qU-qNDW_pAxI";
 const LOCAL_ADMIN_EMAIL = "admin@boothfairymiami.com";
@@ -8,8 +8,10 @@ const AUTH_SESSION_KEY = "bfmSupabaseSession";
 const STORAGE_KEYS = {
   leads: "bfmCrmLeads",
   followups: "bfmCrmFollowups",
+  bookings: "bfmCrmBookings",
   payments: "bfmCrmPayments",
-  campaigns: "bfmCrmCampaigns"
+  campaigns: "bfmCrmCampaigns",
+  messageHistory: "bfmCrmMessageHistory"
 };
 
 const LEAD_STATUSES = [
@@ -18,27 +20,31 @@ const LEAD_STATUSES = [
   "Quote Sent",
   "Follow-Up Needed",
   "Deposit Pending",
-  "Booked",
   "Paid",
+  "Booked",
   "Completed",
   "Lost"
 ];
 
-const BOOKING_STATUSES = new Set(["Deposit Pending", "Booked", "Paid", "Completed"]);
-const CONFIRMED_STATUSES = new Set(["Booked", "Paid", "Completed"]);
-const REMOTE_COLLECTIONS = ["leads", "followups", "payments", "campaigns"];
+const ACTIVE_STATUSES = new Set(["New Lead", "Missing Info", "Quote Sent", "Follow-Up Needed", "Deposit Pending"]);
+const BOOKING_STATUSES = new Set(["Deposit Pending", "Paid", "Booked", "Completed"]);
+const CONFIRMED_STATUSES = new Set(["Booked", "Completed"]);
+const REMOTE_COLLECTIONS = ["leads", "bookings", "followups", "payments", "campaigns", "messageHistory"];
 
 const seedLeads = [
   {
     id: crypto.randomUUID(),
+    leadCode: "BFM-DEMO-001",
     clientName: "Sofia Martinez",
     phone: "(786) 555-0181",
     email: "sofia@sample.com",
     eventType: "Wedding",
     eventDate: "2026-08-15",
+    startTime: "18:00",
+    endTime: "22:00",
     venue: "Villa Toscana Miami",
     city: "Miami",
-    serviceRequested: "Luxury DSLR Digital Booth",
+    serviceRequested: "DSLR Photo Booth - Digital Sharing",
     guestCount: 120,
     budget: 900,
     notes: "Luxury wedding inquiry. Wants clean white backdrop and digital gallery. Availability still needs to be checked.",
@@ -51,14 +57,17 @@ const seedLeads = [
   },
   {
     id: crypto.randomUUID(),
+    leadCode: "BFM-DEMO-002",
     clientName: "Marcos Ruiz",
     phone: "(305) 555-0136",
     email: "marcos@brandlaunch.co",
     eventType: "Brand Activation",
     eventDate: "2026-07-12",
+    startTime: "19:00",
+    endTime: "23:00",
     venue: "Wynwood Event Loft",
     city: "Miami",
-    serviceRequested: "Booth + DJ Services",
+    serviceRequested: "Photo Booth + DJ Bundle",
     guestCount: 180,
     budget: 2000,
     notes: "Needs branded overlay and social capture. Confirm sponsor approvals before final quote.",
@@ -71,14 +80,17 @@ const seedLeads = [
   },
   {
     id: crypto.randomUUID(),
+    leadCode: "BFM-DEMO-003",
     clientName: "Alyssa Grant",
     phone: "(954) 555-0194",
     email: "alyssa@sample.com",
     eventType: "Birthday Party",
     eventDate: "2026-06-21",
+    startTime: "18:00",
+    endTime: "20:00",
     venue: "Private Residence",
     city: "Hallandale",
-    serviceRequested: "Luxury DSLR Digital Booth",
+    serviceRequested: "DSLR Photo Booth - Digital Sharing",
     guestCount: 55,
     budget: 550,
     notes: "Came in from Tidio chat. Wants quick digital sharing only. Deposit link requested.",
@@ -91,14 +103,17 @@ const seedLeads = [
   },
   {
     id: crypto.randomUUID(),
+    leadCode: "BFM-DEMO-004",
     clientName: "Camila Vega",
     phone: "(786) 555-0127",
     email: "camila@sample.com",
     eventType: "Baby Shower",
     eventDate: "2026-09-05",
+    startTime: "13:00",
+    endTime: "16:00",
     venue: "Coral Gables Country Club",
     city: "Coral Gables",
-    serviceRequested: "Luxury DSLR Digital Booth",
+    serviceRequested: "DSLR Photo Booth - Digital Sharing",
     guestCount: 70,
     budget: 700,
     notes: "Instagram DM lead. Wants feminine floral setup and soft glam editing.",
@@ -111,18 +126,21 @@ const seedLeads = [
   },
   {
     id: crypto.randomUUID(),
+    leadCode: "BFM-DEMO-005",
     clientName: "Noah Ellis",
     phone: "(786) 555-0108",
     email: "noah@sample.com",
     eventType: "Corporate Holiday Party",
     eventDate: "2026-12-06",
+    startTime: "18:00",
+    endTime: "23:00",
     venue: "Brickell Bay Ballroom",
     city: "Brickell",
-    serviceRequested: "High-End DJ Services",
+    serviceRequested: "Premium DJ Services",
     guestCount: 240,
     budget: 3200,
     notes: "Premium DJ only inquiry. Needs proposal and entertainment timeline. Never confirm until calendar is checked.",
-    status: "Missing Info",
+    status: "Quote Sent",
     paymentStatus: "Not Requested",
     calendarChecked: "No",
     source: "Website",
@@ -163,6 +181,38 @@ const seedPayments = [
     status: "Pending",
     link: "https://stripe.example.com/pay/alyssa-deposit",
     notes: "Deposit placeholder until live Stripe sync is connected.",
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
+  }
+];
+
+const seedBookings = [
+  {
+    id: crypto.randomUUID(),
+    leadId: seedLeads[2].id,
+    clientName: seedLeads[2].clientName,
+    email: seedLeads[2].email,
+    phone: seedLeads[2].phone,
+    eventType: seedLeads[2].eventType,
+    eventDate: seedLeads[2].eventDate,
+    startTime: seedLeads[2].startTime,
+    endTime: seedLeads[2].endTime,
+    venue: seedLeads[2].venue,
+    city: seedLeads[2].city,
+    serviceRequested: seedLeads[2].serviceRequested,
+    guestCount: seedLeads[2].guestCount,
+    packageInterest: "Starter Digital Package - 2 Hours",
+    totalQuote: 450,
+    depositRequired: 225,
+    depositStatus: "Pending",
+    paymentLink: "",
+    calendarLink: "",
+    calendarEventId: "",
+    calendarSyncStatus: "Pending",
+    calendarSyncError: "",
+    bookingStatus: "Deposit Pending",
+    contractSent: false,
+    notes: "Demo booking awaiting retainer.",
     createdAt: "2026-05-20",
     updatedAt: "2026-05-20"
   }
@@ -214,6 +264,12 @@ const COLLECTION_CONFIG = {
     fromDb: mapFollowupFromDb,
     sort: (items) => items.sort((a, b) => compareDates(a.dueDate, b.dueDate) || compareDates(b.createdAt, a.createdAt))
   },
+  bookings: {
+    table: "bookings",
+    toDb: mapBookingToDb,
+    fromDb: mapBookingFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(a.eventDate, b.eventDate) || compareDates(b.createdAt, a.createdAt))
+  },
   payments: {
     table: "payments",
     toDb: mapPaymentToDb,
@@ -225,14 +281,22 @@ const COLLECTION_CONFIG = {
     toDb: mapCampaignToDb,
     fromDb: mapCampaignFromDb,
     sort: (items) => items.sort((a, b) => compareDates(b.createdAt, a.createdAt))
+  },
+  messageHistory: {
+    table: "message_history",
+    toDb: mapMessageHistoryToDb,
+    fromDb: mapMessageHistoryFromDb,
+    sort: (items) => items.sort((a, b) => compareDates(b.createdAt, a.createdAt))
   }
 };
 
 const state = {
   leads: loadData(STORAGE_KEYS.leads, seedLeads),
+  bookings: loadData(STORAGE_KEYS.bookings, seedBookings),
   followups: loadData(STORAGE_KEYS.followups, seedFollowups),
   payments: loadData(STORAGE_KEYS.payments, seedPayments),
   campaigns: loadData(STORAGE_KEYS.campaigns, seedCampaigns),
+  messageHistory: loadData(STORAGE_KEYS.messageHistory, []),
   activeSection: "dashboard",
   leadSearch: "",
   leadStatusFilter: "all",
@@ -247,6 +311,19 @@ const state = {
     lastUpdatedAt: "",
     lastSyncSummary: ""
   },
+  instagram: {
+    configured: false,
+    signatureVerification: false,
+    webhookUrl: "https://www.boothfairymiami.com/api/instagram/webhook",
+    leadIntakeUrl: "https://www.boothfairymiami.com/api/instagram/lead",
+    privacyPolicyUrl: "https://www.boothfairymiami.com/privacy-policy.html",
+    dataDeletionUrl: "https://www.boothfairymiami.com/data-deletion.html",
+    requestedPermissions: [],
+    note: ""
+  },
+  leadScores: [],
+  leadDuplicates: [],
+  automationRuns: [],
   pendingBanner: null
 };
 
@@ -278,6 +355,8 @@ const gmailSyncButton = document.getElementById("gmail-sync-button");
 const gmailDisconnectButton = document.getElementById("gmail-disconnect-button");
 const gmailStatusNote = document.getElementById("gmail-status-note");
 const gmailSectionCopy = document.getElementById("gmail-section-copy");
+const instagramStatusChip = document.getElementById("instagram-status-chip");
+const instagramStatusNote = document.getElementById("instagram-status-note");
 
 init().catch((error) => {
   console.error("CRM init failed", error);
@@ -331,6 +410,35 @@ function attachEventListeners() {
   document.getElementById("new-followup-button").addEventListener("click", () => openFollowupModal());
   document.getElementById("new-payment-button").addEventListener("click", () => openPaymentModal());
   document.getElementById("new-campaign-button").addEventListener("click", () => openCampaignModal());
+  document.getElementById("run-receptionist-button").addEventListener("click", () => runAgentAutomation("receptionist"));
+  document.getElementById("run-marketing-button").addEventListener("click", () => runAgentAutomation("marketing"));
+  document.getElementById("instagram-refresh-button").addEventListener("click", async () => {
+    await refreshInstagramStatus();
+    updateConnectionIndicators();
+  });
+  document.getElementById("approval-refresh-button").addEventListener("click", async () => {
+    await refreshApprovalQueue();
+  });
+  document.getElementById("lead-intel-refresh-button").addEventListener("click", async () => {
+    await refreshLeadIntelligence();
+    renderLeadIntelligence();
+  });
+  document.getElementById("lead-check-calendar-button").addEventListener("click", () => {
+    const leadId = document.getElementById("lead-id").value;
+    if (!leadId) {
+      alert("Save this lead first, then check calendar availability.");
+      return;
+    }
+    checkLeadAvailability(leadId);
+  });
+  document.getElementById("lead-prepare-booking-button").addEventListener("click", () => {
+    const leadId = document.getElementById("lead-id").value;
+    if (!leadId) {
+      alert("Save this lead first, then prepare contract and deposit.");
+      return;
+    }
+    prepareContractAndDeposit(leadId);
+  });
 
   document.getElementById("lead-search").addEventListener("input", (event) => {
     state.leadSearch = event.target.value.toLowerCase().trim();
@@ -572,7 +680,10 @@ async function handleGmailSync() {
       throw new Error(payload?.error || "Gmail sync could not be completed.");
     }
 
-    state.gmail.lastSyncSummary = `Imported ${payload.importedCount} new lead${payload.importedCount === 1 ? "" : "s"} from ${payload.scannedCount} Gmail message${payload.scannedCount === 1 ? "" : "s"}.`;
+    const ignoredCopy = payload.ignoredCount
+      ? ` Ignored ${payload.ignoredCount} system notification${payload.ignoredCount === 1 ? "" : "s"}.`
+      : "";
+    state.gmail.lastSyncSummary = `Imported ${payload.importedCount} new lead${payload.importedCount === 1 ? "" : "s"} from ${payload.scannedCount} Gmail message${payload.scannedCount === 1 ? "" : "s"}.${ignoredCopy}`;
     showSetupBanner(state.gmail.lastSyncSummary, "success");
     await refreshGmailStatus();
     await hydrateData();
@@ -581,7 +692,7 @@ async function handleGmailSync() {
     showSetupBanner(`Gmail sync issue: ${getFriendlyError(error, "Could not sync Gmail leads.")}`, "warning");
   } finally {
     gmailSyncButton.disabled = false;
-    gmailSyncButton.textContent = "Sync Gmail Leads";
+    gmailSyncButton.textContent = "Sync Gmail";
   }
 }
 
@@ -659,9 +770,36 @@ async function hydrateData() {
     hideSetupBanner();
   }
 
+  await refreshLeadIntelligence();
   await refreshGmailStatus();
+  await refreshInstagramStatus();
   updateConnectionIndicators();
   renderAll();
+}
+
+async function refreshLeadIntelligence() {
+  if (authState.isLocalFallback || !authState.session?.accessToken) {
+    state.leadScores = [];
+    state.leadDuplicates = [];
+    state.automationRuns = [];
+    return;
+  }
+
+  try {
+    const [leadScores, leadDuplicates, automationRuns] = await Promise.all([
+      supabaseRest("/lead_scores?select=*&order=score.desc,created_at.desc&limit=30"),
+      supabaseRest("/lead_duplicates?select=*&order=created_at.desc&limit=20"),
+      supabaseRest("/automation_runs?select=*&order=started_at.desc&limit=12")
+    ]);
+    state.leadScores = leadScores || [];
+    state.leadDuplicates = leadDuplicates || [];
+    state.automationRuns = automationRuns || [];
+  } catch (error) {
+    console.error("Lead intelligence load failed", error);
+    state.leadScores = [];
+    state.leadDuplicates = [];
+    state.automationRuns = [];
+  }
 }
 
 async function refreshGmailStatus() {
@@ -682,7 +820,9 @@ async function refreshGmailStatus() {
       lastUpdatedAt: payload.lastUpdatedAt || ""
     };
   } catch (error) {
-    console.error("Gmail status check failed", error);
+    if (!isLocalPreview()) {
+      console.error("Gmail status check failed", error);
+    }
     state.gmail = {
       ...state.gmail,
       configured: false,
@@ -691,19 +831,100 @@ async function refreshGmailStatus() {
   }
 }
 
+async function refreshInstagramStatus() {
+  try {
+    const response = await fetch("/api/instagram/status");
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not read Instagram status.");
+    }
+    state.instagram = {
+      configured: Boolean(payload.configured),
+      signatureVerification: Boolean(payload.signatureVerification),
+      webhookUrl: payload.webhookUrl || state.instagram.webhookUrl,
+      leadIntakeUrl: payload.leadIntakeUrl || state.instagram.leadIntakeUrl,
+      privacyPolicyUrl: payload.privacyPolicyUrl || state.instagram.privacyPolicyUrl,
+      dataDeletionUrl: payload.dataDeletionUrl || state.instagram.dataDeletionUrl,
+      requestedPermissions: Array.isArray(payload.requestedPermissions) ? payload.requestedPermissions : state.instagram.requestedPermissions,
+      note: payload.note || ""
+    };
+  } catch (error) {
+    if (!isLocalPreview()) {
+      console.error("Instagram status check failed", error);
+    }
+    state.instagram = {
+      ...state.instagram,
+      configured: false,
+      note: "Instagram status could not be checked."
+    };
+  }
+}
+
+async function refreshGmailDraftApprovals() {
+  if (!authState.session?.accessToken || authState.isLocalFallback) return null;
+  const response = await fetch("/api/gmail/refresh-drafts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authState.session.accessToken}`
+    }
+  });
+  const payload = await parseResponse(response);
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || "Could not refresh Gmail draft approvals.");
+  }
+  return payload;
+}
+
+async function refreshApprovalQueue() {
+  const button = document.getElementById("approval-refresh-button");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Refreshing...";
+
+  try {
+    const draftRefresh = await refreshGmailDraftApprovals();
+    await hydrateData();
+    setSection("approvals");
+    const removed = draftRefresh?.removed || 0;
+    const checked = draftRefresh?.checked || 0;
+    const total = draftRefresh?.totalDraftApprovals || 0;
+    const errors = draftRefresh?.errors?.length || 0;
+    const message = errors
+      ? `Approvals refreshed. Checked ${checked} Gmail draft(s), removed ${removed}, but ${errors} draft lookup(s) need attention.`
+      : `Approvals refreshed. Checked ${checked} of ${total} Gmail draft approval(s). Removed ${removed} stale item(s).`;
+    showSetupBanner(message, removed || errors ? "info" : "success");
+    alert(message);
+  } catch (error) {
+    console.error("Approval refresh failed", error);
+    alert(getFriendlyError(error, "Approvals could not refresh."));
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function isLocalPreview() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
 async function loadRemoteCollections() {
   try {
-    const [leads, followups, payments, campaigns] = await Promise.all([
+    const [leads, bookings, followups, payments, campaigns, messageHistory] = await Promise.all([
       fetchCollection("leads"),
+      fetchCollection("bookings"),
       fetchCollection("followups"),
       fetchCollection("payments"),
-      fetchCollection("campaigns")
+      fetchCollection("campaigns"),
+      fetchCollection("messageHistory")
     ]);
 
     state.leads = leads;
+    state.bookings = bookings;
     state.followups = followups;
     state.payments = payments;
     state.campaigns = campaigns;
+    state.messageHistory = messageHistory;
     state.syncMode = "Supabase live";
     state.syncDetail = "Real CRM records are syncing with Supabase.";
     persistAll();
@@ -728,11 +949,14 @@ async function handleLeadSubmit(event) {
   const existingLead = getLeadById(document.getElementById("lead-id").value);
   const lead = {
     id: document.getElementById("lead-id").value || crypto.randomUUID(),
+    leadCode: existingLead?.leadCode || `BFM-LOCAL-${String(state.leads.length + 1).padStart(3, "0")}`,
     clientName: document.getElementById("lead-client-name").value.trim(),
     phone: document.getElementById("lead-phone").value.trim(),
     email: document.getElementById("lead-email").value.trim(),
     eventType: document.getElementById("lead-event-type").value.trim(),
     eventDate: document.getElementById("lead-event-date").value,
+    startTime: document.getElementById("lead-start-time").value,
+    endTime: document.getElementById("lead-end-time").value,
     venue: document.getElementById("lead-venue").value.trim(),
     city: document.getElementById("lead-city").value.trim(),
     serviceRequested: document.getElementById("lead-service-requested").value,
@@ -750,6 +974,7 @@ async function handleLeadSubmit(event) {
   try {
     const savedLead = await upsertResource("leads", lead);
     upsertLocalItem(state.leads, savedLead);
+    await reconcileLeadPaymentState(savedLead);
     closeModal("lead-modal");
     renderAll();
   } catch (error) {
@@ -793,6 +1018,8 @@ async function handlePaymentSubmit(event) {
     amount: Number(document.getElementById("payment-amount").value || 0),
     status: document.getElementById("payment-status").value,
     link: document.getElementById("payment-link").value.trim(),
+    stripeSessionId: existing?.stripeSessionId || "",
+    stripePaymentIntentId: existing?.stripePaymentIntentId || "",
     notes: document.getElementById("payment-notes").value.trim(),
     createdAt: existing?.createdAt || todayIso(),
     updatedAt: todayIso()
@@ -841,6 +1068,64 @@ async function handleCampaignSubmit(event) {
   }
 }
 
+async function runAgentAutomation(agentName) {
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before running agent automations.");
+    return;
+  }
+
+  const buttonId = `run-${agentName}-button`;
+  const button = document.getElementById(buttonId);
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = `Running ${titleCase(agentName)}...`;
+
+  try {
+    const response = await fetch(`/api/cron/${agentName}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      }
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || `${agentName} automation failed.`);
+    }
+
+    await hydrateData();
+    setSection("approvals");
+    alert(formatAutomationSummary(agentName, payload));
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, `${agentName} automation could not run.`));
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function formatAutomationSummary(agentName, payload) {
+  if (agentName === "marketing") {
+    return [
+      "Marketing automation finished.",
+      `Campaigns created: ${payload.campaignsCreated || 0}`,
+      payload.skipped ? payload.reason : "Drafts are in the approval queue before anything is published."
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    "Receptionist automation finished.",
+    `Gmail leads imported: ${payload.gmailImported || 0}`,
+    `Gmail drafts created: ${payload.draftsCreated || 0}`,
+    `Calendar checks: ${payload.calendarChecked || 0}`,
+    `Payment links created: ${payload.paymentLinksCreated || 0}`,
+    `Gmail labels applied: ${payload.gmailLabelsApplied || 0}`,
+    `Follow-ups created: ${payload.followupsCreated || 0}`,
+    payload.errors?.length ? `${payload.errors.length} lead(s) need manual review.` : "No automation errors reported."
+  ].join("\n");
+}
+
 function setSection(sectionName) {
   state.activeSection = sectionName;
   navButtons.forEach((button) => {
@@ -855,14 +1140,15 @@ function setSection(sectionName) {
 function getSectionTitle(sectionName) {
   return {
     dashboard: "Dashboard",
+    approvals: "Approvals",
     leads: "Leads",
     bookings: "Bookings",
     followups: "Follow-Ups",
     payments: "Payments",
-    gmail: "Gmail Leads",
-    tidio: "Tidio Leads",
-    instagram: "Instagram Leads",
-    marketing: "Marketing Campaigns"
+    gmail: "Gmail",
+    tidio: "Tidio",
+    instagram: "Instagram",
+    marketing: "Marketing"
   }[sectionName] || "Dashboard";
 }
 
@@ -871,7 +1157,10 @@ function renderAll() {
   renderKpis();
   renderStatusGrid();
   renderNextFollowups();
+  renderCalendarSyncSummary();
   renderUpcomingBookings();
+  renderApprovalQueue();
+  renderLeadIntelligence();
   renderLeadCards();
   renderBookings();
   renderFollowups();
@@ -886,23 +1175,163 @@ function renderAll() {
   updateGmailSection();
 }
 
+function renderLeadIntelligence() {
+  renderLeadScores();
+  renderDuplicateWarnings();
+  renderAutomationRuns();
+}
+
+function renderLeadScores() {
+  const container = document.getElementById("lead-score-list");
+  if (!container) return;
+
+  const latestByLead = new Map();
+  for (const score of state.leadScores) {
+    if (!score.lead_id || latestByLead.has(score.lead_id)) continue;
+    latestByLead.set(score.lead_id, score);
+  }
+
+  const items = [...latestByLead.values()]
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+    .slice(0, 6);
+
+  if (!items.length) {
+    container.innerHTML = emptyState("No scores yet", "New leads will show tags and scores after intake or agent runs.");
+    return;
+  }
+
+  container.innerHTML = items.map((score) => {
+    const lead = getLeadById(score.lead_id);
+    const tags = Array.isArray(score.tags) ? score.tags : [];
+    return `
+      <div class="intel-item">
+        <div class="intel-main">
+          <strong>${escapeHtml(lead?.clientName || "Lead pending")}</strong>
+          <p class="card-meta">${escapeHtml(lead ? `${lead.source} | ${lead.status}` : score.lead_id)}</p>
+          ${tags.length ? `<div class="chip-row">${tags.slice(0, 5).map((tag) => `<span class="chip chip-muted">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+        </div>
+        <button class="score-pill" ${lead ? `onclick="openLeadDrawer('${lead.id}')"` : "disabled"}>${escapeHtml(String(score.score || 0))}</button>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderDuplicateWarnings() {
+  const container = document.getElementById("duplicate-warning-list");
+  if (!container) return;
+
+  const items = state.leadDuplicates
+    .filter((item) => !item.resolved)
+    .slice(0, 6);
+
+  if (!items.length) {
+    container.innerHTML = emptyState("No duplicate warnings", "Duplicate checks will appear here when Gmail, website, Tidio, or Instagram detect a match.");
+    return;
+  }
+
+  container.innerHTML = items.map((item) => {
+    const lead = getLeadById(item.matched_lead_id);
+    const identity = item.incoming_email || item.incoming_phone || "Unknown contact";
+    const reason = getDuplicateReasonCopy(item, lead);
+    const involved = lead
+      ? `${lead.clientName} (${lead.leadCode || "CRM record"}) and the new ${item.incoming_source || "lead"} inquiry`
+      : `Matched record ${item.matched_lead_id || "not loaded"} and the new ${item.incoming_source || "lead"} inquiry`;
+    return `
+      <div class="duplicate-card">
+        <div class="intel-main">
+          <div class="duplicate-title-row">
+            <strong>${escapeHtml(lead?.clientName || identity)}</strong>
+            <span class="chip" data-tone="attention">${escapeHtml(`${item.confidence || 80}% match`)}</span>
+          </div>
+          <p>${escapeHtml(reason)}</p>
+          <dl class="duplicate-details">
+            <div><dt>Possible duplicate</dt><dd>${escapeHtml(identity)}</dd></div>
+            <div><dt>Records involved</dt><dd>${escapeHtml(involved)}</dd></div>
+            <div><dt>Recommended action</dt><dd>Review both records, merge if they are the same client, or ignore this warning if they are different events.</dd></div>
+          </dl>
+        </div>
+        <div class="duplicate-actions">
+          ${lead ? `<button class="button button-secondary button-small" onclick="openLeadDrawer('${lead.id}')">Review duplicate</button>` : ""}
+          ${lead ? `<button class="button button-primary button-small" onclick="mergeDuplicateWarning('${item.id}', '${lead.id}')">Merge records</button>` : ""}
+          <button class="button button-secondary button-small" onclick="ignoreDuplicateWarning('${item.id}')">Ignore warning</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function getDuplicateReasonCopy(item, lead) {
+  const source = item.incoming_source || "A new lead";
+  const reason = String(item.match_reason || "").replace(/_/g, " ");
+  if (reason.includes("thread")) {
+    return `${source} was flagged because it appears to be part of an existing Gmail conversation${lead ? ` for ${lead.clientName}` : ""}.`;
+  }
+  if (reason.includes("event date")) {
+    return `${source} was flagged because the contact details and event date match an existing CRM record.`;
+  }
+  if (reason.includes("email") || reason.includes("phone")) {
+    return `${source} was flagged because the email or phone number already exists on an open CRM record.`;
+  }
+  return `${source} may belong to an existing open CRM record.`;
+}
+
+function renderAutomationRuns() {
+  const container = document.getElementById("automation-run-list");
+  if (!container) return;
+  const archiveButton = document.getElementById("automation-run-archive-button");
+
+  const items = state.automationRuns.slice(0, 3);
+  if (!items.length) {
+    container.innerHTML = emptyState("No runs logged", "Run Receptionist or Marketing after the SQL upgrade to see history here.");
+    if (archiveButton) archiveButton.hidden = true;
+    return;
+  }
+
+  container.innerHTML = items.map((run) => {
+      const summary = run.summary || {};
+      const summaryText = run.agent === "marketing"
+        ? `${summary.campaignsCreated || 0} campaign draft(s)`
+        : `${summary.gmailImported || 0} Gmail, ${summary.draftsCreated || 0} draft(s), ${summary.paymentLinksCreated || 0} payment link(s)`;
+    return `
+      <div class="intel-item">
+        <div class="intel-main">
+          <strong>${escapeHtml(titleCase(run.agent || "system"))}</strong>
+          <p class="card-meta">${escapeHtml(formatDateTime(run.started_at))}</p>
+          <p class="card-meta">${escapeHtml(summaryText)}</p>
+        </div>
+        <span class="chip ${run.status === "failed" ? "" : "chip-muted"}" data-tone="${run.status === "failed" ? "lost" : "booked"}">${escapeHtml(run.status || "started")}</span>
+      </div>
+    `;
+  }).join("");
+
+  if (archiveButton) {
+    archiveButton.hidden = state.automationRuns.length <= 3;
+    archiveButton.onclick = () => alert(buildAutomationRunArchive());
+  }
+}
+
+function buildAutomationRunArchive() {
+  return state.automationRuns
+    .slice(0, 12)
+    .map((run) => `${titleCase(run.agent || "system")} - ${run.status || "started"} - ${formatDateTime(run.started_at)}`)
+    .join("\\n");
+}
+
 function renderKpis() {
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const openLeads = state.leads.filter((lead) => !["Completed", "Lost"].includes(lead.status)).length;
+  const openLeads = state.leads.filter((lead) => ACTIVE_STATUSES.has(lead.status)).length;
   const bookedCount = state.leads.filter((lead) => CONFIRMED_STATUSES.has(lead.status)).length;
   const followupCount = state.followups.filter((followup) => followup.status === "Open").length;
   const pendingPayments = state.payments.filter((payment) => payment.status === "Pending").length;
   const leadsThisMonth = state.leads.filter((lead) => (lead.createdAt || "").startsWith(currentMonth)).length;
 
   const cards = [
-    ["Open leads", openLeads, "Active inquiries across all channels"],
-    ["Confirmed bookings", bookedCount, "Only count after calendar and payment checks"],
-    ["Open follow-ups", followupCount, "Reminders still needing action"],
-    ["Pending payments", pendingPayments, "Deposit or invoice links awaiting payment"],
-    [`${formatMonthLabel(currentMonth)} lead volume`, leadsThisMonth, "Current CRM month snapshot"],
-    ["DJ opportunities", state.leads.filter((lead) => lead.serviceRequested.includes("DJ")).length, "Leads where DJ services are part of the request"],
-    ["Instagram inquiries", state.leads.filter((lead) => lead.source === "Instagram").length, "DM and social lead opportunities"],
-    ["Website pipeline", state.leads.filter((lead) => lead.source === "Website").length, "Website and form-based inquiries"]
+    ["Open leads", openLeads, "Active inquiries"],
+    ["Booked", bookedCount, "Confirmed events"],
+    ["Follow-ups", followupCount, "Open tasks"],
+    ["Pending payments", pendingPayments, "Awaiting retainer"],
+    ["New this month", leadsThisMonth, formatMonthLabel(currentMonth)],
+    ["DJ leads", state.leads.filter((lead) => lead.serviceRequested.includes("DJ")).length, "Add-on opportunities"]
   ];
 
   document.getElementById("kpi-grid").innerHTML = cards.map(([label, value, meta]) => `
@@ -914,16 +1343,108 @@ function renderKpis() {
   `).join("");
 }
 
+function renderApprovalQueue() {
+  const container = document.getElementById("approval-queue");
+  if (!container) return;
+
+  const draftItems = state.messageHistory
+    .filter((item) => item.draftCreated)
+    .slice(0, 12)
+    .map((item) => {
+      const lead = getLeadById(item.leadId);
+      return {
+        type: "Gmail Draft",
+        title: item.subject || "Prepared Gmail draft",
+        meta: lead ? `${lead.clientName} | ${lead.email}` : item.toValue || "Lead pending",
+        notes: [item.summary, item.notes].filter(Boolean).join("\n"),
+        action: [
+          lead ? `<button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">Review Lead</button>` : "",
+          `<button class="button button-secondary" onclick="dismissDraftApproval('${item.id}')">Dismiss</button>`
+        ].filter(Boolean).join("")
+      };
+    });
+
+  const bookingItems = state.leads
+    .filter((lead) => ["Deposit Pending", "Deposit Paid", "Paid"].includes(lead.status) || ["Paid", "Deposit Paid"].includes(lead.paymentStatus))
+    .slice(0, 8)
+    .map((lead) => ({
+      type: "Booking Approval",
+      title: isLeadPaymentVerified(lead) ? "Payment received, verify signed agreement" : "Verify payment and signed agreement",
+      meta: `${lead.clientName} | ${formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime)} | ${lead.paymentStatus}`,
+      notes: "Do not mark Booked until calendar is checked, signed agreement is received, and payment is confirmed.",
+      action: [
+        `<button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">Review Lead</button>`,
+        canShowConfirmBooked(lead) ? `<button class="button button-primary" onclick="confirmSignedBooking('${lead.id}')">${isLeadPaymentVerified(lead) ? "Signed + Booked" : "Verified Paid + Signed"}</button>` : ""
+      ].filter(Boolean).join("")
+    }));
+
+  const followupItems = state.followups
+    .filter((item) => item.status === "Open")
+    .slice(0, 8)
+    .map((item) => {
+      const lead = getLeadById(item.leadId);
+      return {
+        type: "Follow-Up",
+        title: `${item.channel} follow-up due ${formatDate(item.dueDate)}`,
+        meta: lead ? `${lead.clientName} | ${lead.status}` : "Lead pending",
+        notes: item.notes,
+        action: lead ? `<button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">Review Lead</button>` : ""
+      };
+    });
+
+  const campaignItems = state.campaigns
+    .filter((campaign) => ["Ready for Review", "Idea"].includes(campaign.status))
+    .slice(0, 12)
+    .map((campaign) => ({
+      type: "Marketing Review",
+      title: campaign.title,
+      meta: `${campaign.channel} | ${campaign.status} | ${campaign.priority}`,
+      notes: campaign.notes,
+      action: `<button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Review Campaign</button>`
+    }));
+
+  const grouped = [
+    ["Gmail Drafts", draftItems, "No Gmail drafts waiting for review."],
+    ["Booking Decisions", bookingItems, "No booking approvals waiting right now."],
+    ["Follow-Ups", followupItems, "No open follow-ups."],
+    ["Marketing Drafts", campaignItems, "No marketing drafts waiting for review."]
+  ];
+
+  container.innerHTML = grouped.map(([title, items, emptyCopy]) => `
+    <article class="approval-column">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Owner Approval</p>
+          <h2>${escapeHtml(title)}</h2>
+        </div>
+        <span class="chip chip-muted">${items.length}</span>
+      </div>
+      <div class="approval-list">
+        ${items.length ? items.map((item) => `
+          <div class="approval-item">
+            <span class="chip chip-muted">${escapeHtml(item.type)}</span>
+            <strong>${escapeHtml(item.title)}</strong>
+            <p class="card-meta">${escapeHtml(item.meta)}</p>
+            <p>${escapeHtml(item.notes || "Review before taking action.")}</p>
+            <div class="card-actions">${item.action}</div>
+          </div>
+        `).join("") : emptyState("Clear", emptyCopy)}
+      </div>
+    </article>
+  `).join("");
+}
+
 function renderStatusGrid() {
-  document.getElementById("status-grid").innerHTML = LEAD_STATUSES.map((status) => {
-    const count = state.leads.filter((lead) => lead.status === status).length;
-    return `
-      <article class="status-card">
-        <p>${escapeHtml(status)}</p>
-        <strong>${count}</strong>
-      </article>
-    `;
-  }).join("");
+  const statuses = LEAD_STATUSES
+    .map((status) => [status, state.leads.filter((lead) => lead.status === status).length])
+    .filter(([, count]) => count > 0);
+
+  document.getElementById("status-grid").innerHTML = (statuses.length ? statuses : [["No active leads", 0]]).map(([status, count]) => `
+    <article class="status-card">
+      <span>${escapeHtml(status)}</span>
+      <strong>${count}</strong>
+    </article>
+  `).join("");
 }
 
 function renderNextFollowups() {
@@ -952,6 +1473,36 @@ function renderNextFollowups() {
   }).join("");
 }
 
+function renderCalendarSyncSummary() {
+  const container = document.getElementById("calendar-sync-summary");
+  if (!container) return;
+
+  const activeBookings = state.bookings.filter((booking) => ["Booked", "Deposit Paid", "Paid"].includes(booking.bookingStatus));
+  if (!activeBookings.length) {
+    container.innerHTML = emptyState("No calendar sync items", "Booked, paid events will show Google Calendar sync status here.");
+    return;
+  }
+
+  const priority = { Failed: 0, Pending: 1, Synced: 2 };
+  const items = activeBookings
+    .sort((a, b) => (priority[a.calendarSyncStatus] ?? 1) - (priority[b.calendarSyncStatus] ?? 1) || compareDates(a.eventDate, b.eventDate))
+    .slice(0, 4);
+
+  container.innerHTML = items.map((booking) => `
+    <div class="stack-item sync-item">
+      <div>
+        <strong>${escapeHtml(booking.clientName || "Booking")}</strong>
+        <p>${escapeHtml(formatEventDateTime(booking.eventDate, booking.startTime, booking.endTime))}</p>
+        ${booking.calendarSyncError ? `<p class="status-note">${escapeHtml(booking.calendarSyncError)}</p>` : ""}
+      </div>
+      <div class="sync-actions">
+        ${calendarSyncChip(booking)}
+        ${canSyncBookingToCalendar(getLeadById(booking.leadId), booking) ? `<button class="button button-secondary button-small" onclick="syncBookingCalendar('${booking.leadId}', '${booking.id}')">Retry</button>` : ""}
+      </div>
+    </div>
+  `).join("");
+}
+
 function renderUpcomingBookings() {
   const rows = [...state.leads]
     .filter((lead) => BOOKING_STATUSES.has(lead.status))
@@ -960,7 +1511,7 @@ function renderUpcomingBookings() {
     .map((lead) => `
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
-        <td>${escapeHtml(formatDate(lead.eventDate))}</td>
+        <td>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</td>
         <td>${escapeHtml(lead.serviceRequested)}</td>
         <td>${statusChip(lead.status)}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
@@ -985,16 +1536,19 @@ function renderLeadCards() {
       <div class="card-top">
         <div>
           <strong>${escapeHtml(lead.clientName)}</strong>
+          <p class="card-meta">${escapeHtml(lead.leadCode || "Lead ID pending")}</p>
           <p class="card-meta">${escapeHtml(`${lead.eventType} | ${lead.city || "City pending"}`)}</p>
         </div>
         ${statusChip(lead.status)}
       </div>
       <div class="card-meta">
-        <span>${escapeHtml(formatDate(lead.eventDate))}</span>
+        <span>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</span>
         <span>${escapeHtml(lead.serviceRequested)}</span>
         <span>${escapeHtml(lead.source)}</span>
         <span>${escapeHtml(String(lead.guestCount || 0))} guests</span>
+        ${lead.leadScore ? `<span>Score ${escapeHtml(String(lead.leadScore))}</span>` : ""}
       </div>
+      ${Array.isArray(lead.tags) && lead.tags.length ? `<div class="chip-row">${lead.tags.slice(0, 5).map((tag) => `<span class="chip chip-muted">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       <p class="card-notes">${escapeHtml(lead.notes || "No notes yet.")}</p>
       <div class="card-actions">
         <button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">View</button>
@@ -1009,13 +1563,16 @@ function renderBookings() {
   const rows = [...state.leads]
     .filter((lead) => !!lead.eventDate)
     .sort((a, b) => compareDates(a.eventDate, b.eventDate))
-    .map((lead) => `
+    .map((lead) => {
+      const booking = getBookingForLead(lead.id);
+      return `
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
-        <td>${escapeHtml(formatDate(lead.eventDate))}</td>
+        <td>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</td>
         <td>${escapeHtml(lead.serviceRequested)}</td>
         <td>${escapeHtml(lead.venue || "Pending venue")}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
+        <td>${calendarSyncChip(booking)}${booking?.calendarSyncError ? `<p class="status-note">${escapeHtml(booking.calendarSyncError)}</p>` : ""}</td>
         <td>
           <select class="select-inline" onchange="updateLeadStatus('${lead.id}', this.value)">
             ${LEAD_STATUSES.map((status) => `<option value="${status}" ${status === lead.status ? "selected" : ""}>${status}</option>`).join("")}
@@ -1023,13 +1580,17 @@ function renderBookings() {
           <p class="status-note">${escapeHtml(lead.calendarChecked === "Yes" ? "Calendar checked" : "Availability still needs confirmation")}</p>
         </td>
         <td class="row-actions">
+          <button class="button button-secondary" onclick="checkLeadAvailability('${lead.id}')">Check Calendar</button>
+          ${canSyncBookingToCalendar(lead, booking) ? `<button class="button button-secondary" onclick="syncBookingCalendar('${lead.id}', '${booking.id}')">Sync Calendar</button>` : ""}
+          <button class="button button-primary" onclick="prepareContractAndDeposit('${lead.id}')">Prepare Deposit</button>
+          ${canShowConfirmBooked(lead) ? `<button class="button button-primary" onclick="confirmSignedBooking('${lead.id}')">${isLeadPaymentVerified(lead) ? "Signed + Booked" : "Verified Paid + Signed"}</button>` : ""}
           <button class="button button-secondary" onclick="openLeadDrawer('${lead.id}')">View</button>
-          <button class="button button-secondary" onclick="openLeadModal('${lead.id}')">Edit</button>
         </td>
       </tr>
-    `).join("");
+    `;
+    }).join("");
 
-  document.getElementById("booking-rows").innerHTML = rows || `<tr><td colspan="7">No booking records available.</td></tr>`;
+  document.getElementById("booking-rows").innerHTML = rows || `<tr><td colspan="8">No booking records available.</td></tr>`;
 }
 
 function renderFollowups() {
@@ -1076,6 +1637,7 @@ function renderPayments() {
         <td>${escapeHtml(payment.status)}</td>
         <td><a href="${escapeAttribute(payment.link)}" target="_blank" rel="noreferrer">Open link</a></td>
         <td class="row-actions">
+          ${lead ? `<button class="button button-secondary" onclick="verifyStripePayment('${lead.id}', false)">Verify Stripe</button>` : ""}
           <button class="button button-secondary" onclick="openPaymentModal('${payment.id}')">Edit</button>
           <button class="button button-danger" onclick="deletePayment('${payment.id}')">Delete</button>
         </td>
@@ -1092,7 +1654,9 @@ function renderSourceLeads(source, container) {
       ? "New chat inquiries will appear here as soon as the Tidio flow posts them into the CRM."
       : source === "Gmail"
         ? "Once Gmail is connected and synced, labeled inbox inquiries will appear here."
-        : `Once ${source} sync is connected, this section can auto-populate.`;
+        : source === "Instagram"
+          ? "Instagram DMs/comments will appear here after Meta webhooks or the Instagram lead intake endpoint is connected."
+          : `Once ${source} sync is connected, this section can auto-populate.`;
     container.innerHTML = emptyState(`No ${source} leads yet`, emptyCopy);
     return;
   }
@@ -1162,6 +1726,8 @@ function openLeadModal(leadId = "") {
     document.getElementById("lead-email").value = lead.email;
     document.getElementById("lead-event-type").value = lead.eventType;
     document.getElementById("lead-event-date").value = lead.eventDate;
+    document.getElementById("lead-start-time").value = lead.startTime || "";
+    document.getElementById("lead-end-time").value = lead.endTime || "";
     document.getElementById("lead-venue").value = lead.venue;
     document.getElementById("lead-city").value = lead.city;
     document.getElementById("lead-service-requested").value = lead.serviceRequested;
@@ -1249,19 +1815,25 @@ function openLeadDrawer(leadId) {
 
   const relatedFollowups = state.followups.filter((item) => item.leadId === leadId);
   const relatedPayments = state.payments.filter((item) => item.leadId === leadId);
+  const relatedMessages = state.messageHistory
+    .filter((item) => item.leadId === leadId)
+    .sort((a, b) => compareDates(b.messageAt || b.createdAt, a.messageAt || a.createdAt))
+    .slice(0, 8);
 
   document.getElementById("drawer-content").innerHTML = `
     <div class="drawer-content">
       <div>
         <p class="panel-kicker">Lead Detail</p>
         <h2>${escapeHtml(lead.clientName)}</h2>
+        <p class="card-meta">${escapeHtml(lead.leadCode || "Lead ID pending")}</p>
         <p class="card-notes">${escapeHtml(lead.notes || "No notes recorded yet.")}</p>
       </div>
       <div class="drawer-grid">
         <div><dt>Status</dt><dd>${escapeHtml(lead.status)}</dd></div>
+        <div><dt>Lead ID</dt><dd>${escapeHtml(lead.leadCode || "Pending")}</dd></div>
         <div><dt>Source</dt><dd>${escapeHtml(lead.source)}</dd></div>
         <div><dt>Event type</dt><dd>${escapeHtml(lead.eventType)}</dd></div>
-        <div><dt>Event date</dt><dd>${escapeHtml(formatDate(lead.eventDate))}</dd></div>
+        <div><dt>Event date + time</dt><dd>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</dd></div>
         <div><dt>Service</dt><dd>${escapeHtml(lead.serviceRequested)}</dd></div>
         <div><dt>Guests</dt><dd>${escapeHtml(String(lead.guestCount || 0))}</dd></div>
         <div><dt>Venue</dt><dd>${escapeHtml(lead.venue || "Pending")}</dd></div>
@@ -1280,7 +1852,27 @@ function openLeadDrawer(leadId) {
         <div class="stack-item"><strong>Payments</strong><span>${relatedPayments.length}</span></div>
         ${relatedPayments.length ? relatedPayments.map((item) => `<div class="stack-item"><div><strong>${escapeHtml(item.type)}</strong><p>${escapeHtml(`${formatCurrency(item.amount)} | ${item.status}`)}</p></div><a href="${escapeAttribute(item.link)}" target="_blank" rel="noreferrer">Open</a></div>`).join("") : emptyState("No payments", "No Stripe or invoice links are saved yet.")}
       </div>
+      <div class="stack-list">
+        <div class="stack-item"><strong>Message history</strong><span>${relatedMessages.length}</span></div>
+        ${relatedMessages.length ? relatedMessages.map((item) => `
+          <article class="message-card">
+            <div class="message-head">
+              <div>
+                <strong>${escapeHtml(item.subject || `${item.channel} message`)}</strong>
+                <p>${escapeHtml(`${item.channel || "Message"} | ${item.direction || "Logged"} | ${formatDateTime(item.messageAt || item.createdAt)}`)}</p>
+              </div>
+              ${item.draftCreated ? `<span class="chip chip-muted">Draft</span>` : ""}
+            </div>
+            <p class="message-body">${escapeHtml(item.summary || item.notes || "No message summary saved.")}</p>
+          </article>
+        `).join("") : emptyState("No messages", "Customer emails and receptionist drafts will appear here after Gmail sync.")}
+      </div>
       <div class="card-actions">
+        <button class="button button-secondary" onclick="checkLeadAvailability('${lead.id}')">Check Calendar</button>
+        <button class="button button-primary" onclick="prepareContractAndDeposit('${lead.id}')">Prepare Deposit</button>
+        ${relatedPayments.length ? `<button class="button button-secondary" onclick="verifyStripePayment('${lead.id}', false)">Verify Stripe</button>` : ""}
+        ${relatedPayments.length && lead.calendarChecked === "Yes" ? `<button class="button button-primary" onclick="verifyStripePayment('${lead.id}', true)">Verify Stripe + Signed</button>` : ""}
+        ${canShowConfirmBooked(lead) ? `<button class="button button-primary" onclick="confirmSignedBooking('${lead.id}')">${isLeadPaymentVerified(lead) ? "Signed + Booked" : "Verified Paid + Signed"}</button>` : ""}
         <button class="button button-secondary" onclick="openLeadModal('${lead.id}'); closeDrawer();">Edit Lead</button>
       </div>
     </div>
@@ -1384,23 +1976,458 @@ async function updateLeadStatus(leadId, nextStatus) {
     return;
   }
 
+  if (nextStatus === "Booked") {
+    if (lead.calendarChecked !== "Yes" || lead.paymentStatus !== "Paid") {
+      alert("Do not mark Booked until calendar is checked and the 50% retainer/payment is confirmed.");
+      renderAll();
+      return;
+    }
+    if (!confirm("Only mark Booked after the signed service agreement is received. Continue?")) {
+      renderAll();
+      return;
+    }
+  }
+
   const previousStatus = lead.status;
   lead.status = nextStatus;
-  if (nextStatus === "Paid") {
-    lead.paymentStatus = "Paid";
-  }
   lead.updatedAt = todayIso();
 
   try {
     const savedLead = await upsertResource("leads", lead);
     upsertLocalItem(state.leads, savedLead);
+    await reconcileLeadPaymentState(savedLead);
     renderAll();
+    if (nextStatus === "Booked" && savedLead.paymentStatus === "Paid") {
+      const booking = getBookingForLead(savedLead.id);
+      await syncBookingCalendar(savedLead.id, booking?.id || "");
+    }
   } catch (error) {
     lead.status = previousStatus;
     console.error(error);
     alert(getFriendlyError(error, "Status could not be updated."));
     renderAll();
   }
+}
+
+async function reconcileLeadPaymentState(lead) {
+  if (!lead || !isLeadPaymentVerified(lead)) return;
+  if (authState.session?.accessToken && !authState.isLocalFallback) {
+    const response = await fetch("/api/admin/reconcile-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId: lead.id })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not sync payment/deposit records.");
+    }
+    await hydrateData();
+    return;
+  }
+
+  const relatedPayments = state.payments.filter((payment) => payment.leadId === lead.id);
+  if (!relatedPayments.length) {
+    const payment = {
+      id: crypto.randomUUID(),
+      leadId: lead.id,
+      type: "Deposit Request",
+      amount: calculateDepositAmount(lead),
+      status: "Paid",
+      link: "",
+      notes: "Payment marked paid from lead status. Verify Stripe/payment record if this was changed manually.",
+      createdAt: todayIso(),
+      updatedAt: todayIso()
+    };
+    const savedPayment = await upsertResource("payments", payment);
+    upsertLocalItem(state.payments, savedPayment);
+    return;
+  }
+
+  for (const payment of relatedPayments) {
+    if (payment.status === "Paid") continue;
+    const updatedPayment = {
+      ...payment,
+      status: "Paid",
+      notes: [
+        payment.notes,
+        `Marked paid because lead payment/status was set to paid on ${todayIso()}.`
+      ].filter(Boolean).join("\n"),
+      updatedAt: todayIso()
+    };
+    const savedPayment = await upsertResource("payments", updatedPayment);
+    upsertLocalItem(state.payments, savedPayment);
+  }
+}
+
+async function verifyStripePayment(leadId, signedAgreement = false) {
+  const lead = getLeadById(leadId);
+  if (!lead) return;
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before verifying Stripe payments.");
+    return;
+  }
+  const message = signedAgreement
+    ? "Verify Stripe payment and confirm the signed agreement was received? If paid, this will move the event to Booked and sync Google Calendar."
+    : "Verify this lead's Stripe checkout session now? If paid, this will mark the deposit paid.";
+  if (!confirm(message)) return;
+
+  try {
+    const response = await fetch("/api/admin/verify-stripe-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId, signedAgreement })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Stripe payment could not be verified.");
+    }
+
+    await hydrateData();
+    renderAll();
+    closeDrawer();
+    setSection(signedAgreement ? "bookings" : "payments");
+    alert([
+      payload.paid ? "Stripe payment verified as paid." : "Stripe payment is not paid yet.",
+      payload.leadStatus ? `Lead status: ${payload.leadStatus}` : "",
+      payload.amountPaid ? `Amount paid: ${formatCurrency(payload.amountPaid)}` : "",
+      payload.calendarSync?.ok ? "Google Calendar synced." : payload.calendarSync?.error || ""
+    ].filter(Boolean).join("\n"));
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not verify Stripe payment."));
+  }
+}
+
+async function syncBookingCalendar(leadId, bookingId = "") {
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before syncing Google Calendar.");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/calendar-sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId, bookingId })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw Object.assign(new Error(payload?.error || "Calendar sync failed."), { details: payload?.details });
+    }
+    await hydrateData();
+    renderAll();
+    alert(payload.calendarSync?.htmlLink ? `Google Calendar synced.\n${payload.calendarSync.htmlLink}` : "Google Calendar synced.");
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not sync this booking to Google Calendar."));
+  }
+}
+
+async function checkLeadAvailability(leadId) {
+  const lead = getLeadById(leadId);
+  if (!lead) return;
+  if (!lead.eventDate) {
+    alert("Add the event date before checking calendar availability.");
+    return;
+  }
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before checking calendar availability.");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/calendar/availability", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({
+        date: lead.eventDate,
+        startTime: lead.startTime || "00:00",
+        endTime: lead.endTime || "23:59",
+        timeZone: "America/New_York"
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || "Calendar check failed.");
+    }
+
+    lead.calendarChecked = payload.available ? "Yes" : "No";
+    lead.notes = [
+      lead.notes,
+      payload.available
+        ? `Calendar checked ${todayIso()}: no busy blocks found for ${formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime)}. Booking still requires signed contract and 50% retainer.`
+        : `Calendar checked ${todayIso()}: ${payload.busy.length} busy block(s) found for ${formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime)}. Do not confirm availability yet.`
+    ].filter(Boolean).join("\n\n");
+    lead.updatedAt = todayIso();
+
+    const savedLead = await upsertResource("leads", lead);
+    upsertLocalItem(state.leads, savedLead);
+    renderAll();
+    alert(payload.available ? "Calendar looks open. Booking still needs contract + 50% retainer." : "Calendar has a conflict. Do not confirm this booking yet.");
+  } catch (error) {
+    console.error(error);
+    const message = getFriendlyError(error, "Calendar availability could not be checked.");
+    if (message.toLowerCase().includes("insufficient authentication scopes")) {
+      alert("Google Calendar permission is missing. Go to Gmail, click Disconnect, then Connect Gmail again and approve Calendar permissions.");
+      return;
+    }
+    const detail = error?.details?.error?.message || error?.details?.message || "";
+    alert(detail && detail !== message ? `${message}\n\nGoogle detail: ${detail}` : message);
+  }
+}
+
+async function prepareContractAndDeposit(leadId) {
+  const lead = getLeadById(leadId);
+  if (!lead) return;
+  if (lead.calendarChecked !== "Yes") {
+    alert("Check calendar availability before preparing contract and deposit.");
+    return;
+  }
+  if (!lead.email || lead.email === "Not provided") {
+    alert("Add the client's email before preparing contract and deposit.");
+    return;
+  }
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before preparing contract and deposit.");
+    return;
+  }
+
+  try {
+    const depositAmount = calculateDepositAmount(lead);
+    const response = await fetch("/api/receptionist/prepare-booking", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ lead, depositAmount })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw Object.assign(new Error(payload?.error || "Could not prepare booking next step."), { details: payload?.details });
+    }
+
+    const nextLead = {
+      ...lead,
+      status: "Deposit Pending",
+      paymentStatus: payload.paymentReady ? "Pending" : "Not Requested",
+      notes: [
+        lead.notes,
+        `Receptionist prepared contract/deposit step ${todayIso()}. Contract: ${payload.contractUrl}. ${payload.paymentReady ? `Stripe retainer link: ${payload.paymentUrl}` : payload.paymentSkippedReason}. ${payload.gmailDraftReady ? `Gmail draft created: ${payload.gmailDraftId}` : payload.gmailDraftSkippedReason}.`
+      ].filter(Boolean).join("\n\n"),
+      updatedAt: todayIso()
+    };
+    const savedLead = await upsertResource("leads", nextLead);
+    upsertLocalItem(state.leads, savedLead);
+
+    const payment = {
+      id: crypto.randomUUID(),
+      leadId: lead.id,
+      type: "Deposit Request",
+      amount: payload.depositAmount,
+      status: "Pending",
+      link: payload.paymentUrl || "",
+      stripeSessionId: payload.stripeSessionId || "",
+      stripePaymentIntentId: payload.stripePaymentIntentId || "",
+      notes: payload.paymentReady
+        ? "50% retainer checkout link created by receptionist automation."
+        : `Payment link still needed. ${payload.paymentSkippedReason || "Add Stripe payment link manually."}`,
+      createdAt: todayIso(),
+      updatedAt: todayIso()
+    };
+    const savedPayment = await upsertResource("payments", payment);
+    upsertLocalItem(state.payments, savedPayment);
+
+    const followup = {
+      id: crypto.randomUUID(),
+      leadId: lead.id,
+      dueDate: addDaysIso(1),
+      channel: "Email",
+      status: "Open",
+      notes: payload.gmailDraftReady
+        ? `Review and send Gmail draft ${payload.gmailDraftId}. Confirm signed agreement and 50% retainer before marking booked.`
+        : `Draft/send contract + deposit email manually. ${payload.gmailDraftSkippedReason || ""}`.trim(),
+      createdAt: todayIso(),
+      updatedAt: todayIso()
+    };
+    const savedFollowup = await upsertResource("followups", followup);
+    upsertLocalItem(state.followups, savedFollowup);
+
+    if (payload.gmailDraftReady) {
+      const message = {
+        id: crypto.randomUUID(),
+        leadId: lead.id,
+        bookingId: "",
+        messageAt: new Date().toISOString(),
+        channel: "Gmail",
+        direction: "Outbound",
+        fromValue: "",
+        toValue: lead.email,
+        subject: payload.subject || "Booth Fairy Miami next steps",
+        gmailThreadId: payload.gmailDraftThreadId || "",
+        gmailMessageId: payload.gmailDraftMessageId || "",
+        summary: "Receptionist prepared contract and 50% retainer Gmail draft for owner review.",
+        draftCreated: true,
+        notes: `Gmail draft ID: ${payload.gmailDraftId}. Owner must review/send manually before any booking is confirmed.`,
+        createdAt: new Date().toISOString()
+      };
+      const savedMessage = await upsertResource("messageHistory", message);
+      upsertLocalItem(state.messageHistory, savedMessage);
+    }
+
+    renderAll();
+    alert([
+      "Contract/deposit step prepared.",
+      payload.gmailDraftReady ? "Gmail draft created." : payload.gmailDraftSkippedReason,
+      payload.paymentReady ? "Stripe retainer link created." : payload.paymentSkippedReason,
+      "Lead moved to Deposit Pending."
+    ].filter(Boolean).join("\n"));
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not prepare contract and deposit step."));
+  }
+}
+
+function canConfirmBooked(lead) {
+  return lead
+    && lead.status !== "Booked"
+    && lead.calendarChecked === "Yes"
+    && isLeadPaymentVerified(lead);
+}
+
+function canShowConfirmBooked(lead) {
+  return lead
+    && lead.status !== "Booked"
+    && lead.calendarChecked === "Yes"
+    && (isLeadPaymentVerified(lead) || lead.status === "Deposit Pending");
+}
+
+function canSyncBookingToCalendar(lead, booking) {
+  if (!booking) return false;
+  const isBooked = booking.bookingStatus === "Booked" || lead?.status === "Booked";
+  const isPaid = booking.depositStatus === "Paid" || lead?.paymentStatus === "Paid";
+  return isBooked && isPaid && booking.calendarSyncStatus !== "Synced";
+}
+
+function isLeadPaymentVerified(lead) {
+  return lead.paymentStatus === "Paid" || ["Booked", "Completed"].includes(lead.status);
+}
+
+async function confirmSignedBooking(leadId) {
+  const lead = getLeadById(leadId);
+  if (!lead) return;
+  if (!canShowConfirmBooked(lead)) {
+    alert("Only confirm once calendar is checked and the retainer step exists.");
+    return;
+  }
+  const paymentVerified = isLeadPaymentVerified(lead);
+  const confirmCopy = paymentVerified
+    ? "Confirm the signed agreement was received and mark this event Booked? This will sync the booking to Google Calendar."
+    : "This lead is not marked Paid in the CRM yet. Only continue if you personally verified the 50% retainer payment in Stripe/Gmail and received the signed agreement. Mark as Booked now?";
+  if (!confirm(confirmCopy)) {
+    return;
+  }
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before confirming a booking.");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/confirm-booking", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId, paymentVerified: !paymentVerified })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw Object.assign(new Error(payload?.error || "Could not confirm booking."), { details: payload?.details });
+    }
+
+    await hydrateData();
+    renderAll();
+    closeDrawer();
+    setSection("bookings");
+    alert([
+      "Booking confirmed.",
+      payload.calendarSync?.ok ? "Google Calendar synced." : payload.calendarSync?.error || "Calendar sync pending."
+    ].filter(Boolean).join("\n"));
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not confirm booking."));
+  }
+}
+
+async function dismissDraftApproval(messageId) {
+  if (!confirm("Remove this Gmail draft from the Approvals queue? This will not delete anything in Gmail.")) return;
+  try {
+    const existing = state.messageHistory.find((item) => item.id === messageId);
+    if (!existing) return;
+    const updated = {
+      ...existing,
+      draftCreated: false,
+      notes: [existing.notes, `Dismissed from approval queue on ${new Date().toISOString()}.`].filter(Boolean).join("\n")
+    };
+    const saved = await upsertResource("messageHistory", updated);
+    upsertLocalItem(state.messageHistory, saved);
+    renderApprovalQueue();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not dismiss this draft approval."));
+  }
+}
+
+async function ignoreDuplicateWarning(warningId) {
+  const warning = state.leadDuplicates.find((item) => item.id === warningId);
+  if (!warning) return;
+
+  warning.resolved = true;
+  renderLeadIntelligence();
+
+  if (state.syncMode !== "Supabase live") {
+    return;
+  }
+
+  try {
+    await supabaseRest(`/lead_duplicates?id=eq.${encodeURIComponent(warningId)}`, {
+      method: "PATCH",
+      body: { resolved: true }
+    });
+  } catch (error) {
+    warning.resolved = false;
+    renderLeadIntelligence();
+    alert(getFriendlyError(error, "Could not ignore this duplicate warning."));
+  }
+}
+
+function mergeDuplicateWarning(warningId, leadId) {
+  const warning = state.leadDuplicates.find((item) => item.id === warningId);
+  const lead = getLeadById(leadId);
+  if (!lead) return;
+
+  openLeadDrawer(leadId);
+  alert([
+    "Merge records",
+    "",
+    `Keep this CRM record for ${lead.clientName}.`,
+    `Copy any missing details from the ${warning?.incoming_source || "new"} inquiry into this lead, then ignore the duplicate warning once reviewed.`,
+    "",
+    "This avoids creating a second booking for the same client conversation."
+  ].join("\n"));
 }
 
 function populateStatusSelects() {
@@ -1438,6 +2465,10 @@ function filterLeads(leads) {
 
 function getLeadById(id) {
   return state.leads.find((lead) => lead.id === id);
+}
+
+function getBookingForLead(leadId) {
+  return state.bookings.find((booking) => booking.leadId === leadId);
 }
 
 async function upsertResource(resourceKey, item) {
@@ -1480,9 +2511,11 @@ async function deleteResource(resourceKey, id) {
 
 function persistAll() {
   localStorage.setItem(STORAGE_KEYS.leads, JSON.stringify(state.leads));
+  localStorage.setItem(STORAGE_KEYS.bookings, JSON.stringify(state.bookings));
   localStorage.setItem(STORAGE_KEYS.followups, JSON.stringify(state.followups));
   localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(state.payments));
   localStorage.setItem(STORAGE_KEYS.campaigns, JSON.stringify(state.campaigns));
+  localStorage.setItem(STORAGE_KEYS.messageHistory, JSON.stringify(state.messageHistory));
 }
 
 function loadData(key, fallback) {
@@ -1539,12 +2572,23 @@ function needsRefresh(session) {
 function statusChip(status) {
   const tone = status === "Lost"
     ? "lost"
-    : status === "Booked" || status === "Paid" || status === "Completed"
+    : ["Booked", "Paid", "Deposit Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client"].includes(status)
       ? "booked"
-      : status === "Missing Info" || status === "Follow-Up Needed" || status === "Deposit Pending"
+      : ["Missing Info", "Follow-Up", "Follow-Up Needed", "Deposit Pending"].includes(status)
         ? "attention"
         : "new";
   return `<span class="chip" data-tone="${tone}">${escapeHtml(status)}</span>`;
+}
+
+function calendarSyncChip(booking) {
+  const status = booking?.calendarSyncStatus || "Pending";
+  const tone = status === "Synced" ? "booked" : status === "Failed" ? "lost" : "attention";
+  const label = status === "Synced"
+    ? "Synced to Google Calendar"
+    : status === "Failed"
+      ? "Sync Failed"
+      : "Pending Sync";
+  return `<span class="chip" data-tone="${tone}">${escapeHtml(label)}</span>`;
 }
 
 function formatDate(value) {
@@ -1558,6 +2602,44 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric"
   });
+}
+
+function formatEventDateTime(date, startTime = "", endTime = "") {
+  const formattedDate = formatDate(date);
+  const start = formatTime(startTime);
+  const end = formatTime(endTime);
+  if (start && end) return `${formattedDate} · ${start} - ${end}`;
+  if (start) return `${formattedDate} · ${start}`;
+  return formattedDate;
+}
+
+function formatTime(value) {
+  const clean = normalizeTimeValue(value);
+  if (!clean) return "";
+  const [hour, minute] = clean.split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  return new Date(2026, 0, 1, hour, minute).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "Pending";
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function titleCase(value) {
+  return String(value || "")
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}`)
+    .join(" ");
 }
 
 function formatMonthLabel(isoMonth) {
@@ -1607,35 +2689,67 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function addDaysIso(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateDepositAmount(lead) {
+  const budget = Number(lead.budget || 0);
+  if (budget > 0) {
+    return Math.round(budget * 50) / 100;
+  }
+  const service = `${lead.serviceRequested || ""}`.toLowerCase();
+  if (service.includes("4 hour") || service.includes("$700")) return 350;
+  if (service.includes("3 hour") || service.includes("$575")) return 287.5;
+  return 225;
+}
+
 function updateConnectionIndicators() {
   syncModeLabel.textContent = state.syncDetail;
-  if (state.syncMode === "Supabase live") {
+  if (supabaseStatusChip && state.syncMode === "Supabase live") {
     supabaseStatusChip.textContent = "Tables live";
-  } else if (authState.isLocalFallback) {
+  } else if (supabaseStatusChip && authState.isLocalFallback) {
     supabaseStatusChip.textContent = "Local demo";
-  } else if (authState.user) {
+  } else if (supabaseStatusChip && authState.user) {
     supabaseStatusChip.textContent = "Auth connected";
-  } else {
+  } else if (supabaseStatusChip) {
     supabaseStatusChip.textContent = "Sign in required";
   }
 
-  if (!state.gmail.configured) {
+  if (gmailStatusChip && !state.gmail.configured) {
     gmailStatusChip.textContent = "OAuth setup needed";
-  } else if (state.gmail.connected) {
+  } else if (gmailStatusChip && state.gmail.connected) {
     gmailStatusChip.textContent = `Connected: ${state.gmail.connectedEmail}`;
-  } else {
+  } else if (gmailStatusChip) {
     gmailStatusChip.textContent = "Ready to connect";
   }
 
   const tidioLeadCount = state.leads.filter((lead) => lead.source === "Tidio").length;
-  if (state.syncMode === "Supabase live" && tidioLeadCount > 0) {
+  if (tidioStatusChip && state.syncMode === "Supabase live" && tidioLeadCount > 0) {
     tidioStatusChip.textContent = `${tidioLeadCount} live lead${tidioLeadCount === 1 ? "" : "s"} synced`;
-  } else if (state.syncMode === "Supabase live") {
+  } else if (tidioStatusChip && state.syncMode === "Supabase live") {
     tidioStatusChip.textContent = "Webhook live";
-  } else if (authState.user) {
+  } else if (tidioStatusChip && authState.user) {
     tidioStatusChip.textContent = "Auth ready";
-  } else {
+  } else if (tidioStatusChip) {
     tidioStatusChip.textContent = "Sign in to verify";
+  }
+
+  const instagramLeadCount = state.leads.filter((lead) => lead.source === "Instagram").length;
+  if (instagramStatusChip && state.instagram.configured && instagramLeadCount > 0) {
+    instagramStatusChip.textContent = `${instagramLeadCount} live lead${instagramLeadCount === 1 ? "" : "s"} synced`;
+  } else if (instagramStatusChip && state.instagram.configured) {
+    instagramStatusChip.textContent = "Webhook ready";
+  } else if (instagramStatusChip) {
+    instagramStatusChip.textContent = "Webhook token needed";
+  }
+
+  if (instagramStatusNote) {
+    instagramStatusNote.textContent = state.instagram.configured
+      ? `Webhook URL: ${state.instagram.webhookUrl}. Privacy: ${state.instagram.privacyPolicyUrl}. Deletion: ${state.instagram.dataDeletionUrl}. ${state.instagram.signatureVerification ? "Signature verification is enabled." : "Add INSTAGRAM_APP_SECRET to verify Meta signatures."}`
+      : "Add INSTAGRAM_WEBHOOK_VERIFY_TOKEN in Vercel, then paste the webhook URL into your Meta app.";
   }
 }
 
@@ -1832,6 +2946,8 @@ function mapLeadToDb(lead) {
     email: lead.email,
     event_type: lead.eventType,
     event_date: lead.eventDate || null,
+    start_time: lead.startTime || null,
+    end_time: lead.endTime || null,
     venue: lead.venue || null,
     city: lead.city || null,
     service_requested: lead.serviceRequested,
@@ -1839,6 +2955,8 @@ function mapLeadToDb(lead) {
     budget: lead.budget || 0,
     notes: lead.notes || null,
     status: lead.status,
+    tags: Array.isArray(lead.tags) ? lead.tags : [],
+    lead_score: Number(lead.leadScore || lead.lead_score || 0),
     payment_status: lead.paymentStatus,
     calendar_checked: lead.calendarChecked === "Yes",
     source: lead.source,
@@ -1850,18 +2968,23 @@ function mapLeadToDb(lead) {
 function mapLeadFromDb(row) {
   return {
     id: row.id,
+    leadCode: row.lead_code || "",
     clientName: row.client_name || "",
     phone: row.phone || "",
     email: row.email || "",
     eventType: row.event_type || "",
     eventDate: normalizeDateValue(row.event_date),
+    startTime: normalizeTimeValue(row.start_time),
+    endTime: normalizeTimeValue(row.end_time),
     venue: row.venue || "",
     city: row.city || "",
-    serviceRequested: row.service_requested || "Luxury DSLR Digital Booth",
+    serviceRequested: row.service_requested || "DSLR Photo Booth - Digital Sharing",
     guestCount: Number(row.guest_count || 0),
     budget: Number(row.budget || 0),
     notes: row.notes || "",
     status: row.status || "New Lead",
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    leadScore: Number(row.lead_score || 0),
     paymentStatus: row.payment_status || "Not Requested",
     calendarChecked: row.calendar_checked ? "Yes" : "No",
     source: row.source || "Website",
@@ -1896,6 +3019,71 @@ function mapFollowupFromDb(row) {
   };
 }
 
+function mapBookingToDb(booking) {
+  return {
+    id: booking.id,
+    lead_id: booking.leadId || null,
+    client_name: booking.clientName || "Booth Fairy Client",
+    email: booking.email || null,
+    phone: booking.phone || null,
+    event_type: booking.eventType || null,
+    event_date: booking.eventDate || null,
+    start_time: booking.startTime || null,
+    end_time: booking.endTime || null,
+    venue: booking.venue || null,
+    city: booking.city || null,
+    service_requested: booking.serviceRequested || null,
+    guest_count: Number(booking.guestCount || 0),
+    package_interest: booking.packageInterest || null,
+    total_quote: Number(booking.totalQuote || 0),
+    deposit_required: Number(booking.depositRequired || 0),
+    deposit_status: booking.depositStatus || "Not Requested",
+    payment_link: booking.paymentLink || null,
+    calendar_link: booking.calendarLink || null,
+    google_calendar_event_id: booking.calendarEventId || null,
+    calendar_sync_status: booking.calendarSyncStatus || "Pending",
+    calendar_sync_error: booking.calendarSyncError || null,
+    booking_status: booking.bookingStatus || "Deposit Pending",
+    contract_sent: Boolean(booking.contractSent),
+    notes: booking.notes || null,
+    created_at: booking.createdAt || todayIso(),
+    updated_at: todayIso()
+  };
+}
+
+function mapBookingFromDb(row) {
+  return {
+    id: row.id,
+    leadId: row.lead_id || "",
+    clientName: row.client_name || "Booth Fairy Client",
+    email: row.email || "",
+    phone: row.phone || "",
+    eventType: row.event_type || "",
+    eventDate: normalizeDateValue(row.event_date),
+    startTime: normalizeTimeValue(row.start_time),
+    endTime: normalizeTimeValue(row.end_time),
+    venue: row.venue || "",
+    city: row.city || "",
+    serviceRequested: row.service_requested || "",
+    guestCount: Number(row.guest_count || 0),
+    packageInterest: row.package_interest || "",
+    totalQuote: Number(row.total_quote || 0),
+    depositRequired: Number(row.deposit_required || 0),
+    depositStatus: row.deposit_status || "Not Requested",
+    paymentLink: row.payment_link || "",
+    calendarLink: row.calendar_link || "",
+    calendarEventId: row.google_calendar_event_id || row.calendar_event_id || "",
+    calendarSyncStatus: row.calendar_sync_status || "Pending",
+    calendarSyncError: row.calendar_sync_error || "",
+    calendarSyncedAt: row.calendar_synced_at || "",
+    bookingStatus: row.booking_status || "Deposit Pending",
+    contractSent: Boolean(row.contract_sent),
+    notes: row.notes || "",
+    createdAt: normalizeDateValue(row.created_at) || todayIso(),
+    updatedAt: normalizeDateValue(row.updated_at) || todayIso()
+  };
+}
+
 function mapPaymentToDb(payment) {
   return {
     id: payment.id,
@@ -1904,6 +3092,8 @@ function mapPaymentToDb(payment) {
     amount: payment.amount || 0,
     status: payment.status,
     link: payment.link || null,
+    stripe_session_id: payment.stripeSessionId || null,
+    stripe_payment_intent_id: payment.stripePaymentIntentId || null,
     notes: payment.notes || null,
     created_at: payment.createdAt || todayIso(),
     updated_at: todayIso()
@@ -1918,6 +3108,8 @@ function mapPaymentFromDb(row) {
     amount: Number(row.amount || 0),
     status: row.status || "Pending",
     link: row.link || "",
+    stripeSessionId: row.stripe_session_id || "",
+    stripePaymentIntentId: row.stripe_payment_intent_id || "",
     notes: row.notes || "",
     createdAt: normalizeDateValue(row.created_at) || todayIso(),
     updatedAt: normalizeDateValue(row.updated_at) || todayIso()
@@ -1950,11 +3142,70 @@ function mapCampaignFromDb(row) {
   };
 }
 
+function mapMessageHistoryToDb(message) {
+  return {
+    id: message.id,
+    lead_id: message.leadId || null,
+    contact_id: message.contactId || null,
+    booking_id: message.bookingId || null,
+    message_at: message.messageAt || new Date().toISOString(),
+    channel: message.channel,
+    direction: message.direction,
+    from_value: message.fromValue || null,
+    to_value: message.toValue || null,
+    subject: message.subject || null,
+    gmail_thread_id: message.gmailThreadId || null,
+    gmail_message_id: message.gmailMessageId || null,
+    summary: message.summary || null,
+    draft_created: Boolean(message.draftCreated),
+    sent_by: message.sentBy || null,
+    notes: message.notes || null,
+    created_at: message.createdAt || new Date().toISOString()
+  };
+}
+
+function mapMessageHistoryFromDb(row) {
+  return {
+    id: row.id,
+    leadId: row.lead_id || "",
+    contactId: row.contact_id || "",
+    bookingId: row.booking_id || "",
+    messageAt: row.message_at || "",
+    channel: row.channel || "",
+    direction: row.direction || "",
+    fromValue: row.from_value || "",
+    toValue: row.to_value || "",
+    subject: row.subject || "",
+    gmailThreadId: row.gmail_thread_id || "",
+    gmailMessageId: row.gmail_message_id || "",
+    summary: row.summary || "",
+    draftCreated: Boolean(row.draft_created),
+    sentBy: row.sent_by || "",
+    notes: row.notes || "",
+    createdAt: row.created_at || ""
+  };
+}
+
 function normalizeDateValue(value) {
   if (!value) {
     return "";
   }
   return String(value).slice(0, 10);
+}
+
+function normalizeTimeValue(value) {
+  if (!value) return "";
+  return String(value).slice(0, 5);
+}
+
+function parseAssetWidth(size) {
+  const match = String(size || "").match(/^(\d+)x(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseAssetHeight(size) {
+  const match = String(size || "").match(/^(\d+)x(\d+)$/);
+  return match ? Number(match[2]) : null;
 }
 
 function escapeHtml(value) {
@@ -1980,4 +3231,12 @@ window.deleteFollowup = deleteFollowup;
 window.deletePayment = deletePayment;
 window.deleteCampaign = deleteCampaign;
 window.updateLeadStatus = updateLeadStatus;
+window.checkLeadAvailability = checkLeadAvailability;
+window.syncBookingCalendar = syncBookingCalendar;
+window.prepareContractAndDeposit = prepareContractAndDeposit;
+window.verifyStripePayment = verifyStripePayment;
+window.confirmSignedBooking = confirmSignedBooking;
+window.dismissDraftApproval = dismissDraftApproval;
+window.ignoreDuplicateWarning = ignoreDuplicateWarning;
+window.mergeDuplicateWarning = mergeDuplicateWarning;
 window.closeDrawer = closeDrawer;

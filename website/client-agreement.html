@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Fillable Service Agreement | Booth Fairy Miami</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="agreement-page fillable-agreement-page">
+    <header class="site-header no-print">
+      <div class="container nav-shell">
+        <a class="brand" href="/">
+          <img class="brand-logo" src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" />
+        </a>
+        <nav class="site-nav" aria-label="Agreement navigation">
+          <a href="/service-agreement.html">Reference Terms</a>
+          <a href="mailto:info@boothfairymiami.com">Email Us</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="agreement-main fillable-agreement">
+      <section class="container agreement-document agreement-form-shell">
+        <div class="agreement-print-header">
+          <img src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" />
+          <div>
+            <p class="eyebrow">Booth Fairy Miami</p>
+            <h1>Service Agreement</h1>
+            <p>DSLR digital photo booth and DJ services for Miami and South Florida events.</p>
+          </div>
+        </div>
+
+        <div class="agreement-form-actions no-print">
+          <button class="button button-primary" type="button" id="save-agreement-button">Save in Browser</button>
+          <button class="button button-secondary" type="button" id="print-agreement-button">Print / Save PDF</button>
+          <button class="button button-secondary" type="button" id="clear-agreement-button">Clear</button>
+        </div>
+
+        <form class="fillable-contract" id="client-agreement-form">
+          <section class="contract-section">
+            <h2>Client And Event Details</h2>
+            <div class="agreement-field-grid">
+              <label>Client full name<input name="clientName" required /></label>
+              <label>Email<input type="email" name="email" required /></label>
+              <label>Phone<input name="phone" /></label>
+              <label>Event date<input type="date" name="eventDate" required /></label>
+              <label>Start time<input type="time" name="startTime" /></label>
+              <label>End time<input type="time" name="endTime" /></label>
+              <label>Event type<input name="eventType" placeholder="Wedding, birthday, corporate..." /></label>
+              <label>Venue / address<input name="venue" /></label>
+              <label>City<input name="city" /></label>
+              <label>Selected services
+                <select name="services">
+                  <option>DSLR Photo Booth - Digital Sharing</option>
+                  <option>Premium DJ Services</option>
+                  <option>Photo Booth + DJ Bundle</option>
+                </select>
+              </label>
+              <label>Package / hours<input name="packageInterest" placeholder="2 hours, 3 hours, 4 hours..." /></label>
+              <label>Total price<input name="totalPrice" placeholder="$450" /></label>
+            </div>
+          </section>
+
+          <section class="contract-section">
+            <h2>Agreement Terms</h2>
+            <p>
+              Booth Fairy Miami agrees to provide the selected services for the event listed above. Photo booth
+              services are digital only and include high-quality DSLR digital photos and instant digital sharing
+              when internet or cellular service allows it. Booth Fairy Miami does not currently offer printed
+              photos or 360 photo booth services.
+            </p>
+            <p>
+              A booking is not confirmed until calendar availability has been checked, this agreement has been
+              signed, and the required 50% non-refundable retainer has been received. The remaining 50% balance
+              is due on the event date before services begin unless otherwise approved in writing.
+            </p>
+            <p>
+              The client is responsible for accurate event details, venue access, safe setup space, power access,
+              parking/loading instructions, design approvals, music requests, and any venue rules needed for
+              professional service.
+            </p>
+            <p>
+              The 50% retainer is non-refundable because it reserves the event date and prevents Booth Fairy Miami
+              from accepting another booking for that date/time. Date, venue, package, or service changes must be
+              approved in writing and are subject to availability.
+            </p>
+          </section>
+
+          <section class="contract-section" lang="es">
+            <h2>Resumen En Español</h2>
+            <p>
+              Booth Fairy Miami ofrece servicios de cabina fotográfica digital DSLR y servicios de DJ. La cabina
+              fotográfica es digital solamente; no ofrecemos fotos impresas ni servicio de cabina 360 en este momento.
+            </p>
+            <p>
+              La reserva no está confirmada hasta que se verifique la disponibilidad, se firme este acuerdo y se
+              reciba el retenedor no reembolsable del 50%. El 50% restante vence el día del evento antes de comenzar
+              los servicios.
+            </p>
+          </section>
+
+          <section class="contract-section">
+            <h2>Client Approval And Signature</h2>
+            <label>Special notes or approved changes<textarea name="notes" rows="4"></textarea></label>
+            <div class="agreement-field-grid">
+              <label>Client typed signature<input name="signature" required /></label>
+              <label>Date signed<input type="date" name="signedDate" required /></label>
+            </div>
+            <p class="signature-disclaimer">
+              By typing my name above, I confirm that I have reviewed and agree to these service terms.
+            </p>
+          </section>
+        </form>
+      </section>
+    </main>
+
+    <script src="client-agreement.js"></script>
+  </body>
+</html>

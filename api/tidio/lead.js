@@ -1,18 +1,17 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TIDIO_WEBHOOK_SECRET = process.env.TIDIO_WEBHOOK_SECRET;
+const {
+  findDuplicateLead,
+  insertLeadWithFallback,
+  recordLeadDuplicate,
+  recordLeadScore,
+  withLeadIntelligence
+} = require("../_lead-utils");
 
 module.exports = async (req, res) => {
-  if (req.method === "GET") {
-    return sendJson(res, 200, {
-      ok: true,
-      service: "tidio-lead-ingest",
-      message: "POST chat lead payloads here from Tidio flows."
-    });
-  }
-
   if (req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
+    res.setHeader("Allow", "POST");
     return sendJson(res, 405, { ok: false, error: "Method not allowed" });
   }
 
@@ -51,29 +50,27 @@ module.exports = async (req, res) => {
 
   try {
     const leadRecord = buildSupabaseLead(normalized);
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation"
-      },
-      body: JSON.stringify(leadRecord)
-    });
-
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      return sendJson(res, 502, {
-        ok: false,
-        error: "Supabase insert failed",
-        details: data
+    const duplicate = await findDuplicateLead(supabaseAdmin, leadRecord);
+    if (duplicate) {
+      await recordLeadDuplicate(supabaseAdmin, leadRecord, duplicate, "tidio");
+      return sendJson(res, 200, {
+        ok: true,
+        duplicate: true,
+        leadId: duplicate.id,
+        source: "Tidio"
       });
+    }
+
+    const data = await insertLeadWithFallback(supabaseAdmin, leadRecord);
+
+    const leadId = data?.[0]?.id || null;
+    if (leadId) {
+      await recordLeadScore(supabaseAdmin, leadId, leadRecord, "Tidio lead captured");
     }
 
     return sendJson(res, 201, {
       ok: true,
-      leadId: data?.[0]?.id || null,
+      leadId,
       source: "Tidio"
     });
   } catch (error) {
@@ -112,7 +109,7 @@ function normalizeLeadPayload(payload) {
     eventDate: normalizeDate(payload.eventDate || payload.event_date),
     venue: stringify(payload.venue),
     city: stringify(payload.city),
-    serviceRequested: stringify(payload.serviceRequested || payload.service_requested || "Luxury DSLR Digital Booth"),
+    serviceRequested: stringify(payload.serviceRequested || payload.service_requested || "DSLR Photo Booth - Digital Sharing"),
     guestCount: normalizeNumber(payload.guestCount || payload.guest_count, 0),
     budget: normalizeNumber(payload.budget, 0),
     notes: buildNotes(payload),
@@ -124,7 +121,7 @@ function buildSupabaseLead(payload) {
   const referenceLine = payload.sourceReference ? `Tidio reference: ${payload.sourceReference}` : "";
   const finalNotes = [payload.notes, referenceLine].filter(Boolean).join("\n\n");
 
-  return {
+  return withLeadIntelligence({
     client_name: payload.clientName || "Tidio Lead",
     phone: payload.phone || "Not provided",
     email: payload.email || "Not provided",
@@ -132,7 +129,7 @@ function buildSupabaseLead(payload) {
     event_date: payload.eventDate || null,
     venue: payload.venue || null,
     city: payload.city || null,
-    service_requested: payload.serviceRequested || "Luxury DSLR Digital Booth",
+    service_requested: payload.serviceRequested || "DSLR Photo Booth - Digital Sharing",
     guest_count: payload.guestCount,
     budget: payload.budget,
     notes: finalNotes || "Lead captured from Tidio chat.",
@@ -140,7 +137,28 @@ function buildSupabaseLead(payload) {
     payment_status: "Not Requested",
     calendar_checked: false,
     source: "Tidio"
-  };
+  });
+}
+
+async function supabaseAdmin(path, options = {}) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    method: options.method || "GET",
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: options.prefer || "return=representation"
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+  if (!response.ok) {
+    const error = new Error(payload?.message || payload?.hint || "Supabase request failed.");
+    error.details = payload;
+    throw error;
+  }
+  return payload;
 }
 
 function buildNotes(payload) {
