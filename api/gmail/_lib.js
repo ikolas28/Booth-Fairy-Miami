@@ -726,8 +726,11 @@ function formatClockTime(hourValue, minuteValue, suffixValue) {
   let hour = Number(hourValue);
   const minute = Number(minuteValue || 0);
   const suffix = String(suffixValue || "").toLowerCase();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return "";
   if (suffix === "pm" && hour < 12) hour += 12;
   if (suffix === "am" && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23) return "";
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 

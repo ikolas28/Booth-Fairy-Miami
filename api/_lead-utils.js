@@ -86,9 +86,31 @@ function stripLeadIntelligence(lead) {
   return rest;
 }
 
+function normalizeLeadTimes(lead) {
+  const next = { ...(lead || {}) };
+  if ("start_time" in next) next.start_time = normalizeTimeValue(next.start_time) || null;
+  if ("end_time" in next) next.end_time = normalizeTimeValue(next.end_time) || null;
+  return next;
+}
+
+function normalizeTimeValue(value) {
+  const clean = String(value || "").trim().slice(0, 5);
+  const match = clean.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 function isMissingLeadOptionalColumn(error) {
   const text = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
-  return text.includes("lead_score") || text.includes("tags") || text.includes("schema cache") || text.includes("column");
+  return text.includes("lead_score")
+    || text.includes("tags")
+    || text.includes("schema cache")
+    || text.includes("column")
+    || text.includes("date/time field value out of range");
 }
 
 function stripUnavailableLeadColumns(error, lead) {
@@ -104,7 +126,7 @@ function stripUnavailableLeadColumns(error, lead) {
 }
 
 async function insertLeadWithFallback(supabaseAdmin, lead) {
-  let payload = lead;
+  let payload = normalizeLeadTimes(lead);
   let lastError = null;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
@@ -112,14 +134,14 @@ async function insertLeadWithFallback(supabaseAdmin, lead) {
     } catch (error) {
       if (!isMissingLeadOptionalColumn(error)) throw error;
       lastError = error;
-      payload = stripUnavailableLeadColumns(error, stripLeadIntelligence(payload));
+      payload = normalizeLeadTimes(stripUnavailableLeadColumns(error, stripLeadIntelligence(payload)));
     }
   }
   throw lastError;
 }
 
 async function patchLeadWithFallback(supabaseAdmin, leadId, patch) {
-  let payload = patch;
+  let payload = normalizeLeadTimes(patch);
   let lastError = null;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
@@ -127,7 +149,7 @@ async function patchLeadWithFallback(supabaseAdmin, leadId, patch) {
     } catch (error) {
       if (!isMissingLeadOptionalColumn(error)) throw error;
       lastError = error;
-      payload = stripUnavailableLeadColumns(error, stripLeadIntelligence(payload));
+      payload = normalizeLeadTimes(stripUnavailableLeadColumns(error, stripLeadIntelligence(payload)));
     }
   }
   throw lastError;
