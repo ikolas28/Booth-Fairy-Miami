@@ -9,6 +9,18 @@ const SERVICE_AGREEMENT_URL = process.env.SERVICE_AGREEMENT_URL || "https://www.
 const SERVICE_AGREEMENT_ENGLISH_PDF_URL = process.env.SERVICE_AGREEMENT_ENGLISH_PDF_URL || "https://www.boothfairymiami.com/assets/contracts/booth-fairy-miami-service-agreement-english.pdf";
 const SERVICE_AGREEMENT_SPANISH_PDF_URL = process.env.SERVICE_AGREEMENT_SPANISH_PDF_URL || "https://www.boothfairymiami.com/assets/contracts/booth-fairy-miami-acuerdo-de-servicios-espanol.pdf";
 const SITE_URL = process.env.SITE_URL || "https://www.boothfairymiami.com";
+const CRM_LEAD_LABELS = [
+  "CRM-Lead",
+  "CRM-Lead/Booked",
+  "CRM-Lead/Booking Interest",
+  "CRM-Lead/Deposit Pending",
+  "CRM-Lead/Follow-Up Needed",
+  "CRM-Lead/Lost",
+  "CRM-Lead/Missing Info",
+  "CRM-Lead/New",
+  "CRM-Lead/Processed",
+  "CRM-Lead/Quote Needed"
+];
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -177,12 +189,68 @@ async function createGmailDraftIfPossible(lead, depositAmount, paymentUrl) {
     };
   }
 
+  if (payload?.message?.threadId) {
+    await moveGmailThreadToLeadLabel(connection.accessToken, payload.message.threadId, "CRM-Lead/Deposit Pending").catch(() => null);
+  }
+
   return {
     id: payload?.id || "",
     messageId: payload?.message?.id || "",
     threadId: payload?.message?.threadId || "",
     skippedReason: ""
   };
+}
+
+async function moveGmailThreadToLeadLabel(accessToken, threadId, destinationLabelName) {
+  const { addLabelId, removeLabelIds } = await getLeadLabelMoveIds(accessToken, destinationLabelName);
+  if (!addLabelId) return false;
+  const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}/modify`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ addLabelIds: [addLabelId], removeLabelIds })
+  });
+  return response.ok;
+}
+
+async function getLeadLabelMoveIds(accessToken, destinationLabelName) {
+  const addLabelId = await getOrCreateGmailLabel(accessToken, destinationLabelName);
+  const labels = await listGmailLabels(accessToken);
+  const removeLabelIds = labels
+    .filter((label) => CRM_LEAD_LABELS.includes(label.name) && label.name !== destinationLabelName)
+    .map((label) => label.id)
+    .filter(Boolean);
+  return { addLabelId, removeLabelIds };
+}
+
+async function listGmailLabels(accessToken) {
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const payload = await response.json().catch(() => null);
+  return response.ok ? payload?.labels || [] : [];
+}
+
+async function getOrCreateGmailLabel(accessToken, labelName) {
+  const existing = (await listGmailLabels(accessToken)).find((label) => label.name === labelName);
+  if (existing?.id) return existing.id;
+
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: labelName,
+      labelListVisibility: "labelShow",
+      messageListVisibility: "show"
+    })
+  });
+  const payload = await response.json().catch(() => null);
+  return response.ok ? payload?.id || "" : "";
 }
 
 function buildSubject(lead) {

@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GMAIL_ACCOUNT_EMAIL = (process.env.GMAIL_ACCOUNT_EMAIL || "info@boothfairymiami.com").toLowerCase();
-const GMAIL_SYNC_QUERY = process.env.GMAIL_SYNC_QUERY || "label:CRM-Lead";
+const GMAIL_SYNC_QUERY = normalizeGmailSyncQuery(process.env.GMAIL_SYNC_QUERY);
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://www.boothfairymiami.com/api/gmail/callback";
 const ADMIN_EMAILS = ["boothfairyllc@gmail.com"];
 const OAUTH_STATE_COOKIE = "bfm_gmail_oauth_state";
@@ -259,7 +259,7 @@ async function verifyAdminRequest(req) {
 async function listGmailMessages(accessToken, query) {
   const params = new URLSearchParams({
     userId: "me",
-    maxResults: "20",
+    maxResults: "50",
     q: query
   });
   const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params.toString()}`, {
@@ -321,6 +321,18 @@ function parseIgnoredSenders(value = "") {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
   return [...new Set([...DEFAULT_IGNORED_GMAIL_SENDERS, ...configured])];
+}
+
+function buildDefaultGmailSyncQuery() {
+  return `newer_than:30d {label:CRM-Lead to:${GMAIL_ACCOUNT_EMAIL}}`;
+}
+
+function normalizeGmailSyncQuery(value = "") {
+  const configured = String(value || "").trim();
+  if (!configured || configured === "label:CRM-Lead") {
+    return buildDefaultGmailSyncQuery();
+  }
+  return configured;
 }
 
 function normalizeEmail(value) {

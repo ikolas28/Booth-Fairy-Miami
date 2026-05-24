@@ -250,13 +250,13 @@ async function syncLeadGmailLabels(lead, summary) {
   const labelName = getLeadGmailLabel(lead);
   if (!labelName) return;
 
-  const imports = await supabaseAdmin(`/gmail_imports?lead_id=eq.${encodeURIComponent(lead.id)}&select=gmail_message_id,gmail_thread_id&limit=10`, { method: "GET" }).catch(() => []);
-  if (!imports?.length) return;
+  const gmailRefs = await getLeadGmailRefs(lead.id);
+  if (!gmailRefs.length) return;
 
   const connection = await getValidGmailAccessToken();
   if (!connection?.accessToken) return;
 
-  for (const item of imports) {
+  for (const item of gmailRefs) {
     const targetId = item.gmail_thread_id || item.gmail_message_id;
     if (!targetId) continue;
     const applied = item.gmail_thread_id
@@ -264,6 +264,20 @@ async function syncLeadGmailLabels(lead, summary) {
       : await moveGmailMessageToLeadLabel(connection.accessToken, targetId, labelName);
     if (applied) summary.gmailLabelsApplied += 1;
   }
+}
+
+async function getLeadGmailRefs(leadId) {
+  const [imports, history] = await Promise.all([
+    supabaseAdmin(`/gmail_imports?lead_id=eq.${encodeURIComponent(leadId)}&select=gmail_message_id,gmail_thread_id&limit=20`, { method: "GET" }).catch(() => []),
+    supabaseAdmin(`/message_history?lead_id=eq.${encodeURIComponent(leadId)}&select=gmail_message_id,gmail_thread_id&order=created_at.desc&limit=20`, { method: "GET" }).catch(() => [])
+  ]);
+  const seen = new Set();
+  return [...(imports || []), ...(history || [])].filter((item) => {
+    const key = item.gmail_thread_id ? `t:${item.gmail_thread_id}` : item.gmail_message_id ? `m:${item.gmail_message_id}` : "";
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function getLeadGmailLabel(lead) {
