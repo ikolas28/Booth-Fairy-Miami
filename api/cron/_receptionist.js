@@ -10,6 +10,7 @@
   supabaseAdmin,
   verifyAdminRequest
 } = require("../gmail/_lib");
+const { patchLeadWithFallback } = require("../_lead-utils");
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -219,10 +220,7 @@ async function processLead(lead, summary) {
   }
 
   if (Object.keys(patch).length) {
-    await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
-      method: "PATCH",
-      body: patch
-    });
+    await patchLeadWithFallback(supabaseAdmin, lead.id, patch);
     summary.leadsUpdated += 1;
     await syncLeadGmailLabels({ ...lead, ...patch }, summary);
   }

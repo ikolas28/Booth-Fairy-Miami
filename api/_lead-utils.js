@@ -86,24 +86,51 @@ function stripLeadIntelligence(lead) {
   return rest;
 }
 
-function isMissingLeadIntelligenceColumn(error) {
+function isMissingLeadOptionalColumn(error) {
   const text = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
   return text.includes("lead_score") || text.includes("tags") || text.includes("schema cache") || text.includes("column");
 }
 
-async function insertLeadWithFallback(supabaseAdmin, lead) {
-  try {
-    return await supabaseAdmin("/leads", {
-      method: "POST",
-      body: lead
-    });
-  } catch (error) {
-    if (!isMissingLeadIntelligenceColumn(error)) throw error;
-    return supabaseAdmin("/leads", {
-      method: "POST",
-      body: stripLeadIntelligence(lead)
-    });
+function stripUnavailableLeadColumns(error, lead) {
+  const text = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
+  const next = { ...(lead || {}) };
+  if (text.includes("tags") || text.includes("lead_score")) {
+    delete next.tags;
+    delete next.lead_score;
   }
+  if (text.includes("start_time")) delete next.start_time;
+  if (text.includes("end_time")) delete next.end_time;
+  return next;
+}
+
+async function insertLeadWithFallback(supabaseAdmin, lead) {
+  let payload = lead;
+  let lastError = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      return await supabaseAdmin("/leads", { method: "POST", body: payload });
+    } catch (error) {
+      if (!isMissingLeadOptionalColumn(error)) throw error;
+      lastError = error;
+      payload = stripUnavailableLeadColumns(error, stripLeadIntelligence(payload));
+    }
+  }
+  throw lastError;
+}
+
+async function patchLeadWithFallback(supabaseAdmin, leadId, patch) {
+  let payload = patch;
+  let lastError = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      return await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, { method: "PATCH", body: payload });
+    } catch (error) {
+      if (!isMissingLeadOptionalColumn(error)) throw error;
+      lastError = error;
+      payload = stripUnavailableLeadColumns(error, stripLeadIntelligence(payload));
+    }
+  }
+  throw lastError;
 }
 
 async function findDuplicateLead(supabaseAdmin, lead) {
@@ -175,5 +202,6 @@ module.exports = {
   recordLeadDuplicate,
   recordLeadScore,
   insertLeadWithFallback,
+  patchLeadWithFallback,
   withLeadIntelligence
 };

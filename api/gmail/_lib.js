@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const {
   findDuplicateLead,
   insertLeadWithFallback,
+  patchLeadWithFallback,
   recordLeadDuplicate,
   recordLeadScore,
   withLeadIntelligence
@@ -577,7 +578,7 @@ async function updateExistingLeadFromGmail(leadId, leadPayload, extracted, messa
   patch.tags = intelligent.tags;
   patch.lead_score = intelligent.lead_score;
 
-  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, { method: "PATCH", body: patch });
+  await patchLeadWithFallback(supabaseAdmin, leadId, patch);
   await recordLeadScore(supabaseAdmin, leadId, { ...existing, ...patch }, "Gmail reply updated existing lead");
 
   try {

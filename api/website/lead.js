@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
     });
   }
 
-  const payload = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
+  const payload = parseRequestBody(req.body);
   if (!payload || typeof payload !== "object") {
     return sendJson(res, 400, { ok: false, error: "Invalid JSON body" });
   }
@@ -368,6 +368,14 @@ function safeParse(value) {
   } catch {
     return null;
   }
+}
+
+function parseRequestBody(body) {
+  if (!body) return {};
+  if (typeof body === "string") return safeParse(body) || {};
+  if (Buffer.isBuffer(body)) return safeParse(body.toString("utf8")) || {};
+  if (typeof body === "object") return body;
+  return {};
 }
 
 function normalizeDate(value) {
