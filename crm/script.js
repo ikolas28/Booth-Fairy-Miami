@@ -326,6 +326,7 @@ const state = {
   automationRuns: [],
   pendingBanner: null
 };
+const calendarRepairAttempts = new Set();
 
 const authState = {
   session: null,
@@ -775,6 +776,7 @@ async function hydrateData() {
   await refreshInstagramStatus();
   updateConnectionIndicators();
   renderAll();
+  await repairPendingCalendarSyncs();
 }
 
 async function refreshLeadIntelligence() {
@@ -1511,7 +1513,7 @@ function renderUpcomingBookings() {
     .map((lead) => `
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
-        <td>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</td>
+        <td>${renderEventSchedule(lead, getBookingForLead(lead.id), true)}</td>
         <td>${escapeHtml(lead.serviceRequested)}</td>
         <td>${statusChip(lead.status)}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
@@ -1568,7 +1570,7 @@ function renderBookings() {
       return `
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
-        <td>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</td>
+        <td class="booking-time-cell">${renderEventSchedule(lead, booking)}</td>
         <td>${escapeHtml(lead.serviceRequested)}</td>
         <td>${escapeHtml(lead.venue || "Pending venue")}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
@@ -2137,6 +2139,41 @@ async function syncBookingCalendar(leadId, bookingId = "") {
   }
 }
 
+async function repairPendingCalendarSyncs() {
+  if (!authState.session?.accessToken || authState.isLocalFallback) return;
+  const candidates = state.bookings
+    .filter((booking) => {
+      const lead = getLeadById(booking.leadId);
+      return canSyncBookingToCalendar(lead, booking) && booking.eventDate;
+    })
+    .slice(0, 3);
+  if (!candidates.length) return;
+
+  let changed = false;
+  for (const booking of candidates) {
+    if (calendarRepairAttempts.has(booking.id)) continue;
+    calendarRepairAttempts.add(booking.id);
+    try {
+      const response = await fetch("/api/admin/calendar-sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.session.accessToken}`
+        },
+        body: JSON.stringify({ leadId: booking.leadId, bookingId: booking.id })
+      });
+      const payload = await response.json().catch(() => null);
+      if (payload) changed = true;
+    } catch (error) {
+      console.warn("Calendar sync repair skipped", error);
+    }
+  }
+
+  if (changed && await loadRemoteCollections()) {
+    renderAll();
+  }
+}
+
 async function checkLeadAvailability(leadId) {
   const lead = getLeadById(leadId);
   if (!lead) return;
@@ -2323,7 +2360,7 @@ function canSyncBookingToCalendar(lead, booking) {
   if (!booking) return false;
   const isBooked = booking.bookingStatus === "Booked" || lead?.status === "Booked";
   const isPaid = booking.depositStatus === "Paid" || lead?.paymentStatus === "Paid";
-  return isBooked && isPaid && booking.calendarSyncStatus !== "Synced";
+  return isBooked && isPaid && getEffectiveCalendarSyncStatus(booking) !== "Synced";
 }
 
 function isLeadPaymentVerified(lead) {
@@ -2598,7 +2635,7 @@ function getEffectivePaymentStatus(payment, lead = getLeadById(payment?.leadId))
 }
 
 function calendarSyncChip(booking) {
-  const status = booking?.calendarSyncStatus || "Pending";
+  const status = getEffectiveCalendarSyncStatus(booking);
   const tone = status === "Synced" ? "booked" : status === "Failed" ? "lost" : "attention";
   const label = status === "Synced"
     ? "Synced to Google Calendar"
@@ -2606,6 +2643,12 @@ function calendarSyncChip(booking) {
       ? "Sync Failed"
       : "Pending Sync";
   return `<span class="chip" data-tone="${tone}">${escapeHtml(label)}</span>`;
+}
+
+function getEffectiveCalendarSyncStatus(booking) {
+  if (!booking) return "Pending";
+  if (booking.calendarSyncStatus === "Synced" || booking.calendarEventId || booking.calendarLink) return "Synced";
+  return booking.calendarSyncStatus || "Pending";
 }
 
 function formatDate(value) {
@@ -2628,6 +2671,68 @@ function formatEventDateTime(date, startTime = "", endTime = "") {
   if (start && end) return `${formattedDate} · ${start} - ${end}`;
   if (start) return `${formattedDate} · ${start}`;
   return formattedDate;
+}
+
+function getEventSchedule(lead = {}, booking = null) {
+  return {
+    date: lead.eventDate || booking?.eventDate || "",
+    startTime: lead.startTime || booking?.startTime || "",
+    endTime: lead.endTime || booking?.endTime || ""
+  };
+}
+
+function renderEventSchedule(lead, booking = null, compact = false) {
+  const schedule = getEventSchedule(lead, booking);
+  const dateLabel = formatDate(schedule.date);
+  const startLabel = formatTime(schedule.startTime);
+  const endLabel = formatTime(schedule.endTime);
+  const duration = getEventDurationLabel(schedule.startTime, schedule.endTime);
+  const barStyle = getEventTimeBarStyle(schedule.startTime, schedule.endTime);
+
+  return `
+    <div class="event-schedule ${compact ? "event-schedule-compact" : ""}">
+      <strong>${escapeHtml(dateLabel)}</strong>
+      <div class="event-time-row">
+        <span>${escapeHtml(startLabel || "Start time needed")}</span>
+        <span>${escapeHtml(endLabel || "End time needed")}</span>
+      </div>
+      <div class="event-hour-bar" aria-label="${escapeAttribute(startLabel && endLabel ? `Event time ${startLabel} to ${endLabel}` : "Event time missing")}">
+        ${barStyle ? `<span style="${escapeAttribute(barStyle)}"></span>` : ""}
+      </div>
+      <p class="status-note">${escapeHtml(duration || "Add event start and end time")}</p>
+    </div>
+  `;
+}
+
+function getEventDurationLabel(startTime, endTime) {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start === null || end === null || end <= start) return "";
+  const minutes = end - start;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return `${hours ? `${hours} hr${hours === 1 ? "" : "s"}` : ""}${hours && remainder ? " " : ""}${remainder ? `${remainder} min` : ""} event`;
+}
+
+function getEventTimeBarStyle(startTime, endTime) {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start === null || end === null || end <= start) return "";
+  const dayStart = 8 * 60;
+  const dayEnd = 24 * 60;
+  const range = dayEnd - dayStart;
+  const left = Math.max(0, Math.min(100, ((start - dayStart) / range) * 100));
+  const right = Math.max(0, Math.min(100, ((end - dayStart) / range) * 100));
+  const width = Math.max(4, right - left);
+  return `left:${left.toFixed(2)}%;width:${width.toFixed(2)}%;`;
+}
+
+function timeToMinutes(value) {
+  const clean = normalizeTimeValue(value);
+  if (!clean) return null;
+  const [hour, minute] = clean.split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
 }
 
 function formatTime(value) {

@@ -556,7 +556,7 @@ async function syncBookingToCalendar(booking, lead = {}) {
 
   const event = buildCalendarEvent(booking, lead);
   const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
-  const eventId = stringify(booking.google_calendar_event_id || booking.calendar_event_id) || await findExistingCalendarEventId(connection.accessToken, calendarId, booking);
+  const eventId = stringify(booking.google_calendar_event_id || booking.calendar_event_id) || await findExistingCalendarEventId(connection.accessToken, calendarId, booking, lead);
   const url = eventId
     ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`
     : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
@@ -597,7 +597,7 @@ async function syncBookingToCalendar(booking, lead = {}) {
   };
 }
 
-async function findExistingCalendarEventId(accessToken, calendarId, booking) {
+async function findExistingCalendarEventId(accessToken, calendarId, booking, lead = {}) {
   if (!booking?.id) return "";
   const params = new URLSearchParams({
     privateExtendedProperty: `bookingId=${booking.id}`,
@@ -609,7 +609,34 @@ async function findExistingCalendarEventId(accessToken, calendarId, booking) {
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) return "";
-  return payload?.items?.[0]?.id || "";
+  const extendedMatch = payload?.items?.[0]?.id || "";
+  if (extendedMatch) return extendedMatch;
+
+  const eventDate = booking.event_date || lead.event_date;
+  if (!eventDate) return "";
+  const clientName = normalizeSearchText(booking.client_name || lead.client_name);
+  const service = normalizeSearchText(booking.service_requested || lead.service_requested);
+  const searchParams = new URLSearchParams({
+    timeMin: toRfc3339WithOffset(eventDate, "00:00"),
+    timeMax: toRfc3339WithOffset(eventDate, "23:59"),
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "10"
+  });
+  if (clientName) searchParams.set("q", booking.client_name || lead.client_name);
+  const searchResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${searchParams.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const searchPayload = await searchResponse.json().catch(() => null);
+  if (!searchResponse.ok) return "";
+
+  const match = (searchPayload?.items || []).find((item) => {
+    if (item.status === "cancelled") return false;
+    const haystack = normalizeSearchText([item.summary, item.description, item.location].filter(Boolean).join(" "));
+    if (clientName && haystack.includes(clientName)) return true;
+    return haystack.includes("booth fairy") && service.includes("photo booth") && haystack.includes("photo booth");
+  });
+  return match?.id || "";
 }
 
 function buildCalendarEvent(booking, lead = {}) {
@@ -757,6 +784,16 @@ function slugify(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "event";
+}
+
+function normalizeSearchText(value) {
+  return stringify(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function stringify(value) {

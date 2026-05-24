@@ -633,6 +633,49 @@ tbody tr:hover {
   background: rgba(255, 255, 255, 0.58);
 }
 
+.booking-time-cell {
+  min-width: 210px;
+}
+
+.event-schedule {
+  display: grid;
+  gap: 7px;
+  min-width: 190px;
+}
+
+.event-schedule strong {
+  font-size: 0.98rem;
+}
+
+.event-time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.event-hour-bar {
+  position: relative;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(110, 100, 120, 0.12), rgba(110, 100, 120, 0.2));
+}
+
+.event-hour-bar span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--purple), var(--green));
+}
+
+.event-schedule-compact {
+  min-width: 165px;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
