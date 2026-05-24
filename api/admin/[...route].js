@@ -69,6 +69,11 @@ async function handleConfirmBooking(req, res) {
 
     const now = new Date().toISOString();
     const booking = await createOrUpdateBookedRecord(lead, now);
+    const paymentsUpdated = await markLeadPaymentsPaid(
+      lead,
+      now,
+      "Marked paid when booking was confirmed after signed agreement."
+    );
     const calendarSync = await syncBookingToCalendar(booking, lead).catch((error) => ({
       ok: false,
       error: error.message || "Google Calendar sync failed."
@@ -103,6 +108,8 @@ async function handleConfirmBooking(req, res) {
     return setJson(res, 200, {
       ok: true,
       leadStatus: "Booked",
+      paymentStatus: "Paid",
+      paymentsUpdated,
       bookingId: booking?.id || "",
       calendarSync
     });
@@ -283,33 +290,11 @@ async function handleReconcilePayment(req, res) {
       }
     });
 
-    const payments = await supabaseAdmin(`/payments?lead_id=eq.${encodeURIComponent(lead.id)}&select=*`, { method: "GET" }).catch(() => []);
-    let paymentsUpdated = 0;
-    if (payments?.length) {
-      for (const payment of payments) {
-        await supabaseAdmin(`/payments?id=eq.${encodeURIComponent(payment.id)}`, {
-          method: "PATCH",
-          body: {
-            status: "Paid",
-            notes: appendNotes(payment.notes, `Marked paid during admin reconciliation on ${now}.`)
-          }
-        });
-        paymentsUpdated += 1;
-      }
-    } else {
-      await supabaseAdmin("/payments", {
-        method: "POST",
-        body: {
-          lead_id: lead.id,
-          type: "Deposit Request",
-          amount: roundMoney(Number(lead.budget || 0) * 0.5),
-          status: "Paid",
-          link: null,
-          notes: `Paid deposit record created during admin reconciliation on ${now}.`
-        }
-      });
-      paymentsUpdated = 1;
-    }
+    const paymentsUpdated = await markLeadPaymentsPaid(
+      lead,
+      now,
+      "Marked paid during admin reconciliation."
+    );
 
     const bookings = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(lead.id)}&select=id,notes`, { method: "GET" }).catch(() => []);
     let bookingsUpdated = 0;
@@ -354,6 +339,37 @@ async function handleReconcilePayment(req, res) {
 async function getLatestLeadPayment(leadId) {
   const rows = await supabaseAdmin(`/payments?lead_id=eq.${encodeURIComponent(leadId)}&select=*&order=created_at.desc&limit=1`, { method: "GET" }).catch(() => []);
   return rows?.[0] || null;
+}
+
+async function markLeadPaymentsPaid(lead, now, reason) {
+  const payments = await supabaseAdmin(`/payments?lead_id=eq.${encodeURIComponent(lead.id)}&select=*`, { method: "GET" }).catch(() => []);
+  let paymentsUpdated = 0;
+  if (payments?.length) {
+    for (const payment of payments) {
+      await supabaseAdmin(`/payments?id=eq.${encodeURIComponent(payment.id)}`, {
+        method: "PATCH",
+        body: {
+          status: "Paid",
+          notes: appendNotes(payment.notes, `${reason} ${now}`)
+        }
+      });
+      paymentsUpdated += 1;
+    }
+    return paymentsUpdated;
+  }
+
+  await supabaseAdmin("/payments", {
+    method: "POST",
+    body: {
+      lead_id: lead.id,
+      type: "Deposit Request",
+      amount: roundMoney(Number(lead.budget || 0) * 0.5),
+      status: "Paid",
+      link: null,
+      notes: `${reason} Paid deposit record created on ${now}.`
+    }
+  });
+  return 1;
 }
 
 async function retrieveStripeCheckoutSession(sessionId) {

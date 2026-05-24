@@ -1322,7 +1322,7 @@ function renderKpis() {
   const openLeads = state.leads.filter((lead) => ACTIVE_STATUSES.has(lead.status)).length;
   const bookedCount = state.leads.filter((lead) => CONFIRMED_STATUSES.has(lead.status)).length;
   const followupCount = state.followups.filter((followup) => followup.status === "Open").length;
-  const pendingPayments = state.payments.filter((payment) => payment.status === "Pending").length;
+  const pendingPayments = state.payments.filter((payment) => getEffectivePaymentStatus(payment) === "Pending").length;
   const leadsThisMonth = state.leads.filter((lead) => (lead.createdAt || "").startsWith(currentMonth)).length;
 
   const cards = [
@@ -1629,12 +1629,17 @@ function renderPayments() {
   const body = document.getElementById("payment-rows");
   body.innerHTML = state.payments.map((payment) => {
     const lead = state.leads.find((item) => item.id === payment.leadId);
+    const effectiveStatus = getEffectivePaymentStatus(payment, lead);
+    const statusSource = effectiveStatus !== payment.status ? "Synced from booked lead" : "";
     return `
       <tr>
         <td>${escapeHtml(lead?.clientName || "Unknown Lead")}</td>
         <td>${escapeHtml(payment.type)}</td>
         <td>${escapeHtml(formatCurrency(payment.amount))}</td>
-        <td>${escapeHtml(payment.status)}</td>
+        <td>
+          ${statusChip(effectiveStatus)}
+          ${statusSource ? `<p class="status-note">${escapeHtml(statusSource)}</p>` : ""}
+        </td>
         <td><a href="${escapeAttribute(payment.link)}" target="_blank" rel="noreferrer">Open link</a></td>
         <td class="row-actions">
           ${lead ? `<button class="button button-secondary" onclick="verifyStripePayment('${lead.id}', false)">Verify Stripe</button>` : ""}
@@ -2576,8 +2581,20 @@ function statusChip(status) {
       ? "booked"
       : ["Missing Info", "Follow-Up", "Follow-Up Needed", "Deposit Pending"].includes(status)
         ? "attention"
-        : "new";
+      : "new";
   return `<span class="chip" data-tone="${tone}">${escapeHtml(status)}</span>`;
+}
+
+function getEffectivePaymentStatus(payment, lead = getLeadById(payment?.leadId)) {
+  const booking = payment?.leadId ? getBookingForLead(payment.leadId) : null;
+  if (
+    lead?.paymentStatus === "Paid" ||
+    ["Booked", "Paid", "Deposit Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client"].includes(lead?.status) ||
+    booking?.depositStatus === "Paid"
+  ) {
+    return "Paid";
+  }
+  return payment?.status || "Pending";
 }
 
 function calendarSyncChip(booking) {
