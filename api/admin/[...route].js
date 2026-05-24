@@ -165,8 +165,9 @@ async function handleVerifyStripePayment(req, res) {
     if (!await verifyAdminRequest(req)) {
       return setJson(res, 401, { ok: false, error: "Admin authentication required." });
     }
-    if (!isValidStripeSecretKey(STRIPE_SECRET_KEY)) {
-      return setJson(res, 500, { ok: false, error: "STRIPE_SECRET_KEY must be a Stripe secret key that starts with sk_live_ or sk_test_." });
+    const stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY);
+    if (!isValidStripeSecretKey(stripeSecretKey)) {
+      return setJson(res, 500, { ok: false, error: `STRIPE_SECRET_KEY must be a Stripe secret key that starts with sk_live_ or sk_test_. Current value looks like: ${describeStripeKeyType(stripeSecretKey)}.` });
     }
 
     const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
@@ -190,7 +191,7 @@ async function handleVerifyStripePayment(req, res) {
       });
     }
 
-    const session = await retrieveStripeCheckoutSession(sessionId);
+    const session = await retrieveStripeCheckoutSession(sessionId, stripeSecretKey);
     if (session.payment_status !== "paid") {
       return setJson(res, 409, {
         ok: false,
@@ -372,10 +373,10 @@ async function markLeadPaymentsPaid(lead, now, reason) {
   return 1;
 }
 
-async function retrieveStripeCheckoutSession(sessionId) {
+async function retrieveStripeCheckoutSession(sessionId, stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY)) {
   const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
     headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`
+      Authorization: `Bearer ${stripeSecretKey}`
     }
   });
   const payload = await response.json().catch(() => null);
@@ -495,7 +496,24 @@ function extractStripeSessionId(value) {
 }
 
 function isValidStripeSecretKey(value) {
-  return /^sk_(live|test)_[A-Za-z0-9]/.test(stringify(value));
+  return /^sk_(live|test)_[A-Za-z0-9]/.test(normalizeStripeSecretKey(value));
+}
+
+function normalizeStripeSecretKey(value) {
+  return stringify(value)
+    .replace(/^STRIPE_SECRET_KEY=/, "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
+}
+
+function describeStripeKeyType(value) {
+  const key = normalizeStripeSecretKey(value);
+  if (!key) return "empty value";
+  if (key.startsWith("pk_")) return "publishable key";
+  if (key.startsWith("rk_")) return "restricted key";
+  if (key.startsWith("whsec_")) return "webhook signing secret";
+  if (key.startsWith("sk_")) return "unrecognized Stripe secret format";
+  return "unknown key format";
 }
 
 function isMissingStripePaymentColumn(error) {

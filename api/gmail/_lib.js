@@ -22,10 +22,23 @@ const DEFAULT_IGNORED_GMAIL_SENDERS = [
   "notification@facebookmail.com",
   "noreply@business.facebook.com",
   "info@email.manychat.com",
+  "no-reply@accounts.google.com",
+  "no-reply@google.com",
+  "noreply@google.com",
+  "no-reply@stripe.com",
+  "noreply@stripe.com",
+  "support@stripe.com",
   "facebookmail.com",
   "business.facebook.com",
   "email.manychat.com",
-  "manychat.com"
+  "manychat.com",
+  "instagram.com",
+  "instagrammail.com",
+  "stripe.com",
+  "google.com",
+  "accounts.google.com",
+  "wix.com",
+  "squarespace.com"
 ];
 const GMAIL_IGNORED_SENDERS = parseIgnoredSenders(process.env.GMAIL_IGNORED_SENDERS);
 
@@ -359,22 +372,23 @@ function getGmailImportDecision(message) {
   const senderHeader = getHeader(message, "Sender");
   const fromEmail = extractEmail(fromHeader);
   const senderEmail = extractEmail(senderHeader);
+  const subject = getHeader(message, "Subject");
 
   if ([GMAIL_ACCOUNT_EMAIL, ...ADMIN_EMAILS].includes(fromEmail) || [GMAIL_ACCOUNT_EMAIL, ...ADMIN_EMAILS].includes(senderEmail)) {
     return {
       shouldImport: false,
       reason: `Skipped Booth Fairy outbound message: ${fromEmail || senderEmail || "unknown sender"}`,
       fromEmail,
-      subject: getHeader(message, "Subject")
+      subject
     };
   }
 
-  if (isIgnoredGmailSender(fromEmail) || isIgnoredGmailSender(senderEmail)) {
+  if (isIgnoredGmailSender(fromEmail) || isIgnoredGmailSender(senderEmail) || isIgnoredSystemNotification(message, subject)) {
     return {
       shouldImport: false,
       reason: `Skipped system notification sender: ${fromEmail || senderEmail || "unknown sender"}`,
       fromEmail,
-      subject: getHeader(message, "Subject")
+      subject
     };
   }
 
@@ -382,8 +396,28 @@ function getGmailImportDecision(message) {
     shouldImport: true,
     reason: "",
     fromEmail,
-    subject: getHeader(message, "Subject")
+    subject
   };
+}
+
+function isIgnoredSystemNotification(message, subject = "") {
+  const text = [
+    subject,
+    message?.snippet || "",
+    getReadableMessageText(message).slice(0, 1200)
+  ].join(" ").toLowerCase();
+  return [
+    "your stripe verification link",
+    "unrecognized device signed in to your stripe account",
+    "security alert",
+    "2-step verification",
+    "verification code",
+    "app password created",
+    "catch up on moments you've missed",
+    "recently added to their stories",
+    "see what's been happening on instagram",
+    "squarespace verification code"
+  ].some((phrase) => text.includes(phrase));
 }
 
 async function recordSkippedGmailImport(message, reason) {

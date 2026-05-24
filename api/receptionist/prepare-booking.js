@@ -106,11 +106,12 @@ function getPackageAmount(serviceRequested) {
 }
 
 async function createStripeCheckoutSession(lead, depositAmount) {
-  if (!STRIPE_SECRET_KEY) {
+  const stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY);
+  if (!stripeSecretKey) {
     return { url: "", skippedReason: "Missing STRIPE_SECRET_KEY. Add it in Vercel to create Stripe deposit links automatically." };
   }
-  if (!isValidStripeSecretKey(STRIPE_SECRET_KEY)) {
-    const error = new Error("Stripe is using the wrong API key type. Set STRIPE_SECRET_KEY in Vercel to a secret key that starts with sk_live_ for production or sk_test_ for preview.");
+  if (!isValidStripeSecretKey(stripeSecretKey)) {
+    const error = new Error(`Stripe is using the wrong API key type (${describeStripeKeyType(stripeSecretKey)}). Set STRIPE_SECRET_KEY in Vercel to a secret key that starts with sk_live_ for production or sk_test_ for preview.`);
     error.statusCode = 500;
     throw error;
   }
@@ -118,7 +119,7 @@ async function createStripeCheckoutSession(lead, depositAmount) {
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      Authorization: `Bearer ${stripeSecretKey}`,
       "Content-Type": "application/x-www-form-urlencoded"
     },
     body: new URLSearchParams({
@@ -156,7 +157,25 @@ async function createStripeCheckoutSession(lead, depositAmount) {
 }
 
 function isValidStripeSecretKey(value) {
-  return /^sk_(live|test)_[A-Za-z0-9]/.test(String(value || ""));
+  return /^sk_(live|test)_[A-Za-z0-9]/.test(normalizeStripeSecretKey(value));
+}
+
+function normalizeStripeSecretKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^STRIPE_SECRET_KEY=/, "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
+}
+
+function describeStripeKeyType(value) {
+  const key = normalizeStripeSecretKey(value);
+  if (!key) return "empty value";
+  if (key.startsWith("pk_")) return "publishable key";
+  if (key.startsWith("rk_")) return "restricted key";
+  if (key.startsWith("whsec_")) return "webhook signing secret";
+  if (key.startsWith("sk_")) return "unrecognized Stripe secret format";
+  return "unknown key format";
 }
 
 async function createGmailDraftIfPossible(lead, depositAmount, paymentUrl) {

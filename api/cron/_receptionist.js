@@ -562,14 +562,18 @@ async function prepareDepositStep(lead) {
 }
 
 async function createStripeCheckoutSession(lead, depositAmount) {
-  if (!STRIPE_SECRET_KEY) {
+  const stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY);
+  if (!stripeSecretKey) {
     return { url: "", skippedReason: "Missing STRIPE_SECRET_KEY." };
+  }
+  if (!isValidStripeSecretKey(stripeSecretKey)) {
+    return { url: "", skippedReason: `Stripe key is the wrong type (${describeStripeKeyType(stripeSecretKey)}). Set STRIPE_SECRET_KEY to sk_live_ or sk_test_.` };
   }
 
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      Authorization: `Bearer ${stripeSecretKey}`,
       "Content-Type": "application/x-www-form-urlencoded"
     },
     body: new URLSearchParams({
@@ -602,6 +606,28 @@ async function createStripeCheckoutSession(lead, depositAmount) {
     paymentIntentId: payload?.payment_intent || "",
     skippedReason: ""
   };
+}
+
+function isValidStripeSecretKey(value) {
+  return /^sk_(live|test)_[A-Za-z0-9]/.test(normalizeStripeSecretKey(value));
+}
+
+function normalizeStripeSecretKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^STRIPE_SECRET_KEY=/, "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
+}
+
+function describeStripeKeyType(value) {
+  const key = normalizeStripeSecretKey(value);
+  if (!key) return "empty value";
+  if (key.startsWith("pk_")) return "publishable key";
+  if (key.startsWith("rk_")) return "restricted key";
+  if (key.startsWith("whsec_")) return "webhook signing secret";
+  if (key.startsWith("sk_")) return "unrecognized Stripe secret format";
+  return "unknown key format";
 }
 
 function getMissingFields(lead) {
