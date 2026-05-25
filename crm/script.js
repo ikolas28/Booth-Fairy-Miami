@@ -1302,6 +1302,7 @@ function formatAutomationSummary(agentName, payload) {
     `Gmail labels applied: ${payload.gmailLabelsApplied || 0}`,
     `Follow-ups created: ${payload.followupsCreated || 0}`,
     `Stale follow-ups closed: ${payload.followupsClosed || 0}`,
+    `Past booked events completed: ${payload.pastEventsCompleted || 0}`,
     payload.errors?.length ? `${payload.errors.length} lead(s) need manual review.` : "No automation errors reported."
   ].join("\n");
 }
@@ -1688,6 +1689,7 @@ function renderCalendarSyncSummary() {
 function renderUpcomingBookings() {
   const rows = [...state.leads]
     .filter((lead) => BOOKING_STATUSES.has(lead.status))
+    .filter((lead) => isUpcomingEvent(lead, getBookingForLead(lead.id)))
     .sort((a, b) => compareDates(a.eventDate, b.eventDate))
     .slice(0, 6)
     .map((lead) => `
@@ -1701,7 +1703,7 @@ function renderUpcomingBookings() {
     `)
     .join("");
 
-  document.getElementById("upcoming-bookings").innerHTML = rows || `<tr><td colspan="5">No booking records yet.</td></tr>`;
+  document.getElementById("upcoming-bookings").innerHTML = rows || `<tr><td colspan="5">No upcoming bookings. Past booked events are hidden from this dashboard list.</td></tr>`;
 }
 
 function renderFinanceSummary() {
@@ -2983,6 +2985,23 @@ function isPastDate(value) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return date < today;
+}
+
+function isUpcomingEvent(lead = {}, booking = null) {
+  const schedule = getEventSchedule(lead, booking);
+  if (!schedule.date) return false;
+  const end = getEventEndDateTime(schedule.date, schedule.startTime, schedule.endTime);
+  return end && end.getTime() >= Date.now();
+}
+
+function getEventEndDateTime(date, startTime = "", endTime = "") {
+  const normalizedDate = String(date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null;
+  const end = normalizeTimeValue(endTime);
+  const start = normalizeTimeValue(startTime);
+  const time = end || start || "23:59";
+  const parsed = new Date(`${normalizedDate}T${time}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 async function upsertResource(resourceKey, item) {

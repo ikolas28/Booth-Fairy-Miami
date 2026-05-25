@@ -83,6 +83,7 @@ async function runReceptionistAutomation() {
     paymentLinksCreated: 0,
     followupsCreated: 0,
     followupsClosed: 0,
+    pastEventsCompleted: 0,
     gmailLabelsApplied: 0,
     leadsUpdated: 0,
     errors: []
@@ -95,6 +96,7 @@ async function runReceptionistAutomation() {
     try {
       await syncLeadGmailLabels(lead, summary);
       summary.followupsClosed += await closeStaleFollowupsForLead(lead);
+      summary.pastEventsCompleted += await completePastBookedLead(lead, summary);
     } catch (error) {
       summary.errors.push({
         leadId: lead.id,
@@ -122,7 +124,7 @@ async function runReceptionistAutomation() {
 
 async function getLeadBooking(leadId) {
   try {
-    const rows = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(leadId)}&select=id,event_date,booking_status,deposit_status&limit=1`, { method: "GET" });
+    const rows = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(leadId)}&select=id,event_date,booking_status,deposit_status,notes&limit=1`, { method: "GET" });
     return rows?.[0] || null;
   } catch {
     return null;
@@ -496,6 +498,40 @@ function shouldCloseLeadFollowups(lead) {
   return paymentStatus === "Paid" && isPastEventDate(lead.event_date);
 }
 
+async function completePastBookedLead(lead, summary) {
+  const status = String(lead.status || "");
+  const paymentStatus = String(lead.payment_status || "");
+  if (!["Booked", "Paid"].includes(status) && paymentStatus !== "Paid") return 0;
+  if (!isPastEventWindow(lead.event_date, lead.start_time, lead.end_time)) return 0;
+
+  const completedAt = new Date().toISOString();
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
+    method: "PATCH",
+    body: {
+      status: "Completed",
+      notes: appendNotes(lead.notes, `Marked completed automatically by receptionist because the booked event time has passed. ${completedAt}`)
+    }
+  }).catch((error) => {
+    summary.errors.push({
+      leadId: lead.id,
+      leadCode: lead.lead_code,
+      error: error.message || "Could not mark past event completed."
+    });
+  });
+
+  const booking = await getLeadBooking(lead.id);
+  if (booking?.id) {
+    await supabaseAdmin(`/bookings?id=eq.${encodeURIComponent(booking.id)}`, {
+      method: "PATCH",
+      body: {
+        booking_status: "Completed",
+        notes: appendNotes(booking.notes, `Marked completed automatically because the event time has passed. ${completedAt}`)
+      }
+    }).catch(() => null);
+  }
+  return 1;
+}
+
 function isPastEventDate(value) {
   if (!value) return false;
   const eventDate = new Date(`${String(value).slice(0, 10)}T00:00:00-05:00`);
@@ -503,6 +539,46 @@ function isPastEventDate(value) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return eventDate < today;
+}
+
+function isPastEventWindow(eventDate, startTime = "", endTime = "") {
+  const date = String(eventDate || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const now = getNewYorkNowParts();
+  if (date < now.date) return true;
+  if (date > now.date) return false;
+  const cutoff = timeToMinutes(endTime) ?? timeToMinutes(startTime);
+  if (cutoff === null) return false;
+  return cutoff < now.minutes;
+}
+
+function getNewYorkNowParts() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23"
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutes: Number(parts.hour || 0) * 60 + Number(parts.minute || 0)
+  };
+}
+
+function timeToMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour > 23 || minute > 59) return null;
+  return hour * 60 + minute;
 }
 
 async function checkCalendar(lead) {
