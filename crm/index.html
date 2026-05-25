@@ -358,6 +358,17 @@
             <button class="button button-primary" id="new-campaign-button">Add Idea</button>
           </div>
         </div>
+        <article class="panel marketing-audience-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Audience</p>
+              <h2>Eligible marketing leads</h2>
+            </div>
+            <button class="button button-secondary button-small" id="refresh-marketing-audience-button">Refresh Audience</button>
+          </div>
+          <div class="marketing-audience-grid" id="marketing-audience-grid"></div>
+          <div class="marketing-audience-list" id="marketing-audience-list"></div>
+        </article>
         <div class="campaign-board" id="campaign-board"></div>
       </section>
     </main>
@@ -553,7 +564,7 @@
         <label class="span-2">Campaign notes<textarea id="campaign-notes" rows="7" required></textarea></label>
         <div class="campaign-helper span-2">
           <strong>Approval workflow</strong>
-          <span>Ready for Review means check the strategy and copy. For Email campaigns, Scheduled prepares a Gmail draft for you. You still add recipients and send manually.</span>
+          <span>Ready for Review means check the strategy and copy. For Email campaigns, Scheduled prepares Bcc Gmail draft batches for eligible leads. You still review and send manually.</span>
         </div>
         <div class="form-actions span-2">
           <button type="button" class="button button-secondary" id="campaign-approve-button">Approve & Prepare Draft</button>

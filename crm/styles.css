@@ -462,6 +462,35 @@ textarea {
   margin-top: 14px;
 }
 
+.marketing-audience-panel {
+  margin: 18px 0;
+}
+
+.marketing-audience-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--container-gap);
+  margin-top: 14px;
+}
+
+.marketing-audience-list {
+  margin-top: 14px;
+}
+
+.audience-preview {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.audience-preview p,
+.campaign-subject small {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.8fr);
@@ -1186,6 +1215,7 @@ tbody tr:hover {
 @media (max-width: 1220px) {
   .kpi-grid,
   .finance-summary-grid,
+  .marketing-audience-grid,
   .card-grid,
   .source-grid,
   .approval-grid,
@@ -1318,6 +1348,7 @@ tbody tr:hover {
 
   .kpi-grid,
   .finance-summary-grid,
+  .marketing-audience-grid,
   .card-grid,
   .source-grid,
   .intel-grid,

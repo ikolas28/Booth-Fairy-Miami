@@ -412,6 +412,9 @@ function attachEventListeners() {
   document.getElementById("new-followup-button").addEventListener("click", () => openFollowupModal());
   document.getElementById("new-payment-button").addEventListener("click", () => openPaymentModal());
   document.getElementById("new-campaign-button").addEventListener("click", () => openCampaignModal());
+  document.getElementById("refresh-marketing-audience-button").addEventListener("click", () => {
+    renderMarketingAudience();
+  });
   document.getElementById("run-receptionist-button").addEventListener("click", () => runAgentAutomation("receptionist"));
   document.getElementById("run-marketing-button").addEventListener("click", () => runAgentAutomation("marketing"));
   document.getElementById("instagram-refresh-button").addEventListener("click", async () => {
@@ -1161,7 +1164,7 @@ async function prepareCampaignGmailDraft(campaignId, options = {}) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authState.session.accessToken}`
       },
-      body: JSON.stringify({ campaignId })
+      body: JSON.stringify({ campaignId, bulk: true, batchSize: 25 })
     });
     const payload = await parseResponse(response);
     if (!response.ok || !payload?.ok) {
@@ -1173,7 +1176,7 @@ async function prepareCampaignGmailDraft(campaignId, options = {}) {
     upsertLocalItem(state.campaigns, campaign);
     await refreshGmailDraftApprovals().catch(() => null);
     if (!options.quiet) {
-      alert(`${payload.skipped ? "Draft already prepared" : "Gmail draft prepared"}\nSubject: ${payload.subject || "Marketing email"}\n\nOpen Gmail drafts, add recipients or Bcc, review, then send manually.`);
+      alert(`${payload.skipped ? "Draft already prepared" : "Gmail campaign drafts prepared"}\nSubject: ${payload.subject || "Marketing email"}\nRecipients: ${payload.recipientsCount || 0}\nDraft batches: ${payload.batchesCreated || 1}\n\nOpen Gmail drafts, review each batch, then send manually.`);
     }
     return payload;
   } catch (error) {
@@ -1320,6 +1323,7 @@ function renderAll() {
   renderSourceLeads("Gmail", document.getElementById("gmail-leads"));
   renderSourceLeads("Tidio", document.getElementById("tidio-leads"));
   renderSourceLeads("Instagram", document.getElementById("instagram-leads"));
+  renderMarketingAudience();
   renderCampaigns();
   refreshSelectMenus();
   persistAll();
@@ -1888,6 +1892,7 @@ function renderSourceLeads(source, container) {
 function renderCampaigns() {
   const container = document.getElementById("campaign-board");
   const columns = ["Idea", "Drafting", "Ready for Review", "Scheduled", "Published"];
+  const eligibleCount = getEligibleMarketingLeads().length;
 
   container.innerHTML = columns.map((column) => {
     const items = state.campaigns.filter((campaign) => campaign.status === column);
@@ -1900,14 +1905,14 @@ function renderCampaigns() {
               <strong>${escapeHtml(campaign.title)}</strong>
               <span class="chip chip-muted">${escapeHtml(campaign.priority)}</span>
             </div>
-            ${campaign.channel === "Email" ? `<div class="campaign-subject"><span>Email subject</span><strong>${escapeHtml(getCampaignEmailSubject(campaign))}</strong></div>` : ""}
+            ${campaign.channel === "Email" ? `<div class="campaign-subject"><span>Email subject</span><strong>${escapeHtml(getCampaignEmailSubject(campaign))}</strong><small>${eligibleCount} eligible lead${eligibleCount === 1 ? "" : "s"} will be Bcc'd in safe batches.</small></div>` : ""}
             <p>${escapeHtml(campaign.notes)}</p>
             <div class="card-meta">
               <span>${escapeHtml(campaign.channel)}</span>
               <span>${escapeHtml(getCampaignStatusLabel(campaign.status))}</span>
             </div>
             <div class="card-actions">
-              ${campaign.channel === "Email" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve & Draft</button>` : ""}
+              ${campaign.channel === "Email" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Draft to ${eligibleCount} Leads</button>` : ""}
               ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">Mark Sent</button>` : ""}
               <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
               <button class="button button-danger" onclick="deleteCampaign('${campaign.id}')">Delete</button>
@@ -1917,6 +1922,40 @@ function renderCampaigns() {
       </section>
     `;
   }).join("");
+}
+
+function renderMarketingAudience() {
+  const grid = document.getElementById("marketing-audience-grid");
+  const list = document.getElementById("marketing-audience-list");
+  if (!grid || !list) return;
+
+  const leadsWithEmail = dedupeMarketingLeads(state.leads.filter((lead) => isUsableMarketingEmail(lead.email)));
+  const eligible = getEligibleMarketingLeads();
+  const excluded = leadsWithEmail.length - eligible.length;
+  const warmSources = countBy(eligible, "source");
+  const topSource = Object.entries(warmSources).sort((a, b) => b[1] - a[1])[0]?.[0] || "None yet";
+
+  const cards = [
+    ["Eligible", eligible.length, "Warm leads with usable emails"],
+    ["Excluded", Math.max(excluded, 0), "Booked, lost, past, duplicate, or opted out"],
+    ["Batch size", 25, "Gmail drafts use Bcc batches"],
+    ["Top source", topSource, "Best current audience source"]
+  ];
+
+  grid.innerHTML = cards.map(([label, value, meta]) => `
+    <article class="finance-card">
+      <p>${escapeHtml(label)}</p>
+      <strong>${escapeHtml(String(value))}</strong>
+      <span>${escapeHtml(meta)}</span>
+    </article>
+  `).join("");
+
+  list.innerHTML = eligible.length ? `
+    <div class="audience-preview">
+      <strong>Next recipients</strong>
+      <p>${escapeHtml(eligible.slice(0, 12).map((lead) => `${lead.clientName} <${lead.email}>`).join(", "))}${eligible.length > 12 ? "..." : ""}</p>
+    </div>
+  ` : emptyState("No eligible marketing leads", "New interested leads with emails will appear here. Booked, lost, completed, past-event, duplicate, and opted-out records are excluded.");
 }
 
 function getCampaignStatusLabel(status) {
@@ -1936,6 +1975,49 @@ function getCampaignEmailSubject(campaign) {
 function extractCampaignField(notes, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return String(notes || "").match(new RegExp(`${escaped}\\s*:\\s*([^\\n]+)`, "i"))?.[1]?.trim() || "";
+}
+
+function getEligibleMarketingLeads() {
+  return dedupeMarketingLeads(state.leads)
+    .filter((lead) => isUsableMarketingEmail(lead.email))
+    .filter((lead) => !isClosedMarketingLead(lead))
+    .filter((lead) => !hasMarketingOptOut(lead));
+}
+
+function dedupeMarketingLeads(leads) {
+  const seen = new Set();
+  return leads.filter((lead) => {
+    const email = String(lead.email || "").trim().toLowerCase();
+    if (!email || seen.has(email)) return false;
+    seen.add(email);
+    return true;
+  });
+}
+
+function isUsableMarketingEmail(email) {
+  const value = String(email || "").trim().toLowerCase();
+  return value.includes("@")
+    && value !== "not provided"
+    && value !== String(state.gmail.allowedMailbox || "").toLowerCase()
+    && !value.endsWith("@example.com");
+}
+
+function isClosedMarketingLead(lead) {
+  if (["Booked", "Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client", "Lost"].includes(lead.status)) return true;
+  if (lead.paymentStatus === "Paid") return true;
+  return isPastDate(lead.eventDate);
+}
+
+function hasMarketingOptOut(lead) {
+  return /\bunsubscribe\b|\bstop\b|do not (email|market|contact)|no marketing|spam complaint|opt[- ]?out/i.test(lead.notes || "");
+}
+
+function countBy(items, key) {
+  return items.reduce((counts, item) => {
+    const value = item[key] || "Unknown";
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function openLeadModal(leadId = "") {

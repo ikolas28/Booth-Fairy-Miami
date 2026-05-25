@@ -249,6 +249,7 @@ async function handleMarketingDraft(req, res) {
     }
 
     const email = buildMarketingCampaignEmail(campaign);
+    const bulkMode = body.bulk !== false;
     const alreadyPrepared = await supabaseAdmin(
       `/message_history?draft_created=eq.true&subject=eq.${encodeURIComponent(email.subject)}&notes=ilike.${encodeURIComponent(`*Campaign ID: ${campaign.id}*`)}&select=id&limit=1`,
       { method: "GET" }
@@ -263,37 +264,65 @@ async function handleMarketingDraft(req, res) {
       });
     }
 
-    const draft = await createMarketingGmailDraft(connection.accessToken, email);
-    await supabaseAdmin("/message_history", {
-      method: "POST",
-      body: {
-        channel: "Gmail",
-        direction: "Outbound",
-        from_value: GMAIL_ACCOUNT_EMAIL,
-        to_value: "Add recipients manually in Gmail",
-        subject: email.subject,
-        summary: "Marketing campaign Gmail draft created for owner review.",
-        draft_created: true,
-        gmail_thread_id: draft.threadId || null,
-        gmail_message_id: draft.messageId || null,
-        notes: [
-          `Campaign ID: ${campaign.id}`,
-          `Gmail draft ID: ${draft.id}`,
-          "Owner must review, add recipients or Bcc, and send manually.",
-          "Do not send to unqualified cold lists."
-        ].join("\n")
-      }
-    }).catch(() => null);
+    const audience = bulkMode ? await getMarketingAudience() : [];
+    const batchSize = clampNumber(body.batchSize || body.batch_size, 5, 50, 25);
+    const batches = bulkMode ? chunkArray(audience, batchSize) : [[]];
+    if (bulkMode && !batches.length) {
+      return setJson(res, 409, {
+        ok: false,
+        error: "No eligible marketing recipients found. Add warm leads with usable emails first."
+      });
+    }
 
-    await updateCampaignStatus(campaign, "Scheduled", `Gmail draft prepared for owner review. Subject: ${email.subject}.`);
+    const drafts = [];
+    for (const [index, batch] of batches.entries()) {
+      const draft = await createMarketingGmailDraft(connection.accessToken, {
+        ...email,
+        bcc: batch.map((lead) => lead.email),
+        batchIndex: index + 1,
+        batchCount: batches.length
+      });
+      drafts.push(draft);
+      await supabaseAdmin("/message_history", {
+        method: "POST",
+        body: {
+          channel: "Gmail",
+          direction: "Outbound",
+          from_value: GMAIL_ACCOUNT_EMAIL,
+          to_value: bulkMode ? `${batch.length} Bcc recipient(s)` : "Add recipients manually in Gmail",
+          subject: email.subject,
+          summary: bulkMode ? "Bulk marketing Gmail draft created for owner review." : "Marketing campaign Gmail draft created for owner review.",
+          draft_created: true,
+          gmail_thread_id: draft.threadId || null,
+          gmail_message_id: draft.messageId || null,
+          notes: [
+            `Campaign ID: ${campaign.id}`,
+            `Gmail draft ID: ${draft.id}`,
+            bulkMode ? `Audience batch ${index + 1} of ${batches.length}: ${batch.map((lead) => lead.email).join(", ")}` : "Owner must add recipients manually.",
+            "Owner must review and send manually.",
+            "Do not send to unqualified cold lists. Remove anyone who asks to stop."
+          ].join("\n")
+        }
+      }).catch(() => null);
+    }
+
+    await updateCampaignStatus(campaign, "Scheduled", bulkMode
+      ? `Bulk Gmail campaign drafts prepared for ${audience.length} eligible recipient(s). Subject: ${email.subject}.`
+      : `Gmail draft prepared for owner review. Subject: ${email.subject}.`);
 
     return setJson(res, 200, {
       ok: true,
       campaignId: campaign.id,
-      draftId: draft.id,
+      draftId: drafts[0]?.id || "",
+      draftIds: drafts.map((draft) => draft.id).filter(Boolean),
       subject: email.subject,
       status: "Scheduled",
-      message: "Gmail draft prepared. Add recipients/Bcc and send manually from Gmail."
+      recipientsCount: audience.length,
+      batchesCreated: drafts.length,
+      batchSize,
+      message: bulkMode
+        ? `Prepared ${drafts.length} Gmail draft batch(es) for ${audience.length} eligible recipient(s). Review and send manually from Gmail.`
+        : "Gmail draft prepared. Add recipients/Bcc and send manually from Gmail."
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -715,6 +744,32 @@ async function updateCampaignStatus(campaign, status, note) {
   }).catch(() => null);
 }
 
+async function getMarketingAudience() {
+  const rows = await supabaseAdmin("/leads?select=id,lead_code,client_name,email,status,payment_status,event_date,source,notes,updated_at&order=updated_at.desc&limit=500", { method: "GET" }).catch(() => []);
+  const seen = new Set();
+  return (rows || [])
+    .filter(isEligibleMarketingLead)
+    .filter((lead) => {
+      const email = stringify(lead.email).toLowerCase();
+      if (seen.has(email)) return false;
+      seen.add(email);
+      return true;
+    })
+    .slice(0, 250);
+}
+
+function isEligibleMarketingLead(lead) {
+  const email = stringify(lead.email).toLowerCase();
+  if (!isUsableEmail(email)) return false;
+  if (email === GMAIL_ACCOUNT_EMAIL) return false;
+  if (["Booked", "Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client", "Lost"].includes(stringify(lead.status))) return false;
+  if (stringify(lead.payment_status) === "Paid") return false;
+  if (isPastEventDate(lead.event_date)) return false;
+  const notes = stringify(lead.notes).toLowerCase();
+  if (/\bunsubscribe\b|\bstop\b|do not (email|market|contact)|no marketing|spam complaint|opt[- ]?out/.test(notes)) return false;
+  return true;
+}
+
 async function getBookingForLead(leadId) {
   const rows = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(leadId)}&select=*&limit=1`, { method: "GET" }).catch(() => []);
   return rows?.[0] || null;
@@ -1016,8 +1071,13 @@ function getBookingServiceRequested(lead = {}) {
 
 async function createMarketingGmailDraft(accessToken, email) {
   const raw = buildRawEmail({
+    to: GMAIL_ACCOUNT_EMAIL,
+    bcc: email.bcc || [],
     subject: email.subject,
-    body: email.body
+    body: [
+      email.batchCount > 1 ? `Batch ${email.batchIndex} of ${email.batchCount}` : "",
+      email.body
+    ].filter(Boolean).join("\n\n")
   });
   const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
     method: "POST",
@@ -1047,7 +1107,7 @@ function buildMarketingCampaignEmail(campaign) {
   const body = extractMarketingBlock(notes, "Client-facing email") || extractMarketingBlock(notes, "Email body") || defaultMarketingBody(campaign);
   return {
     subject: cleanMarketingText(subject),
-    body: cleanMarketingText(body)
+    body: addMarketingFooter(cleanMarketingText(body))
   };
 }
 
@@ -1105,13 +1165,23 @@ function cleanMarketingText(value) {
     .trim();
 }
 
+function addMarketingFooter(body) {
+  const footer = [
+    "",
+    "P.S. If you no longer want event ideas or availability reminders from Booth Fairy Miami, reply STOP and we will remove you from future marketing messages."
+  ].join("\n");
+  return body.toLowerCase().includes("reply stop") ? body : `${body}${footer}`;
+}
+
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildRawEmail({ to = "", subject, body }) {
+function buildRawEmail({ to = "", bcc = [], subject, body }) {
+  const bccList = Array.isArray(bcc) ? bcc.filter(Boolean).join(", ") : stringify(bcc);
   const message = [
     to ? `To: ${to}` : "",
+    bccList ? `Bcc: ${bccList}` : "",
     `Subject: ${encodeMimeSubject(subject)}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
@@ -1119,6 +1189,23 @@ function buildRawEmail({ to = "", subject, body }) {
     body
   ].filter((line, index) => index > 0 || line).join("\r\n");
   return Buffer.from(message, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function isPastEventDate(value) {
+  if (!value) return false;
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00-05:00`);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
 }
 
 function encodeMimeSubject(subject) {
