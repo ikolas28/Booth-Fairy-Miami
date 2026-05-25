@@ -82,6 +82,7 @@ async function runReceptionistAutomation() {
     draftsCreated: 0,
     paymentLinksCreated: 0,
     followupsCreated: 0,
+    followupsClosed: 0,
     gmailLabelsApplied: 0,
     leadsUpdated: 0,
     errors: []
@@ -93,6 +94,7 @@ async function runReceptionistAutomation() {
   for (const lead of leads) {
     try {
       await syncLeadGmailLabels(lead, summary);
+      summary.followupsClosed += await closeStaleFollowupsForLead(lead);
     } catch (error) {
       summary.errors.push({
         leadId: lead.id,
@@ -451,6 +453,7 @@ async function createGmailDraft(to, subject, body, html = "") {
 }
 
 async function createFollowupOnce(lead, channel, daysFromNow, notes) {
+  if (shouldCloseLeadFollowups(lead)) return 0;
   const openFollowups = await supabaseAdmin(`/followups?lead_id=eq.${encodeURIComponent(lead.id)}&status=eq.Open&select=id&limit=4`, { method: "GET" });
   if ((openFollowups || []).length >= 3) return 0;
 
@@ -467,6 +470,39 @@ async function createFollowupOnce(lead, channel, daysFromNow, notes) {
     }
   });
   return 1;
+}
+
+async function closeStaleFollowupsForLead(lead) {
+  if (!shouldCloseLeadFollowups(lead)) return 0;
+  const rows = await supabaseAdmin(`/followups?lead_id=eq.${encodeURIComponent(lead.id)}&status=eq.Open&select=id,notes`, { method: "GET" }).catch(() => []);
+  let closed = 0;
+  for (const row of rows || []) {
+    await supabaseAdmin(`/followups?id=eq.${encodeURIComponent(row.id)}`, {
+      method: "PATCH",
+      body: {
+        status: "Completed",
+        notes: appendNotes(row.notes, `Closed automatically because this lead is ${lead.status || "closed"}${isPastEventDate(lead.event_date) ? " and the event date has passed" : ""}.`)
+      }
+    }).catch(() => null);
+    closed += 1;
+  }
+  return closed;
+}
+
+function shouldCloseLeadFollowups(lead) {
+  const status = String(lead.status || "");
+  const paymentStatus = String(lead.payment_status || "");
+  if (["Booked", "Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client", "Lost"].includes(status)) return true;
+  return paymentStatus === "Paid" && isPastEventDate(lead.event_date);
+}
+
+function isPastEventDate(value) {
+  if (!value) return false;
+  const eventDate = new Date(`${String(value).slice(0, 10)}T00:00:00-05:00`);
+  if (Number.isNaN(eventDate.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return eventDate < today;
 }
 
 async function checkCalendar(lead) {

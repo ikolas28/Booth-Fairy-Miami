@@ -984,12 +984,11 @@ async function markCalendarSyncFailed(bookingId, message) {
 async function closeBookingFollowups(leadId, now) {
   const rows = await supabaseAdmin(`/followups?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.Open&select=id,notes`, { method: "GET" }).catch(() => []);
   for (const row of rows || []) {
-    if (!/signed agreement|retainer|contract|deposit/i.test(row.notes || "")) continue;
     await supabaseAdmin(`/followups?id=eq.${encodeURIComponent(row.id)}`, {
       method: "PATCH",
       body: {
         status: "Completed",
-        notes: appendNotes(row.notes, `Closed automatically when booking was confirmed on ${now}.`)
+        notes: appendNotes(row.notes, `Closed automatically when this lead was marked Booked/Paid on ${now}.`)
       }
     }).catch(() => null);
   }

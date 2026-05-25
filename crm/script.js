@@ -1272,6 +1272,7 @@ function formatAutomationSummary(agentName, payload) {
     `Payment links created: ${payload.paymentLinksCreated || 0}`,
     `Gmail labels applied: ${payload.gmailLabelsApplied || 0}`,
     `Follow-ups created: ${payload.followupsCreated || 0}`,
+    `Stale follow-ups closed: ${payload.followupsClosed || 0}`,
     payload.errors?.length ? `${payload.errors.length} lead(s) need manual review.` : "No automation errors reported."
   ].join("\n");
 }
@@ -1472,7 +1473,7 @@ function renderKpis() {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const openLeads = state.leads.filter((lead) => ACTIVE_STATUSES.has(lead.status)).length;
   const bookedCount = state.leads.filter((lead) => CONFIRMED_STATUSES.has(lead.status)).length;
-  const followupCount = state.followups.filter((followup) => followup.status === "Open").length;
+  const followupCount = state.followups.filter(isActionableFollowup).length;
   const pendingPayments = state.payments.filter((payment) => getEffectivePaymentStatus(payment) === "Pending").length;
   const leadsThisMonth = state.leads.filter((lead) => (lead.createdAt || "").startsWith(currentMonth)).length;
 
@@ -1530,7 +1531,7 @@ function renderApprovalQueue() {
     }));
 
   const followupItems = state.followups
-    .filter((item) => item.status === "Open")
+    .filter(isActionableFollowup)
     .slice(0, 8)
     .map((item) => {
       const lead = getLeadById(item.leadId);
@@ -1600,7 +1601,7 @@ function renderStatusGrid() {
 
 function renderNextFollowups() {
   const list = [...state.followups]
-    .filter((followup) => followup.status === "Open")
+    .filter(isActionableFollowup)
     .sort((a, b) => compareDates(a.dueDate, b.dueDate))
     .slice(0, 4);
 
@@ -2799,6 +2800,23 @@ function getLeadById(id) {
 
 function getBookingForLead(leadId) {
   return state.bookings.find((booking) => booking.leadId === leadId);
+}
+
+function isActionableFollowup(followup) {
+  if (followup.status !== "Open") return false;
+  const lead = getLeadById(followup.leadId);
+  if (!lead) return true;
+  if (["Booked", "Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client", "Lost"].includes(lead.status)) return false;
+  return !(lead.paymentStatus === "Paid" && isPastDate(lead.eventDate));
+}
+
+function isPastDate(value) {
+  if (!value) return false;
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
 }
 
 async function upsertResource(resourceKey, item) {
