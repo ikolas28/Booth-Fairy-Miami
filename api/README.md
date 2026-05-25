@@ -153,6 +153,7 @@ Routes:
 - `/api/instagram/webhook`
 - `/api/instagram/lead`
 - `/api/instagram/status`
+- `/api/admin/instagram-publish`
 
 Expected use:
 - Meta Developer App -> Webhooks callback URL: `https://www.boothfairymiami.com/api/instagram/webhook`
@@ -166,6 +167,17 @@ Required Vercel environment variables:
 
 Recommended Vercel environment variables:
 - `INSTAGRAM_APP_SECRET`
+- `INSTAGRAM_ACCESS_TOKEN`
+- `INSTAGRAM_USER_ID`
+- `INSTAGRAM_GRAPH_HOST` (optional; defaults to `graph.facebook.com`; use `graph.instagram.com` only if your token came from Instagram Login publishing)
+- `INSTAGRAM_GRAPH_VERSION` (optional; defaults to `v23.0`)
+
+Instagram publishing:
+- CRM Instagram campaigns must be approved first, which moves the campaign to `Scheduled`.
+- Add `Caption:` and `Media URL:` to the campaign notes before publishing.
+- The media URL must be a direct public HTTPS image/video URL that Meta can fetch without a login.
+- Publishing uses Meta's two-step flow: create a media container, then publish that container.
+- Keep the access token in Vercel environment variables only. Do not paste Meta access tokens into chat, campaign notes, or GitHub.
 
 Recommended payload fields for `/api/instagram/lead`:
 - `instagramHandle`

@@ -11,6 +11,10 @@ const {
 } = require("../finance/_lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_USER_ID = process.env.INSTAGRAM_USER_ID;
+const INSTAGRAM_GRAPH_HOST = process.env.INSTAGRAM_GRAPH_HOST || "graph.facebook.com";
+const INSTAGRAM_GRAPH_VERSION = process.env.INSTAGRAM_GRAPH_VERSION || "v23.0";
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
@@ -18,6 +22,7 @@ module.exports = async (req, res) => {
   if (route === "calendar-sync") return handleCalendarSync(req, res);
   if (route === "finance-summary") return handleFinanceSummary(req, res);
   if (route === "finance-sync") return handleFinanceSync(req, res);
+  if (route === "instagram-publish") return handleInstagramPublish(req, res);
   if (route === "marketing-draft") return handleMarketingDraft(req, res);
   if (route === "reconcile-payment") return handleReconcilePayment(req, res);
   if (route === "verify-stripe-payment") return handleVerifyStripePayment(req, res);
@@ -437,6 +442,90 @@ async function handleVerifyStripePayment(req, res) {
     return setJson(res, error.statusCode || 500, {
       ok: false,
       error: error.message || "Could not verify Stripe payment.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleInstagramPublish(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+
+    if (!INSTAGRAM_ACCESS_TOKEN || !INSTAGRAM_USER_ID) {
+      return setJson(res, 409, {
+        ok: false,
+        error: "Instagram publishing is not configured yet. Add INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID in Vercel environment variables, then redeploy."
+      });
+    }
+
+    const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
+    const campaignId = stringify(body.campaignId || body.campaign_id);
+    if (!campaignId) return setJson(res, 400, { ok: false, error: "Missing campaign ID." });
+
+    const campaign = await getCampaignById(campaignId);
+    if (!campaign) return setJson(res, 404, { ok: false, error: "Campaign not found." });
+    if (campaign.channel !== "Instagram") {
+      return setJson(res, 400, { ok: false, error: "Only Instagram campaigns can publish to Instagram." });
+    }
+
+    const post = buildInstagramPostFromCampaign(campaign, body);
+    if (!post.mediaUrl) {
+      return setJson(res, 400, {
+        ok: false,
+        error: "Add a public Media URL to this campaign before publishing. Use a direct HTTPS image/video URL that Meta can access."
+      });
+    }
+    if (!post.caption) {
+      return setJson(res, 400, {
+        ok: false,
+        error: "Add a Caption section to this Instagram campaign before publishing."
+      });
+    }
+
+    const publishResult = await publishInstagramPost(post);
+    await updateCampaignStatus(
+      campaign,
+      "Published",
+      `Instagram post published. Media ID: ${publishResult.mediaId || "unknown"}.${publishResult.permalink ? ` Permalink: ${publishResult.permalink}.` : ""}`
+    );
+
+    await supabaseAdmin("/message_history", {
+      method: "POST",
+      body: {
+        channel: "Instagram",
+        direction: "Outbound",
+        subject: campaign.title || "Instagram campaign",
+        summary: "Instagram campaign published through the CRM after owner approval.",
+        draft_created: false,
+        notes: [
+          `Campaign ID: ${campaign.id}`,
+          `Instagram media ID: ${publishResult.mediaId || ""}`,
+          publishResult.permalink ? `Permalink: ${publishResult.permalink}` : "",
+          `Media URL: ${post.mediaUrl}`,
+          `Media type: ${post.mediaType}`
+        ].filter(Boolean).join("\n")
+      }
+    }).catch(() => null);
+
+    return setJson(res, 200, {
+      ok: true,
+      campaignId: campaign.id,
+      status: "Published",
+      mediaId: publishResult.mediaId || "",
+      permalink: publishResult.permalink || "",
+      containerId: publishResult.containerId || ""
+    });
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      error: error.message || "Could not publish Instagram campaign.",
       details: error.details || null
     });
   }
@@ -1109,6 +1198,127 @@ function buildMarketingCampaignEmail(campaign) {
     subject: cleanMarketingText(subject),
     body: addMarketingFooter(cleanMarketingText(body))
   };
+}
+
+function buildInstagramPostFromCampaign(campaign, body = {}) {
+  const notes = stringify(campaign.notes);
+  const caption = extractMarketingBlock(notes, "Caption")
+    || extractMarketingBlock(notes, "Instagram caption")
+    || extractMarketingField(notes, "Caption")
+    || extractMarketingField(notes, "Instagram caption");
+  const mediaUrl = stringify(
+    body.mediaUrl
+    || body.media_url
+    || extractMarketingField(notes, "Media URL")
+    || extractMarketingField(notes, "Image URL")
+    || extractMarketingField(notes, "Video URL")
+  );
+  const mediaType = normalizeInstagramMediaType(
+    body.mediaType
+    || body.media_type
+    || extractMarketingField(notes, "Media type")
+    || mediaUrl
+  );
+  return {
+    caption: cleanMarketingText(caption),
+    mediaUrl,
+    mediaType
+  };
+}
+
+function normalizeInstagramMediaType(value) {
+  const text = stringify(value).toLowerCase();
+  if (text.includes("reel") || text.includes("video") || /\.(mp4|mov)(?:\?|#|$)/i.test(text)) return "REELS";
+  return "IMAGE";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function publishInstagramPost(post) {
+  const createParams = {
+    caption: post.caption
+  };
+  if (post.mediaType === "REELS") {
+    createParams.media_type = "REELS";
+    createParams.video_url = post.mediaUrl;
+    createParams.share_to_feed = "true";
+  } else {
+    createParams.image_url = post.mediaUrl;
+  }
+
+  const container = await instagramGraphPost(`${INSTAGRAM_USER_ID}/media`, createParams);
+  if (!container?.id) {
+    const error = new Error("Instagram did not return a media container ID.");
+    error.details = container;
+    error.statusCode = 502;
+    throw error;
+  }
+
+  if (post.mediaType === "REELS") {
+    await waitForInstagramContainer(container.id);
+  }
+
+  const published = await instagramGraphPost(`${INSTAGRAM_USER_ID}/media_publish`, {
+    creation_id: container.id
+  });
+  const mediaId = published?.id || "";
+  const details = mediaId ? await instagramGraphGet(`${mediaId}?fields=permalink`).catch(() => null) : null;
+  return {
+    containerId: container.id,
+    mediaId,
+    permalink: details?.permalink || ""
+  };
+}
+
+async function waitForInstagramContainer(containerId) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const status = await instagramGraphGet(`${containerId}?fields=status_code,status`).catch(() => null);
+    const statusCode = stringify(status?.status_code).toUpperCase();
+    if (!statusCode || statusCode === "FINISHED") return;
+    if (statusCode === "ERROR" || statusCode === "EXPIRED") {
+      const error = new Error(`Instagram media processing failed: ${status?.status || statusCode}`);
+      error.details = status;
+      error.statusCode = 502;
+      throw error;
+    }
+    await sleep(3000);
+  }
+}
+
+async function instagramGraphPost(path, params) {
+  const body = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") body.set(key, String(value));
+  });
+  body.set("access_token", INSTAGRAM_ACCESS_TOKEN);
+
+  const response = await fetch(`https://${INSTAGRAM_GRAPH_HOST}/${INSTAGRAM_GRAPH_VERSION}/${path}`, {
+    method: "POST",
+    body
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Instagram Graph API request failed.");
+    error.details = payload;
+    error.statusCode = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+async function instagramGraphGet(path) {
+  const separator = path.includes("?") ? "&" : "?";
+  const response = await fetch(`https://${INSTAGRAM_GRAPH_HOST}/${INSTAGRAM_GRAPH_VERSION}/${path}${separator}access_token=${encodeURIComponent(INSTAGRAM_ACCESS_TOKEN)}`);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Instagram Graph API request failed.");
+    error.details = payload;
+    error.statusCode = response.status;
+    throw error;
+  }
+  return payload;
 }
 
 function extractMarketingField(notes, label) {

@@ -334,6 +334,7 @@ const state = {
   },
   instagram: {
     configured: false,
+    publishingConfigured: false,
     signatureVerification: false,
     webhookUrl: "https://www.boothfairymiami.com/api/instagram/webhook",
     leadIntakeUrl: "https://www.boothfairymiami.com/api/instagram/lead",
@@ -889,6 +890,7 @@ async function refreshInstagramStatus() {
     }
     state.instagram = {
       configured: Boolean(payload.configured),
+      publishingConfigured: Boolean(payload.publishingConfigured),
       signatureVerification: Boolean(payload.signatureVerification),
       webhookUrl: payload.webhookUrl || state.instagram.webhookUrl,
       leadIntakeUrl: payload.leadIntakeUrl || state.instagram.leadIntakeUrl,
@@ -1128,9 +1130,7 @@ async function approveCurrentCampaign() {
   const campaign = await saveCampaignFromModal({ keepOpen: true });
   if (!campaign) return;
   if (campaign.channel !== "Email") {
-    alert(campaign.channel === "TikTok"
-      ? "TikTok approved. Film/post it manually from TikTok, then mark it posted in the CRM."
-      : "Campaign approved. For non-email channels, publish manually after review.");
+    alert(getCampaignApprovalMessage(campaign.channel));
     closeModal("campaign-modal");
     renderAll();
     return;
@@ -1222,6 +1222,8 @@ async function approveCampaign(campaignId) {
       await prepareCampaignGmailDraft(savedCampaign.id);
     } else if (savedCampaign.channel === "TikTok") {
       alert("TikTok approved. Film/post it manually from TikTok, then mark it posted in the CRM.");
+    } else if (savedCampaign.channel === "Instagram") {
+      alert("Instagram approved. Add a public Media URL in the campaign notes, then click Publish to Instagram.");
     } else {
       alert("Campaign approved. Publish manually when ready.");
     }
@@ -1230,6 +1232,77 @@ async function approveCampaign(campaignId) {
     console.error(error);
     alert(getFriendlyError(error, "Campaign could not be approved."));
   }
+}
+
+function getCampaignApprovalMessage(channel) {
+  if (channel === "TikTok") {
+    return "TikTok approved. Film/post it manually from TikTok, then mark it posted in the CRM.";
+  }
+  if (channel === "Instagram") {
+    return "Instagram approved. Add a public Media URL in the campaign notes, then click Publish to Instagram.";
+  }
+  return "Campaign approved. Publish manually when ready.";
+}
+
+async function publishInstagramCampaign(campaignId) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return;
+  if (campaign.channel !== "Instagram") {
+    alert("Only Instagram campaigns can publish through this button.");
+    return;
+  }
+  if (!authState.session?.accessToken || authState.isLocalFallback) {
+    alert("Sign in with Supabase before publishing to Instagram.");
+    return;
+  }
+
+  let mediaUrl = getCampaignInstagramMediaUrl(campaign);
+  if (!mediaUrl) {
+    mediaUrl = prompt("Paste the public direct image/video URL for this Instagram post. Meta must be able to access it without logging in.");
+    if (!mediaUrl) return;
+  }
+
+  const mediaType = getCampaignInstagramMediaType(campaign, mediaUrl);
+  if (!confirm(`Publish this ${mediaType === "REELS" ? "Reel/video" : "image"} to @boothfairymiami now?\n\nCampaign: ${campaign.title}`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/instagram-publish", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ campaignId, mediaUrl, mediaType })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Instagram campaign could not be published.");
+    }
+    campaign.status = "Published";
+    campaign.updatedAt = todayIso();
+    upsertLocalItem(state.campaigns, campaign);
+    await hydrateData();
+    renderAll();
+    alert(`Instagram campaign published.${payload.permalink ? `\n\n${payload.permalink}` : ""}`);
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not publish Instagram campaign."));
+  }
+}
+
+function getCampaignInstagramMediaUrl(campaign) {
+  return extractCampaignField(campaign.notes, "Media URL")
+    || extractCampaignField(campaign.notes, "Image URL")
+    || extractCampaignField(campaign.notes, "Video URL");
+}
+
+function getCampaignInstagramMediaType(campaign, mediaUrl = "") {
+  const configured = `${extractCampaignField(campaign.notes, "Media type")} ${mediaUrl}`.toLowerCase();
+  return configured.includes("reel") || configured.includes("video") || /\.(mp4|mov)(?:\?|#|$)/i.test(configured)
+    ? "REELS"
+    : "IMAGE";
 }
 
 async function markCampaignPublished(campaignId) {
@@ -1943,7 +2016,9 @@ function renderCampaigns() {
             <div class="card-actions">
               ${campaign.channel === "Email" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Draft to ${eligibleCount} Leads</button>` : ""}
               ${campaign.channel === "TikTok" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve TikTok</button>` : ""}
-              ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">${campaign.channel === "TikTok" ? "Mark Posted" : "Mark Sent"}</button>` : ""}
+              ${campaign.channel === "Instagram" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve Instagram</button>` : ""}
+              ${campaign.channel === "Instagram" && campaign.status === "Scheduled" ? `<button class="button button-primary" onclick="publishInstagramCampaign('${campaign.id}')">Publish to Instagram</button>` : ""}
+              ${campaign.status === "Scheduled" && campaign.channel !== "Instagram" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">${campaign.channel === "TikTok" ? "Mark Posted" : "Mark Sent"}</button>` : ""}
               <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
               <button class="button button-danger" onclick="deleteCampaign('${campaign.id}')">Delete</button>
             </div>
@@ -3351,7 +3426,9 @@ function updateConnectionIndicators() {
   }
 
   const instagramLeadCount = state.leads.filter((lead) => lead.source === "Instagram").length;
-  if (instagramStatusChip && state.instagram.configured && instagramLeadCount > 0) {
+  if (instagramStatusChip && state.instagram.configured && state.instagram.publishingConfigured) {
+    instagramStatusChip.textContent = "Webhook + publishing ready";
+  } else if (instagramStatusChip && state.instagram.configured && instagramLeadCount > 0) {
     instagramStatusChip.textContent = `${instagramLeadCount} live lead${instagramLeadCount === 1 ? "" : "s"} synced`;
   } else if (instagramStatusChip && state.instagram.configured) {
     instagramStatusChip.textContent = "Webhook ready";
@@ -3361,7 +3438,7 @@ function updateConnectionIndicators() {
 
   if (instagramStatusNote) {
     instagramStatusNote.textContent = state.instagram.configured
-      ? `Webhook URL: ${state.instagram.webhookUrl}. Privacy: ${state.instagram.privacyPolicyUrl}. Deletion: ${state.instagram.dataDeletionUrl}. ${state.instagram.signatureVerification ? "Signature verification is enabled." : "Add INSTAGRAM_APP_SECRET to verify Meta signatures."}`
+      ? `Webhook URL: ${state.instagram.webhookUrl}. Privacy: ${state.instagram.privacyPolicyUrl}. Deletion: ${state.instagram.dataDeletionUrl}. ${state.instagram.signatureVerification ? "Signature verification is enabled." : "Add INSTAGRAM_APP_SECRET to verify Meta signatures."} ${state.instagram.publishingConfigured ? "Instagram publishing env vars are configured." : "Add INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID to publish approved campaigns."}`
       : "Add INSTAGRAM_WEBHOOK_VERIFY_TOKEN in Vercel, then paste the webhook URL into your Meta app.";
   }
 }
@@ -3844,6 +3921,7 @@ window.deleteFollowup = deleteFollowup;
 window.deletePayment = deletePayment;
 window.deleteCampaign = deleteCampaign;
 window.approveCampaign = approveCampaign;
+window.publishInstagramCampaign = publishInstagramCampaign;
 window.markCampaignPublished = markCampaignPublished;
 window.updateLeadStatus = updateLeadStatus;
 window.checkLeadAvailability = checkLeadAvailability;

@@ -11,6 +11,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.s
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const INSTAGRAM_WEBHOOK_VERIFY_TOKEN = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
+const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_USER_ID = process.env.INSTAGRAM_USER_ID;
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
@@ -35,6 +37,7 @@ function handleStatus(req, res) {
   return sendJson(res, 200, {
     ok: true,
     configured: Boolean(INSTAGRAM_WEBHOOK_VERIFY_TOKEN),
+    publishingConfigured: Boolean(INSTAGRAM_ACCESS_TOKEN && INSTAGRAM_USER_ID),
     signatureVerification: Boolean(INSTAGRAM_APP_SECRET),
     webhookUrl: "https://www.boothfairymiami.com/api/instagram/webhook",
     leadIntakeUrl: "https://www.boothfairymiami.com/api/instagram/lead",
@@ -43,9 +46,10 @@ function handleStatus(req, res) {
     requestedPermissions: [
       "instagram_business_basic",
       "instagram_business_manage_messages",
-      "instagram_business_manage_comments"
+      "instagram_business_manage_comments",
+      "instagram_business_content_publish"
     ],
-    note: "Meta webhook setup requires an Instagram professional account connected to Meta, webhook verification token, and app permissions/review for live DM events."
+    note: "Meta webhook setup requires an Instagram professional account connected to Meta, webhook verification token, and app permissions/review for live DM events. Publishing also needs INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_USER_ID, and content publishing permission for your app user."
   });
 }
 
