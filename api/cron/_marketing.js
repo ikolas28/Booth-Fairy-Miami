@@ -113,7 +113,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
   const batch = `Marketing automation batch ${weekKey}. Owner must review before publishing.`;
   return [
     {
-      title: `Instagram digital booth spotlight - ${weekKey}`,
+      title: "Luxury digital photo booth spotlight",
       channel: "Instagram",
       status: "Ready for Review",
       priority: "High",
@@ -129,7 +129,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
       ].join("\n")
     },
     {
-      title: `Instagram DM follow-up story - ${weekKey}`,
+      title: "Instagram event inquiry follow-up",
       channel: "Instagram",
       status: "Ready for Review",
       priority: stats.instagramCount > 0 ? "High" : "Medium",
@@ -143,7 +143,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
       ].join("\n")
     },
     {
-      title: `Google Business Profile post - ${weekKey}`,
+      title: "Google Business digital booth post",
       channel: "Google Business",
       status: "Ready for Review",
       priority: "Medium",
@@ -157,21 +157,41 @@ function buildCampaignDrafts(stats, weekKey, today) {
       ].join("\n")
     },
     {
-      title: `DJ + photo booth bundle email - ${weekKey}`,
+      title: "Photo booth and DJ bundle email",
       channel: "Email",
       status: "Ready for Review",
       priority: stats.djCount > 0 ? "High" : "Medium",
       notes: [
         batch,
-        "Draft email angle:",
-        "Invite warm leads to bundle professional DJ services with the luxury DSLR digital photo booth. Focus on one entertainment team, smoother setup, coordinated energy, and special package pricing after owner approval.",
+        "Audience:",
+        "Warm leads who asked about photo booth, DJ, or full event entertainment. Use Bcc if sending to more than one person.",
+        "",
+        "Client-facing subject:",
+        "Make your Miami event feel effortless",
+        "",
+        "Client-facing email:",
+        "Hi there,",
+        "",
+        "If you are still planning entertainment for your event, Booth Fairy Miami can make the setup feel simple and polished with one coordinated team for music, energy, and guest photos.",
+        "",
+        "Our luxury DSLR digital photo booth includes instant digital sharing, a premium backdrop look, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
+        "",
+        "Reply with your event date, venue or city, and guest count, and we can check availability before sending the best package option.",
+        "",
+        "Best,",
+        "Booth Fairy Miami",
+        "",
+        "Owner checklist:",
+        "- Use only with warm leads or people who asked for event info.",
+        "- Add recipients manually in Gmail, preferably Bcc for multiple contacts.",
+        "- Review pricing before sending. Do not offer discounts without owner approval.",
         "",
         `CRM signal: ${stats.djCount} open DJ/bundle lead(s), ${stats.boothCount} open booth lead(s).`,
         "Do not auto-send. Use as owner-reviewed campaign copy."
       ].join("\n")
     },
     {
-      title: `SEO content idea - ${stats.topCity} digital photo booth - ${weekKey}`,
+      title: `${stats.topCity} digital photo booth SEO idea`,
       channel: "Website SEO",
       status: "Idea",
       priority: "Medium",
@@ -183,7 +203,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
       ].join("\n")
     },
     {
-      title: `Meta Ads concept - ${weekKey}`,
+      title: "Luxury Miami digital booth ad concept",
       channel: "Meta Ads",
       status: "Idea",
       priority: "Low",

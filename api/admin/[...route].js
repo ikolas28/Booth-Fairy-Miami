@@ -1,4 +1,5 @@
 ﻿const {
+  GMAIL_ACCOUNT_EMAIL,
   getValidGmailAccessToken,
   setJson,
   supabaseAdmin,
@@ -17,6 +18,7 @@ module.exports = async (req, res) => {
   if (route === "calendar-sync") return handleCalendarSync(req, res);
   if (route === "finance-summary") return handleFinanceSummary(req, res);
   if (route === "finance-sync") return handleFinanceSync(req, res);
+  if (route === "marketing-draft") return handleMarketingDraft(req, res);
   if (route === "reconcile-payment") return handleReconcilePayment(req, res);
   if (route === "verify-stripe-payment") return handleVerifyStripePayment(req, res);
   if (route !== "audit-log") {
@@ -215,6 +217,88 @@ async function handleFinanceSync(req, res) {
     return setJson(res, error.statusCode || 500, {
       ok: false,
       error: error.message || "Could not sync booking to finance tracker.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleMarketingDraft(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+
+    const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
+    const campaignId = stringify(body.campaignId || body.campaign_id);
+    if (!campaignId) return setJson(res, 400, { ok: false, error: "Missing campaign ID." });
+
+    const campaign = await getCampaignById(campaignId);
+    if (!campaign) return setJson(res, 404, { ok: false, error: "Campaign not found." });
+    if (campaign.channel !== "Email") {
+      return setJson(res, 400, { ok: false, error: "Only Email campaigns can prepare Gmail drafts." });
+    }
+
+    const connection = await getValidGmailAccessToken();
+    if (!connection) {
+      return setJson(res, 409, { ok: false, error: "Gmail is not connected. Reconnect Gmail before preparing campaign drafts." });
+    }
+
+    const email = buildMarketingCampaignEmail(campaign);
+    const alreadyPrepared = await supabaseAdmin(
+      `/message_history?draft_created=eq.true&subject=eq.${encodeURIComponent(email.subject)}&notes=ilike.${encodeURIComponent(`*Campaign ID: ${campaign.id}*`)}&select=id&limit=1`,
+      { method: "GET" }
+    ).catch(() => []);
+    if (alreadyPrepared?.[0]) {
+      await updateCampaignStatus(campaign, "Scheduled", "Existing Gmail draft is already prepared for this campaign.");
+      return setJson(res, 200, {
+        ok: true,
+        skipped: true,
+        subject: email.subject,
+        message: "A Gmail draft already exists for this campaign."
+      });
+    }
+
+    const draft = await createMarketingGmailDraft(connection.accessToken, email);
+    await supabaseAdmin("/message_history", {
+      method: "POST",
+      body: {
+        channel: "Gmail",
+        direction: "Outbound",
+        from_value: GMAIL_ACCOUNT_EMAIL,
+        to_value: "Add recipients manually in Gmail",
+        subject: email.subject,
+        summary: "Marketing campaign Gmail draft created for owner review.",
+        draft_created: true,
+        gmail_thread_id: draft.threadId || null,
+        gmail_message_id: draft.messageId || null,
+        notes: [
+          `Campaign ID: ${campaign.id}`,
+          `Gmail draft ID: ${draft.id}`,
+          "Owner must review, add recipients or Bcc, and send manually.",
+          "Do not send to unqualified cold lists."
+        ].join("\n")
+      }
+    }).catch(() => null);
+
+    await updateCampaignStatus(campaign, "Scheduled", `Gmail draft prepared for owner review. Subject: ${email.subject}.`);
+
+    return setJson(res, 200, {
+      ok: true,
+      campaignId: campaign.id,
+      draftId: draft.id,
+      subject: email.subject,
+      status: "Scheduled",
+      message: "Gmail draft prepared. Add recipients/Bcc and send manually from Gmail."
+    });
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      error: error.message || "Could not prepare marketing Gmail draft.",
       details: error.details || null
     });
   }
@@ -616,6 +700,21 @@ async function getBookingById(bookingId) {
   return rows?.[0] || null;
 }
 
+async function getCampaignById(campaignId) {
+  const rows = await supabaseAdmin(`/campaigns?id=eq.${encodeURIComponent(campaignId)}&select=*&limit=1`, { method: "GET" }).catch(() => []);
+  return rows?.[0] || null;
+}
+
+async function updateCampaignStatus(campaign, status, note) {
+  await supabaseAdmin(`/campaigns?id=eq.${encodeURIComponent(campaign.id)}`, {
+    method: "PATCH",
+    body: {
+      status,
+      notes: appendNotes(campaign.notes, `${note} ${new Date().toISOString()}`)
+    }
+  }).catch(() => null);
+}
+
 async function getBookingForLead(leadId) {
   const rows = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(leadId)}&select=*&limit=1`, { method: "GET" }).catch(() => []);
   return rows?.[0] || null;
@@ -916,15 +1015,110 @@ function getBookingServiceRequested(lead = {}) {
   return service || "DSLR Photo Booth - Digital Sharing";
 }
 
-function buildRawEmail({ to, subject, body }) {
+async function createMarketingGmailDraft(accessToken, email) {
+  const raw = buildRawEmail({
+    subject: email.subject,
+    body: email.body
+  });
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: { raw } })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Gmail marketing draft could not be created.");
+    error.details = payload;
+    error.statusCode = response.status;
+    throw error;
+  }
+  return {
+    id: payload?.id || "",
+    messageId: payload?.message?.id || "",
+    threadId: payload?.message?.threadId || ""
+  };
+}
+
+function buildMarketingCampaignEmail(campaign) {
+  const notes = stringify(campaign.notes);
+  const subject = extractMarketingField(notes, "Client-facing subject") || extractMarketingField(notes, "Email subject") || defaultMarketingSubject(campaign);
+  const body = extractMarketingBlock(notes, "Client-facing email") || extractMarketingBlock(notes, "Email body") || defaultMarketingBody(campaign);
+  return {
+    subject: cleanMarketingText(subject),
+    body: cleanMarketingText(body)
+  };
+}
+
+function extractMarketingField(notes, label) {
+  const pattern = new RegExp(`${escapeRegex(label)}\\s*:\\s*([^\\n]+)`, "i");
+  return notes.match(pattern)?.[1] || "";
+}
+
+function extractMarketingBlock(notes, label) {
+  const pattern = new RegExp(`${escapeRegex(label)}\\s*:\\s*\\n([\\s\\S]*?)(?:\\n\\n[A-Z][A-Za-z /+-]+\\s*:|$)`, "i");
+  return notes.match(pattern)?.[1]?.trim() || "";
+}
+
+function defaultMarketingSubject(campaign) {
+  const title = stringify(campaign.title).toLowerCase();
+  if (title.includes("dj") || title.includes("bundle")) return "Make your Miami event feel effortless";
+  return "A polished digital photo booth experience for your event";
+}
+
+function defaultMarketingBody(campaign) {
+  const title = stringify(campaign.title).toLowerCase();
+  if (title.includes("dj") || title.includes("bundle")) {
+    return [
+      "Hi there,",
+      "",
+      "If you are still planning entertainment for your event, Booth Fairy Miami can make the setup feel simple and polished with one coordinated team for music, energy, and guest photos.",
+      "",
+      "Our luxury DSLR digital photo booth includes instant digital sharing, a premium backdrop look, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
+      "",
+      "Reply with your event date, venue or city, and guest count, and we can check availability before sending the best package option.",
+      "",
+      "Best,",
+      "Booth Fairy Miami"
+    ].join("\n");
+  }
+
+  return [
+    "Hi there,",
+    "",
+    "Booth Fairy Miami offers a luxury DSLR digital photo booth experience for weddings, birthdays, corporate events, and private celebrations across Miami and South Florida.",
+    "",
+    "The booth is digital-only and includes instant sharing, polished lighting, a custom overlay, a premium backdrop look, props, and an attendant.",
+    "",
+    "Reply with your event date, venue or city, and guest count, and we can check availability before sending package options.",
+    "",
+    "Best,",
+    "Booth Fairy Miami"
+  ].join("\n");
+}
+
+function cleanMarketingText(value) {
+  return stringify(value)
+    .replace(/\b20\d{2}-W\d{2}\b/g, "")
+    .replace(/Marketing automation batch.*$/gim, "")
+    .trim();
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildRawEmail({ to = "", subject, body }) {
   const message = [
-    `To: ${to}`,
+    to ? `To: ${to}` : "",
     `Subject: ${encodeMimeSubject(subject)}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
     "",
     body
-  ].join("\r\n");
+  ].filter((line, index) => index > 0 || line).join("\r\n");
   return Buffer.from(message, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 

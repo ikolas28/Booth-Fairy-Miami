@@ -953,6 +953,27 @@ tbody tr:hover {
   gap: 12px;
 }
 
+.campaign-subject,
+.campaign-helper {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbf8fc;
+}
+
+.campaign-subject span,
+.campaign-helper span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.campaign-subject strong,
+.campaign-helper strong {
+  font-size: 0.92rem;
+}
+
 .campaign-head strong,
 .card-top strong,
 .source-card-top strong {

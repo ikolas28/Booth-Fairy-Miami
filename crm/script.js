@@ -476,6 +476,8 @@ function attachEventListeners() {
   document.getElementById("followup-form").addEventListener("submit", handleFollowupSubmit);
   document.getElementById("payment-form").addEventListener("submit", handlePaymentSubmit);
   document.getElementById("campaign-form").addEventListener("submit", handleCampaignSubmit);
+  document.getElementById("campaign-approve-button").addEventListener("click", approveCurrentCampaign);
+  document.getElementById("campaign-published-button").addEventListener("click", markCurrentCampaignPublished);
 }
 
 function showLocalDevNote() {
@@ -1068,6 +1070,9 @@ async function handlePaymentSubmit(event) {
 async function handleCampaignSubmit(event) {
   event.preventDefault();
   const existing = state.campaigns.find((item) => item.id === document.getElementById("campaign-id").value);
+  const shouldPrepareDraft = existing?.status !== "Scheduled"
+    && document.getElementById("campaign-status").value === "Scheduled"
+    && document.getElementById("campaign-channel").value === "Email";
   const campaign = {
     id: document.getElementById("campaign-id").value || crypto.randomUUID(),
     title: document.getElementById("campaign-title").value.trim(),
@@ -1082,11 +1087,134 @@ async function handleCampaignSubmit(event) {
   try {
     const savedCampaign = await upsertResource("campaigns", campaign);
     upsertLocalItem(state.campaigns, savedCampaign);
+    if (shouldPrepareDraft) {
+      await prepareCampaignGmailDraft(savedCampaign.id);
+    }
     closeModal("campaign-modal");
     renderAll();
   } catch (error) {
     console.error(error);
     alert(getFriendlyError(error, "Campaign could not be saved."));
+  }
+}
+
+async function approveCurrentCampaign() {
+  document.getElementById("campaign-status").value = "Scheduled";
+  const campaign = await saveCampaignFromModal({ keepOpen: true });
+  if (!campaign) return;
+  if (campaign.channel !== "Email") {
+    alert("Campaign approved. For non-email channels, publish manually after review.");
+    closeModal("campaign-modal");
+    renderAll();
+    return;
+  }
+  await prepareCampaignGmailDraft(campaign.id);
+  closeModal("campaign-modal");
+  renderAll();
+}
+
+async function markCurrentCampaignPublished() {
+  document.getElementById("campaign-status").value = "Published";
+  const campaign = await saveCampaignFromModal({ keepOpen: true });
+  if (!campaign) return;
+  closeModal("campaign-modal");
+  renderAll();
+  alert("Campaign marked sent/published. Nice and tidy.");
+}
+
+async function saveCampaignFromModal() {
+  const existing = state.campaigns.find((item) => item.id === document.getElementById("campaign-id").value);
+  const campaign = {
+    id: document.getElementById("campaign-id").value || crypto.randomUUID(),
+    title: document.getElementById("campaign-title").value.trim(),
+    channel: document.getElementById("campaign-channel").value,
+    status: document.getElementById("campaign-status").value,
+    priority: document.getElementById("campaign-priority").value,
+    notes: document.getElementById("campaign-notes").value.trim(),
+    createdAt: existing?.createdAt || todayIso(),
+    updatedAt: todayIso()
+  };
+
+  if (!campaign.title || !campaign.notes) {
+    alert("Add a campaign title and notes first.");
+    return null;
+  }
+
+  const savedCampaign = await upsertResource("campaigns", campaign);
+  upsertLocalItem(state.campaigns, savedCampaign);
+  return savedCampaign;
+}
+
+async function prepareCampaignGmailDraft(campaignId, options = {}) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return null;
+  if (campaign.channel !== "Email") return null;
+  if (!authState.session?.accessToken || authState.isLocalFallback) {
+    if (!options.quiet) alert("Sign in with Supabase and connect Gmail before preparing campaign drafts.");
+    return null;
+  }
+
+  try {
+    const response = await fetch("/api/admin/marketing-draft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ campaignId })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || payload?.reason || "Campaign draft could not be prepared.");
+    }
+
+    campaign.status = "Scheduled";
+    campaign.updatedAt = todayIso();
+    upsertLocalItem(state.campaigns, campaign);
+    await refreshGmailDraftApprovals().catch(() => null);
+    if (!options.quiet) {
+      alert(`${payload.skipped ? "Draft already prepared" : "Gmail draft prepared"}\nSubject: ${payload.subject || "Marketing email"}\n\nOpen Gmail drafts, add recipients or Bcc, review, then send manually.`);
+    }
+    return payload;
+  } catch (error) {
+    console.error(error);
+    if (!options.quiet) alert(getFriendlyError(error, "Could not prepare campaign Gmail draft."));
+    return null;
+  }
+}
+
+async function approveCampaign(campaignId) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return;
+  campaign.status = "Scheduled";
+  campaign.updatedAt = todayIso();
+  try {
+    const savedCampaign = await upsertResource("campaigns", campaign);
+    upsertLocalItem(state.campaigns, savedCampaign);
+    if (savedCampaign.channel === "Email") {
+      await prepareCampaignGmailDraft(savedCampaign.id);
+    } else {
+      alert("Campaign approved. Publish manually when ready.");
+    }
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Campaign could not be approved."));
+  }
+}
+
+async function markCampaignPublished(campaignId) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return;
+  campaign.status = "Published";
+  campaign.updatedAt = todayIso();
+  try {
+    const savedCampaign = await upsertResource("campaigns", campaign);
+    upsertLocalItem(state.campaigns, savedCampaign);
+    renderAll();
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Campaign could not be marked sent/published."));
   }
 }
 
@@ -1771,11 +1899,15 @@ function renderCampaigns() {
               <strong>${escapeHtml(campaign.title)}</strong>
               <span class="chip chip-muted">${escapeHtml(campaign.priority)}</span>
             </div>
+            ${campaign.channel === "Email" ? `<div class="campaign-subject"><span>Email subject</span><strong>${escapeHtml(getCampaignEmailSubject(campaign))}</strong></div>` : ""}
             <p>${escapeHtml(campaign.notes)}</p>
             <div class="card-meta">
               <span>${escapeHtml(campaign.channel)}</span>
+              <span>${escapeHtml(getCampaignStatusLabel(campaign.status))}</span>
             </div>
             <div class="card-actions">
+              ${campaign.channel === "Email" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve & Draft</button>` : ""}
+              ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">Mark Sent</button>` : ""}
               <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
               <button class="button button-danger" onclick="deleteCampaign('${campaign.id}')">Delete</button>
             </div>
@@ -1784,6 +1916,25 @@ function renderCampaigns() {
       </section>
     `;
   }).join("");
+}
+
+function getCampaignStatusLabel(status) {
+  if (status === "Scheduled") return "Draft prepared";
+  if (status === "Published") return "Sent / Published";
+  return status;
+}
+
+function getCampaignEmailSubject(campaign) {
+  return extractCampaignField(campaign.notes, "Client-facing subject")
+    || extractCampaignField(campaign.notes, "Email subject")
+    || (campaign.title.toLowerCase().includes("dj") || campaign.title.toLowerCase().includes("bundle")
+      ? "Make your Miami event feel effortless"
+      : "A polished digital photo booth experience for your event");
+}
+
+function extractCampaignField(notes, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String(notes || "").match(new RegExp(`${escaped}\\s*:\\s*([^\\n]+)`, "i"))?.[1]?.trim() || "";
 }
 
 function openLeadModal(leadId = "") {
@@ -3489,6 +3640,8 @@ window.deleteLead = deleteLead;
 window.deleteFollowup = deleteFollowup;
 window.deletePayment = deletePayment;
 window.deleteCampaign = deleteCampaign;
+window.approveCampaign = approveCampaign;
+window.markCampaignPublished = markCampaignPublished;
 window.updateLeadStatus = updateLeadStatus;
 window.checkLeadAvailability = checkLeadAvailability;
 window.syncBookingCalendar = syncBookingCalendar;

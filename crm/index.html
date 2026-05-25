@@ -539,8 +539,8 @@
             <option value="Idea">Idea</option>
             <option value="Drafting">Drafting</option>
             <option value="Ready for Review">Ready for Review</option>
-            <option value="Scheduled">Scheduled</option>
-            <option value="Published">Published</option>
+            <option value="Scheduled">Scheduled / Draft Prepared</option>
+            <option value="Published">Sent / Published</option>
           </select>
         </label>
         <label>Priority
@@ -550,8 +550,14 @@
             <option value="High">High</option>
           </select>
         </label>
-        <label class="span-2">Campaign notes<textarea id="campaign-notes" rows="4" required></textarea></label>
+        <label class="span-2">Campaign notes<textarea id="campaign-notes" rows="7" required></textarea></label>
+        <div class="campaign-helper span-2">
+          <strong>Approval workflow</strong>
+          <span>Ready for Review means check the strategy and copy. For Email campaigns, Scheduled prepares a Gmail draft for you. You still add recipients and send manually.</span>
+        </div>
         <div class="form-actions span-2">
+          <button type="button" class="button button-secondary" id="campaign-approve-button">Approve & Prepare Draft</button>
+          <button type="button" class="button button-secondary" id="campaign-published-button">Mark Sent / Published</button>
           <button type="button" class="button button-secondary" data-close-modal="campaign-modal">Cancel</button>
           <button type="submit" class="button button-primary">Save Campaign</button>
         </div>
