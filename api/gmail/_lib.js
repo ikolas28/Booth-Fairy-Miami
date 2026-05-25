@@ -110,7 +110,8 @@ function buildGoogleOauthUrl(state) {
       "https://www.googleapis.com/auth/gmail.modify",
       "https://www.googleapis.com/auth/calendar.freebusy",
       "https://www.googleapis.com/auth/calendar.events",
-      "https://www.googleapis.com/auth/drive.file"
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/spreadsheets"
     ].join(" "),
     state
   });
@@ -835,6 +836,7 @@ async function getStatusPayload() {
     connected: Boolean(connection),
     connectedEmail: connection?.connected_email || "",
     driveFileScope: String(connection?.scope || "").includes("drive.file"),
+    sheetsScope: String(connection?.scope || "").includes("spreadsheets"),
     syncQuery: GMAIL_SYNC_QUERY,
     allowedMailbox: GMAIL_ACCOUNT_EMAIL,
     lastUpdatedAt: connection?.updated_at || null

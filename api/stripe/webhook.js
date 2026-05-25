@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { syncBookingFinance } = require("../finance/_lib");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -109,7 +110,7 @@ async function handleCheckoutSessionPaid(session) {
   }
 
   const lead = await getLead(leadId);
-  await createOrUpdateBooking(lead, session);
+  const booking = await createOrUpdateBooking(lead, session);
 
   await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, {
     method: "PATCH",
@@ -122,6 +123,7 @@ async function handleCheckoutSessionPaid(session) {
 
   await createFollowup(leadId, "Retainer paid. Confirm signed agreement, then send final booking confirmation and event prep details.");
   await createMessageHistory(leadId, session, paidNotes);
+  await syncBookingFinance({ lead: { ...lead, payment_status: "Paid", status: "Deposit Paid" }, booking }).catch(() => null);
 }
 
 async function updatePayment(payment, session, paidNotes) {
@@ -218,10 +220,11 @@ async function createOrUpdateBooking(lead, session) {
   };
 
   if (existing?.[0]) {
-    await supabaseAdmin(`/bookings?id=eq.${encodeURIComponent(existing[0].id)}`, { method: "PATCH", body });
-    return;
+    const rows = await supabaseAdmin(`/bookings?id=eq.${encodeURIComponent(existing[0].id)}`, { method: "PATCH", body });
+    return rows?.[0] || { ...existing[0], ...body };
   }
-  await supabaseAdmin("/bookings", { method: "POST", body });
+  const rows = await supabaseAdmin("/bookings", { method: "POST", body });
+  return rows?.[0] || null;
 }
 
 function appendWebhookNote(existingNotes, note) {

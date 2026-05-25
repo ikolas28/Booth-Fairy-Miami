@@ -425,7 +425,8 @@ textarea {
   gap: var(--container-gap);
 }
 
-.kpi-card {
+.kpi-card,
+.finance-card {
   padding: 16px;
   border-radius: var(--radius-lg);
   background: #fff;
@@ -433,16 +434,32 @@ textarea {
   border: 1px solid var(--border);
 }
 
-.kpi-card p {
+.kpi-card p,
+.finance-card p {
   font-size: 0.92rem;
   color: var(--muted);
 }
 
-.kpi-card strong {
+.kpi-card strong,
+.finance-card strong {
   display: block;
   margin-top: 10px;
   font-family: "Manrope", sans-serif;
   font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+}
+
+.finance-card span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--container-gap);
+  margin-top: 14px;
 }
 
 .dashboard-grid {
@@ -1147,6 +1164,7 @@ tbody tr:hover {
 
 @media (max-width: 1220px) {
   .kpi-grid,
+  .finance-summary-grid,
   .card-grid,
   .source-grid,
   .approval-grid,
@@ -1278,6 +1296,7 @@ tbody tr:hover {
   }
 
   .kpi-grid,
+  .finance-summary-grid,
   .card-grid,
   .source-grid,
   .intel-grid,

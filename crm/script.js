@@ -324,6 +324,7 @@ const state = {
   leadScores: [],
   leadDuplicates: [],
   automationRuns: [],
+  financeSummary: null,
   pendingBanner: null
 };
 const calendarRepairAttempts = new Set();
@@ -772,11 +773,30 @@ async function hydrateData() {
   }
 
   await refreshLeadIntelligence();
+  await refreshFinanceSummary();
   await refreshGmailStatus();
   await refreshInstagramStatus();
   updateConnectionIndicators();
   renderAll();
   await repairPendingCalendarSyncs();
+}
+
+async function refreshFinanceSummary() {
+  if (authState.isLocalFallback || !authState.session?.accessToken) {
+    state.financeSummary = null;
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/finance-summary", {
+      headers: { Authorization: `Bearer ${authState.session.accessToken}` }
+    });
+    const payload = await parseResponse(response);
+    state.financeSummary = payload || null;
+  } catch (error) {
+    console.error("Finance summary load failed", error);
+    state.financeSummary = { ok: false, error: "Finance summary could not be loaded." };
+  }
 }
 
 async function refreshLeadIntelligence() {
@@ -1161,6 +1181,7 @@ function renderAll() {
   renderNextFollowups();
   renderCalendarSyncSummary();
   renderUpcomingBookings();
+  renderFinanceSummary();
   renderApprovalQueue();
   renderLeadIntelligence();
   renderLeadCards();
@@ -1524,6 +1545,43 @@ function renderUpcomingBookings() {
   document.getElementById("upcoming-bookings").innerHTML = rows || `<tr><td colspan="5">No booking records yet.</td></tr>`;
 }
 
+function renderFinanceSummary() {
+  const container = document.getElementById("finance-summary-grid");
+  if (!container) return;
+  const link = document.getElementById("finance-sheet-link");
+  const summary = state.financeSummary;
+  if (link) {
+    link.hidden = !summary?.spreadsheetUrl;
+    if (summary?.spreadsheetUrl) link.href = summary.spreadsheetUrl;
+  }
+
+  if (!summary) {
+    container.innerHTML = emptyState("Finance tracker ready", "Sign in with Google Sheets access to show income, expenses, and balances here.");
+    return;
+  }
+  if (!summary.ok) {
+    container.innerHTML = emptyState("Reconnect Google for finance sync", summary.error || "Google Sheets finance summary needs permission.");
+    return;
+  }
+
+  const cards = [
+    ["This month income", formatCurrency(summary.thisMonthIncome || 0), "Invoice totals logged this month"],
+    ["Deposits received", formatCurrency(summary.depositsReceived || 0), "Retainers/payments received"],
+    ["Unpaid balances", formatCurrency(summary.unpaidBalances || 0), "Open customer balances"],
+    ["This month expenses", formatCurrency(summary.thisMonthExpenses || 0), "Manual expenses from Google Sheet"],
+    ["Monthly profit", formatCurrency(summary.monthlyProfit || 0), "Income minus expenses"],
+    ["YTD profit", formatCurrency(summary.ytdProfit || 0), "Year-to-date net"]
+  ];
+
+  container.innerHTML = cards.map(([label, value, meta]) => `
+    <article class="finance-card">
+      <p>${escapeHtml(label)}</p>
+      <strong>${escapeHtml(value)}</strong>
+      <span>${escapeHtml(meta)}</span>
+    </article>
+  `).join("");
+}
+
 function renderLeadCards() {
   const list = filterLeads(state.leads);
   const container = document.getElementById("lead-cards");
@@ -1833,6 +1891,7 @@ function openLeadDrawer(leadId) {
 
   const relatedFollowups = state.followups.filter((item) => item.leadId === leadId);
   const relatedPayments = state.payments.filter((item) => item.leadId === leadId);
+  const relatedBooking = getBookingForLead(leadId);
   const relatedMessages = state.messageHistory
     .filter((item) => item.leadId === leadId)
     .sort((a, b) => compareDates(b.messageAt || b.createdAt, a.messageAt || a.createdAt))
@@ -1860,6 +1919,10 @@ function openLeadDrawer(leadId) {
         <div><dt>Budget</dt><dd>${escapeHtml(formatCurrency(lead.budget || 0))}</dd></div>
         <div><dt>Payment</dt><dd>${escapeHtml(lead.paymentStatus)}</dd></div>
         <div><dt>Calendar checked</dt><dd>${escapeHtml(lead.calendarChecked)}</dd></div>
+        <div><dt>Invoice total</dt><dd>${escapeHtml(formatCurrency(relatedBooking?.totalQuote || lead.budget || 0))}</dd></div>
+        <div><dt>Deposit</dt><dd>${escapeHtml(formatCurrency(relatedBooking?.depositRequired || calculateDepositAmount(lead)))}</dd></div>
+        <div><dt>Balance due</dt><dd>${escapeHtml(formatCurrency(Math.max((relatedBooking?.totalQuote || lead.budget || 0) - (relatedBooking?.depositRequired || 0), 0)))}</dd></div>
+        <div><dt>Finance sheet row</dt><dd>${relatedBooking?.id ? `<button class="button button-secondary button-small" onclick="syncFinanceForBooking('${lead.id}', '${relatedBooking.id}')">Sync finance</button>` : "Booking pending"}</dd></div>
       </div>
       <section class="detail-section detail-section-notes">
         <div class="stack-item"><strong>Customer notes</strong><span>Lead summary</span></div>
@@ -2182,6 +2245,33 @@ async function syncBookingCalendar(leadId, bookingId = "") {
   } catch (error) {
     console.error(error);
     alert(getFriendlyError(error, "Could not sync this booking to Google Calendar."));
+  }
+}
+
+async function syncFinanceForBooking(leadId, bookingId = "") {
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before syncing finance data.");
+    return;
+  }
+  try {
+    const response = await fetch("/api/admin/finance-sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId, bookingId })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || payload?.reason || "Finance sync failed.");
+    }
+    await refreshFinanceSummary();
+    renderFinanceSummary();
+    alert(`Finance tracker synced to row ${payload.rowNumber || "updated"}.`);
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not sync finance tracker."));
   }
 }
 
@@ -3402,6 +3492,7 @@ window.deleteCampaign = deleteCampaign;
 window.updateLeadStatus = updateLeadStatus;
 window.checkLeadAvailability = checkLeadAvailability;
 window.syncBookingCalendar = syncBookingCalendar;
+window.syncFinanceForBooking = syncFinanceForBooking;
 window.prepareContractAndDeposit = prepareContractAndDeposit;
 window.verifyStripePayment = verifyStripePayment;
 window.confirmSignedBooking = confirmSignedBooking;

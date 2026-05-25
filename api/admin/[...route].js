@@ -4,6 +4,10 @@
   supabaseAdmin,
   verifyAdminRequest
 } = require("../gmail/_lib");
+const {
+  getFinancialSummary,
+  syncBookingFinance
+} = require("../finance/_lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
@@ -11,6 +15,8 @@ module.exports = async (req, res) => {
   const route = getRoute(req);
   if (route === "confirm-booking") return handleConfirmBooking(req, res);
   if (route === "calendar-sync") return handleCalendarSync(req, res);
+  if (route === "finance-summary") return handleFinanceSummary(req, res);
+  if (route === "finance-sync") return handleFinanceSync(req, res);
   if (route === "reconcile-payment") return handleReconcilePayment(req, res);
   if (route === "verify-stripe-payment") return handleVerifyStripePayment(req, res);
   if (route !== "audit-log") {
@@ -79,6 +85,10 @@ async function handleConfirmBooking(req, res) {
       error: error.message || "Google Calendar sync failed."
     }));
     const confirmationDraft = await createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now);
+    const financeSync = await syncBookingFinance({ lead: { ...lead, payment_status: "Paid", status: "Booked" }, booking }).catch((error) => ({
+      ok: false,
+      error: error.message || "Google Sheets finance sync failed."
+    }));
 
     await closeBookingFollowups(lead.id, now);
     await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
@@ -117,7 +127,8 @@ async function handleConfirmBooking(req, res) {
       paymentsUpdated,
       bookingId: booking?.id || "",
       calendarSync,
-      confirmationDraft
+      confirmationDraft,
+      financeSync
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -156,6 +167,54 @@ async function handleCalendarSync(req, res) {
     return setJson(res, error.statusCode || 500, {
       ok: false,
       error: error.message || "Could not sync Google Calendar event.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleFinanceSummary(req, res) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+    const summary = await getFinancialSummary();
+    return setJson(res, summary.ok ? 200 : 409, summary);
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      error: error.message || "Could not load finance summary.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleFinanceSync(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+    const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
+    const leadId = stringify(body.leadId || body.lead_id);
+    const bookingId = stringify(body.bookingId || body.booking_id);
+    const lead = leadId ? await getLead(leadId) : null;
+    const booking = bookingId ? await getBookingById(bookingId) : lead ? await getBookingForLead(lead.id) : null;
+    if (!lead && !booking) return setJson(res, 404, { ok: false, error: "Lead or booking not found." });
+    const financeSync = await syncBookingFinance({ lead, booking });
+    return setJson(res, financeSync.ok ? 200 : 409, financeSync);
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      error: error.message || "Could not sync booking to finance tracker.",
       details: error.details || null
     });
   }
@@ -215,6 +274,7 @@ async function handleVerifyStripePayment(req, res) {
     let booking = null;
     let calendarSync = null;
     let confirmationDraft = null;
+    let financeSync = null;
     if (signedAgreement) {
       if (!lead.calendar_checked) {
         return setJson(res, 409, {
@@ -232,6 +292,10 @@ async function handleVerifyStripePayment(req, res) {
         error: error.message || "Google Calendar sync failed."
       }));
       confirmationDraft = await createBookingConfirmationDraftIfPossible(refreshedLead, booking, calendarSync, now);
+      financeSync = await syncBookingFinance({ lead: { ...refreshedLead, payment_status: "Paid", status: "Booked" }, booking, payment }).catch((error) => ({
+        ok: false,
+        error: error.message || "Google Sheets finance sync failed."
+      }));
       await closeBookingFollowups(lead.id, now);
       await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
         method: "PATCH",
@@ -253,7 +317,8 @@ async function handleVerifyStripePayment(req, res) {
       amountPaid: session.amount_total ? Number(session.amount_total) / 100 : 0,
       bookingId: booking?.id || "",
       calendarSync,
-      confirmationDraft
+      confirmationDraft,
+      financeSync: financeSync || null
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -323,6 +388,7 @@ async function handleReconcilePayment(req, res) {
 
     let calendarSync = null;
     let confirmationDraft = null;
+    let financeSync = null;
     if (nextStatus === "Booked" && lead.calendar_checked) {
       const booking = await createOrUpdateBookedRecord({ ...lead, payment_status: "Paid", status: "Booked" }, now);
       calendarSync = await syncBookingToCalendar(booking, lead).catch((error) => ({
@@ -330,6 +396,10 @@ async function handleReconcilePayment(req, res) {
         error: error.message || "Google Calendar sync failed."
       }));
       confirmationDraft = await createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now);
+      financeSync = await syncBookingFinance({ lead: { ...lead, payment_status: "Paid", status: nextStatus }, booking }).catch((error) => ({
+        ok: false,
+        error: error.message || "Google Sheets finance sync failed."
+      }));
       await recordBookingConfirmationHistory(lead, booking, calendarSync, confirmationDraft);
     }
 
@@ -340,7 +410,8 @@ async function handleReconcilePayment(req, res) {
       paymentsUpdated,
       bookingsUpdated,
       calendarSync,
-      confirmationDraft
+      confirmationDraft,
+      financeSync: financeSync || null
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -542,6 +613,11 @@ async function getLead(leadId) {
 
 async function getBookingById(bookingId) {
   const rows = await supabaseAdmin(`/bookings?id=eq.${encodeURIComponent(bookingId)}&select=*&limit=1`, { method: "GET" });
+  return rows?.[0] || null;
+}
+
+async function getBookingForLead(leadId) {
+  const rows = await supabaseAdmin(`/bookings?lead_id=eq.${encodeURIComponent(leadId)}&select=*&limit=1`, { method: "GET" }).catch(() => []);
   return rows?.[0] || null;
 }
 
