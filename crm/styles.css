@@ -466,11 +466,31 @@ textarea {
   margin: 18px 0;
 }
 
+.tiktok-plan-panel {
+  margin: 18px 0;
+}
+
 .marketing-audience-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--container-gap);
   margin-top: 14px;
+}
+
+.tiktok-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--container-gap);
+  margin-top: 14px;
+}
+
+.tiktok-plan-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
 }
 
 .marketing-audience-list {
@@ -1216,6 +1236,7 @@ tbody tr:hover {
   .kpi-grid,
   .finance-summary-grid,
   .marketing-audience-grid,
+  .tiktok-plan-grid,
   .card-grid,
   .source-grid,
   .approval-grid,
@@ -1349,6 +1370,7 @@ tbody tr:hover {
   .kpi-grid,
   .finance-summary-grid,
   .marketing-audience-grid,
+  .tiktok-plan-grid,
   .card-grid,
   .source-grid,
   .intel-grid,

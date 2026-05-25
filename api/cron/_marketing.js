@@ -112,6 +112,7 @@ function buildLeadStats(leads) {
 function buildCampaignDrafts(stats, weekKey, today) {
   const batch = `Marketing automation batch ${weekKey}. Owner must review before publishing.`;
   return [
+    ...buildTikTokContentDrafts(stats, weekKey, today),
     {
       title: "Luxury digital photo booth spotlight",
       channel: "Instagram",
@@ -212,6 +213,104 @@ function buildCampaignDrafts(stats, weekKey, today) {
         "Ad concept only. Do not publish paid ads without owner approval.",
         "Creative angle: Luxury Miami digital photo booth with instant sharing for weddings, birthdays, quinceaneras, corporate events, and private parties.",
         "Suggested offer copy must be reviewed before spending any ad budget."
+      ].join("\n")
+    }
+  ];
+}
+
+function buildTikTokContentDrafts(stats, weekKey, today) {
+  const batch = `Marketing automation batch ${weekKey}. Owner must review before posting.`;
+  const city = stats.topCity || "Miami";
+  const eventType = stats.topEventType || "private events";
+  return [
+    {
+      title: `TikTok: ${city} digital booth setup reveal`,
+      channel: "TikTok",
+      status: "Ready for Review",
+      priority: "High",
+      notes: [
+        batch,
+        "Content type: Short-form video",
+        "Best posting window: Wednesday or Thursday evening",
+        "Hook: This is what a luxury digital photo booth setup looks like before guests arrive.",
+        "Shot list:",
+        "1. 1-second close-up of logo/booth screen.",
+        "2. Slow pan of backdrop, props, and DSLR camera.",
+        "3. Clip of the flash firing or sample pose.",
+        "4. Screen recording or close-up showing instant digital sharing.",
+        "5. End card with Booth Fairy Miami and website.",
+        "Caption:",
+        `Luxury DSLR digital photo booth for ${eventType} in ${city}. Instant digital sharing, premium setup, custom overlay, and a polished guest experience. Send your event date to check availability. @boothfairymiami`,
+        "Hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents #LuxuryEventsMiami #SouthFloridaEvents",
+        "CTA: Comment or DM your event date, venue/city, and guest count.",
+        "Production notes: Use real setup footage when available. Do not mention prints or 360 booth."
+      ].join("\n")
+    },
+    {
+      title: "TikTok: Photo booth + DJ bundle pitch",
+      channel: "TikTok",
+      status: "Ready for Review",
+      priority: stats.djCount > 0 ? "High" : "Medium",
+      notes: [
+        batch,
+        "Content type: Talking-head or text-over-video",
+        "Best posting window: Friday afternoon",
+        "Hook: If you are booking a DJ and a photo booth separately, this may save you stress.",
+        "Shot list:",
+        "1. Clip of DJ setup or party lights.",
+        "2. Clip of DSLR photo booth setup.",
+        "3. Text overlay: one team, smoother timeline, better guest flow.",
+        "4. Show booth sharing or event energy.",
+        "5. End with website/DM CTA.",
+        "Caption:",
+        "For Miami events, booking photo booth + DJ together can make the night feel more coordinated. Booth Fairy Miami offers luxury DSLR digital booth service with premium DJ add-ons for weddings, birthdays, corporate events, and private parties. @boothfairymiami",
+        "Hashtags: #MiamiDJ #MiamiPhotoBooth #BoothFairyMiami #WeddingTok #MiamiWeddings #EventPlanning",
+        "CTA: DM your date and venue/city so we can check availability.",
+        `CRM signal: ${stats.djCount} open DJ/bundle lead(s), ${stats.boothCount} open booth lead(s).`
+      ].join("\n")
+    },
+    {
+      title: "TikTok: What guests receive",
+      channel: "TikTok",
+      status: "Ready for Review",
+      priority: "Medium",
+      notes: [
+        batch,
+        "Content type: Educational demo",
+        "Best posting window: Sunday evening",
+        "Hook: Your guests do not have to wait for photos after the event.",
+        "Shot list:",
+        "1. Person takes a booth photo.",
+        "2. Show digital sharing screen or phone receiving the photo.",
+        "3. Show a sample digital photo/overlay.",
+        "4. Text overlay: instant sharing + online gallery.",
+        "Caption:",
+        "Booth Fairy Miami focuses on polished DSLR photos with instant digital sharing, so guests can receive and share their photos right away. Digital photo booth only right now. @boothfairymiami",
+        "Hashtags: #DigitalPhotoBooth #MiamiEvents #PhotoBoothRental #BoothFairyMiami #EventTips",
+        "CTA: Ask us for package options after we check your event date.",
+        "Production notes: Keep it clear and simple. Do not imply print packages."
+      ].join("\n")
+    },
+    {
+      title: "TikTok: Miami event checklist",
+      channel: "TikTok",
+      status: "Ready for Review",
+      priority: "Medium",
+      notes: [
+        batch,
+        "Content type: Checklist / text overlay",
+        "Best posting window: Monday evening",
+        "Hook: Before you ask for a photo booth quote, have these 4 details ready.",
+        "Shot list:",
+        "1. Text overlay: event date.",
+        "2. Text overlay: venue or city.",
+        "3. Text overlay: guest count.",
+        "4. Text overlay: service needed - booth, DJ, or both.",
+        "5. End card: Booth Fairy Miami.",
+        "Caption:",
+        "Want a faster quote? Send your event date, venue/city, guest count, and whether you need digital photo booth, DJ, or both. We always check calendar availability before confirming. @boothfairymiami",
+        "Hashtags: #MiamiEventPlanner #MiamiEvents #BoothFairyMiami #EventPlanningTips #MiamiPhotoBooth",
+        "CTA: Send your event details through boothfairymiami.com."
       ].join("\n")
     }
   ];

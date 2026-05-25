@@ -306,7 +306,7 @@ create table if not exists public.campaigns (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   channel text not null default 'Instagram' check (
-    channel in ('Instagram', 'Email', 'Google Business', 'Meta Ads', 'Website SEO')
+    channel in ('Instagram', 'TikTok', 'Email', 'Google Business', 'Meta Ads', 'Website SEO')
   ),
   status text not null default 'Idea' check (
     status in ('Idea', 'Drafting', 'Ready for Review', 'Scheduled', 'Published')

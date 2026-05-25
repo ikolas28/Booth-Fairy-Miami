@@ -352,12 +352,23 @@
         <div class="toolbar">
           <div class="toolbar-copy">
             <h2>Marketing</h2>
-            <p>Organize content ideas before they become posts, emails, or ad campaigns.</p>
+            <p>Organize content ideas before they become TikToks, posts, emails, or ad campaigns.</p>
           </div>
           <div class="toolbar-actions">
+            <button class="button button-secondary" id="generate-tiktok-plan-button">Generate Weekly TikTok Plan</button>
             <button class="button button-primary" id="new-campaign-button">Add Idea</button>
           </div>
         </div>
+        <article class="panel tiktok-plan-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">TikTok Planner</p>
+              <h2>Weekly short-form content for @boothfairymiami</h2>
+            </div>
+            <span class="chip chip-muted" id="tiktok-plan-count">0 drafts</span>
+          </div>
+          <div class="tiktok-plan-grid" id="tiktok-plan-grid"></div>
+        </article>
         <article class="panel marketing-audience-panel">
           <div class="panel-header">
             <div>
@@ -539,6 +550,7 @@
         <label>Channel
           <select id="campaign-channel">
             <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
             <option value="Email">Email</option>
             <option value="Google Business">Google Business</option>
             <option value="Meta Ads">Meta Ads</option>
@@ -564,7 +576,7 @@
         <label class="span-2">Campaign notes<textarea id="campaign-notes" rows="7" required></textarea></label>
         <div class="campaign-helper span-2">
           <strong>Approval workflow</strong>
-          <span>Ready for Review means check the strategy and copy. For Email campaigns, Scheduled prepares Bcc Gmail draft batches for eligible leads. You still review and send manually.</span>
+          <span>Ready for Review means check the strategy and copy. TikTok approvals move the idea to Scheduled so you can film/post manually. Email approvals prepare Bcc Gmail draft batches for eligible leads.</span>
         </div>
         <div class="form-actions span-2">
           <button type="button" class="button button-secondary" id="campaign-approve-button">Approve & Prepare Draft</button>

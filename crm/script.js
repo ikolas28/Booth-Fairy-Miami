@@ -231,6 +231,27 @@ const seedCampaigns = [
   },
   {
     id: crypto.randomUUID(),
+    title: "TikTok: Miami digital booth setup reveal",
+    channel: "TikTok",
+    status: "Ready for Review",
+    priority: "High",
+    notes: [
+      "Demo TikTok content plan. Owner must review before posting.",
+      "Hook: This is what a luxury digital photo booth setup looks like before guests arrive.",
+      "Shot list:",
+      "1. Close-up of the booth screen.",
+      "2. Slow pan of backdrop, props, and DSLR camera.",
+      "3. Show instant digital sharing on a phone.",
+      "Caption:",
+      "Luxury DSLR digital photo booth for Miami events. Instant digital sharing, premium setup, and a polished guest experience. Send your event date to check availability. @boothfairymiami",
+      "Hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents",
+      "CTA: DM your event date, venue/city, and guest count."
+    ].join("\n"),
+    createdAt: "2026-05-20",
+    updatedAt: "2026-05-20"
+  },
+  {
+    id: crypto.randomUUID(),
     title: "Luxury DJ add-on email sequence",
     channel: "Email",
     status: "Drafting",
@@ -412,6 +433,7 @@ function attachEventListeners() {
   document.getElementById("new-followup-button").addEventListener("click", () => openFollowupModal());
   document.getElementById("new-payment-button").addEventListener("click", () => openPaymentModal());
   document.getElementById("new-campaign-button").addEventListener("click", () => openCampaignModal());
+  document.getElementById("generate-tiktok-plan-button").addEventListener("click", () => runAgentAutomation("marketing"));
   document.getElementById("refresh-marketing-audience-button").addEventListener("click", () => {
     renderMarketingAudience();
   });
@@ -1106,7 +1128,9 @@ async function approveCurrentCampaign() {
   const campaign = await saveCampaignFromModal({ keepOpen: true });
   if (!campaign) return;
   if (campaign.channel !== "Email") {
-    alert("Campaign approved. For non-email channels, publish manually after review.");
+    alert(campaign.channel === "TikTok"
+      ? "TikTok approved. Film/post it manually from TikTok, then mark it posted in the CRM."
+      : "Campaign approved. For non-email channels, publish manually after review.");
     closeModal("campaign-modal");
     renderAll();
     return;
@@ -1196,6 +1220,8 @@ async function approveCampaign(campaignId) {
     upsertLocalItem(state.campaigns, savedCampaign);
     if (savedCampaign.channel === "Email") {
       await prepareCampaignGmailDraft(savedCampaign.id);
+    } else if (savedCampaign.channel === "TikTok") {
+      alert("TikTok approved. Film/post it manually from TikTok, then mark it posted in the CRM.");
     } else {
       alert("Campaign approved. Publish manually when ready.");
     }
@@ -1893,6 +1919,7 @@ function renderCampaigns() {
   const container = document.getElementById("campaign-board");
   const columns = ["Idea", "Drafting", "Ready for Review", "Scheduled", "Published"];
   const eligibleCount = getEligibleMarketingLeads().length;
+  renderTikTokPlan();
 
   container.innerHTML = columns.map((column) => {
     const items = state.campaigns.filter((campaign) => campaign.status === column);
@@ -1909,17 +1936,67 @@ function renderCampaigns() {
             <p>${escapeHtml(campaign.notes)}</p>
             <div class="card-meta">
               <span>${escapeHtml(campaign.channel)}</span>
-              <span>${escapeHtml(getCampaignStatusLabel(campaign.status))}</span>
+              <span>${escapeHtml(getCampaignStatusLabel(campaign.status, campaign.channel))}</span>
             </div>
             <div class="card-actions">
               ${campaign.channel === "Email" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Draft to ${eligibleCount} Leads</button>` : ""}
-              ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">Mark Sent</button>` : ""}
+              ${campaign.channel === "TikTok" && campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve TikTok</button>` : ""}
+              ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">${campaign.channel === "TikTok" ? "Mark Posted" : "Mark Sent"}</button>` : ""}
               <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
               <button class="button button-danger" onclick="deleteCampaign('${campaign.id}')">Delete</button>
             </div>
           </article>
         `).join("") : emptyState("No campaigns", `Nothing in ${column.toLowerCase()} right now.`)}
       </section>
+    `;
+  }).join("");
+}
+
+function renderTikTokPlan() {
+  const grid = document.getElementById("tiktok-plan-grid");
+  const count = document.getElementById("tiktok-plan-count");
+  if (!grid || !count) return;
+
+  const drafts = state.campaigns
+    .filter((campaign) => campaign.channel === "TikTok")
+    .sort((a, b) => compareDates(b.updatedAt || b.createdAt, a.updatedAt || a.createdAt))
+    .slice(0, 4);
+
+  count.textContent = `${state.campaigns.filter((campaign) => campaign.channel === "TikTok").length} TikTok draft${state.campaigns.filter((campaign) => campaign.channel === "TikTok").length === 1 ? "" : "s"}`;
+
+  if (!drafts.length) {
+    grid.innerHTML = emptyState("No TikTok drafts yet", "Click Generate Weekly TikTok Plan to have the marketing agent create hooks, shot lists, captions, hashtags, and CTAs for owner approval.");
+    return;
+  }
+
+  grid.innerHTML = drafts.map((campaign) => {
+    const hook = extractCampaignField(campaign.notes, "Hook") || "Hook needs review";
+    const caption = extractCampaignBlock(campaign.notes, "Caption") || extractCampaignField(campaign.notes, "Caption") || "Caption needs review";
+    const shotList = extractCampaignBlock(campaign.notes, "Shot list") || "Shot list needs review";
+    return `
+      <article class="tiktok-plan-card">
+        <div class="campaign-head">
+          <strong>${escapeHtml(campaign.title)}</strong>
+          ${statusChip(getCampaignStatusLabel(campaign.status, campaign.channel))}
+        </div>
+        <div class="campaign-helper">
+          <strong>Hook</strong>
+          <span>${escapeHtml(hook)}</span>
+        </div>
+        <div class="campaign-helper">
+          <strong>Shot list</strong>
+          <span>${escapeHtml(shotList)}</span>
+        </div>
+        <div class="campaign-helper">
+          <strong>Caption</strong>
+          <span>${escapeHtml(caption)}</span>
+        </div>
+        <div class="card-actions">
+          ${campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve</button>` : ""}
+          ${campaign.status === "Scheduled" ? `<button class="button button-secondary" onclick="markCampaignPublished('${campaign.id}')">Mark Posted</button>` : ""}
+          <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
+        </div>
+      </article>
     `;
   }).join("");
 }
@@ -1958,7 +2035,8 @@ function renderMarketingAudience() {
   ` : emptyState("No eligible marketing leads", "New interested leads with emails will appear here. Booked, lost, completed, past-event, duplicate, and opted-out records are excluded.");
 }
 
-function getCampaignStatusLabel(status) {
+function getCampaignStatusLabel(status, channel = "") {
+  if (status === "Scheduled" && channel === "TikTok") return "Approved to post";
   if (status === "Scheduled") return "Draft prepared";
   if (status === "Published") return "Sent / Published";
   return status;
@@ -1975,6 +2053,12 @@ function getCampaignEmailSubject(campaign) {
 function extractCampaignField(notes, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return String(notes || "").match(new RegExp(`${escaped}\\s*:\\s*([^\\n]+)`, "i"))?.[1]?.trim() || "";
+}
+
+function extractCampaignBlock(notes, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = String(notes || "").match(new RegExp(`${escaped}\\s*:\\s*([\\s\\S]*?)(?=\\n[A-Z][A-Za-z /]+\\s*:|$)`, "i"));
+  return match?.[1]?.trim() || "";
 }
 
 function getEligibleMarketingLeads() {

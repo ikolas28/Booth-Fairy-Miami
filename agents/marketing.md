@@ -31,10 +31,13 @@ Support growth through SEO, lead source tracking, campaigns, promotions, and con
 - support local SEO
 - organize seasonal promotions
 - Generate Instagram content
+- Generate TikTok content plans
 - Generate SEO website copy
 - Create Google Business Profile posts
 - Suggest promotions
 - Generate Instagram captions, hashtags, reels ideas, and story posts.
+- Generate weekly TikTok drafts with a hook, shot list, caption, hashtags, CTA, and owner approval status.
+- Use @boothfairymiami as the TikTok handle in TikTok captions and content plans.
 - Create email marketing campaigns.
 
 ## Metrics To Track
@@ -52,3 +55,4 @@ Support growth through SEO, lead source tracking, campaigns, promotions, and con
 - do not publish inaccurate offers
 - do not imply bookings are confirmed without operations approval
 - keep public messaging aligned with current services
+- do not post directly to TikTok or access the TikTok account unless the owner explicitly approves a future official integration
