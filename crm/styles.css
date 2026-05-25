@@ -960,18 +960,23 @@ tbody tr:hover {
 }
 
 .drawer {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  overflow: auto;
 }
 
 .drawer-card {
-  width: min(100%, 820px);
-  min-height: 100vh;
+  width: min(1180px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  min-height: 0;
   background: #fff9fd;
-  padding: 28px;
+  border: 1px solid rgba(126, 91, 146, 0.18);
+  border-radius: 18px;
+  padding: 30px;
   position: relative;
   overflow: auto;
-  box-shadow: -24px 0 60px rgba(33, 18, 35, 0.18);
+  box-shadow: 0 24px 70px rgba(33, 18, 35, 0.22);
 }
 
 .drawer-close {
@@ -1004,8 +1009,26 @@ tbody tr:hover {
 }
 
 .drawer-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 20px;
+}
+
+.detail-section {
+  display: grid;
+  gap: 12px;
+}
+
+.lead-notes-block {
+  max-height: 280px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .drawer-grid div {
@@ -1028,6 +1051,7 @@ tbody tr:hover {
 }
 
 .card-notes,
+.lead-notes-block,
 .message-body,
 .message-card p,
 .stack-item p {
@@ -1161,6 +1185,7 @@ tbody tr:hover {
 
   .drawer-card {
     width: 100%;
+    max-height: calc(100dvh - 32px);
   }
 
   .span-2 {
@@ -1184,6 +1209,15 @@ tbody tr:hover {
     width: 100%;
     max-height: calc(100dvh - 32px);
     border-radius: 20px;
+  }
+
+  .drawer {
+    padding: 16px;
+  }
+
+  .drawer-card {
+    border-radius: 20px;
+    padding: 22px;
   }
 
   .modal-header,

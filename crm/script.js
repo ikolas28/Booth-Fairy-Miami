@@ -1844,7 +1844,6 @@ function openLeadDrawer(leadId) {
         <p class="panel-kicker">Lead Detail</p>
         <h2>${escapeHtml(lead.clientName)}</h2>
         <p class="card-meta">${escapeHtml(lead.leadCode || "Lead ID pending")}</p>
-        <p class="card-notes">${escapeHtml(lead.notes || "No notes recorded yet.")}</p>
       </div>
       <div class="drawer-grid">
         <div><dt>Status</dt><dd>${escapeHtml(lead.status)}</dd></div>
@@ -1862,6 +1861,10 @@ function openLeadDrawer(leadId) {
         <div><dt>Payment</dt><dd>${escapeHtml(lead.paymentStatus)}</dd></div>
         <div><dt>Calendar checked</dt><dd>${escapeHtml(lead.calendarChecked)}</dd></div>
       </div>
+      <section class="detail-section detail-section-notes">
+        <div class="stack-item"><strong>Customer notes</strong><span>Lead summary</span></div>
+        <p class="lead-notes-block">${escapeHtml(lead.notes || "No notes recorded yet.")}</p>
+      </section>
       <div class="stack-list">
         <div class="stack-item"><strong>Follow-ups</strong><span>${relatedFollowups.length}</span></div>
         ${relatedFollowups.length ? relatedFollowups.map((item) => `<div class="stack-item"><div><strong>${escapeHtml(item.channel)}</strong><p>${escapeHtml(`${formatDate(item.dueDate)} | ${item.notes}`)}</p></div><span class="chip chip-muted">${escapeHtml(item.status)}</span></div>`).join("") : emptyState("No reminders", "No follow-up tasks are attached to this lead.")}
