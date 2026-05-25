@@ -206,7 +206,7 @@ async function createOrUpdateBooking(lead, session) {
     end_time: lead.end_time || "22:00",
     venue: lead.venue || null,
     city: lead.city || null,
-    service_requested: lead.service_requested || "DSLR Photo Booth - Digital Sharing",
+    service_requested: getBookingServiceRequested(lead),
     guest_count: lead.guest_count || 0,
     total_quote: amountPaid ? amountPaid * 2 : Number(lead.budget || 0),
     deposit_required: amountPaid || roundMoney(Number(lead.budget || 0) * 0.5),
@@ -354,6 +354,22 @@ function isDuplicateWebhookError(error) {
 
 function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function getBookingServiceRequested(lead = {}) {
+  const service = stringify(lead.service_requested || lead.serviceRequested);
+  const notes = stringify(lead.notes).toLowerCase();
+  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
+  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
+  if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
+    return "DSLR Photo Booth - Digital Sharing";
+  }
+  return service || "DSLR Photo Booth - Digital Sharing";
+}
+
+function stringify(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
 }
 
 function requireEnv(name, value) {

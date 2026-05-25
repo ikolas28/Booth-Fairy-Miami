@@ -214,7 +214,7 @@ function normalizeWebsiteLead(payload) {
   if (!phone) missing.push("phone number");
 
   const packageInterest = stringify(payload.packageInterest || payload["package-interest"]);
-  const serviceRequested = stringify(payload.serviceRequested || payload["service-requested"] || "DSLR Photo Booth - Digital Sharing");
+  const serviceRequested = normalizeServiceRequested(payload, packageInterest);
   const message = stringify(payload.message);
   const notes = [
     message ? `Message: ${message}` : "",
@@ -239,6 +239,18 @@ function normalizeWebsiteLead(payload) {
     notes,
     status: missing.length ? "Missing Info" : "New Lead"
   };
+}
+
+function normalizeServiceRequested(payload, packageInterest = "") {
+  const selected = stringify(payload.serviceRequested || payload["service-requested"]);
+  const packageText = packageInterest.toLowerCase();
+  if (/starter digital package|dslr photo booth|digital photo booth/.test(packageText)) {
+    return "DSLR Photo Booth - Digital Sharing";
+  }
+  if (/dj \+ photo booth bundle|photo booth \+ dj bundle/.test(packageText)) {
+    return "Photo Booth + DJ Bundle";
+  }
+  return selected || "DSLR Photo Booth - Digital Sharing";
 }
 
 function getSpamReason(lead, payload) {

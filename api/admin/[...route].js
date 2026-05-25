@@ -78,6 +78,7 @@ async function handleConfirmBooking(req, res) {
       ok: false,
       error: error.message || "Google Calendar sync failed."
     }));
+    const confirmationDraft = await createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now);
 
     await closeBookingFollowups(lead.id, now);
     await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
@@ -94,14 +95,18 @@ async function handleConfirmBooking(req, res) {
       body: {
         lead_id: lead.id,
         booking_id: booking?.id || null,
-        channel: "CRM",
-        direction: "Internal",
-        subject: "Booking confirmed",
-        summary: "Admin confirmed signed agreement and retainer payment. Booking moved to Booked.",
-        draft_created: false,
+        channel: confirmationDraft.id ? "Gmail" : "CRM",
+        direction: confirmationDraft.id ? "Outbound" : "Internal",
+        subject: confirmationDraft.id ? "Your Booth Fairy Miami booking is confirmed" : "Booking confirmed",
+        summary: confirmationDraft.id
+          ? "Admin confirmed the booking and created a Gmail confirmation draft for owner review."
+          : "Admin confirmed signed agreement and retainer payment. Booking moved to Booked.",
+        draft_created: Boolean(confirmationDraft.id),
+        gmail_thread_id: confirmationDraft.threadId || null,
+        gmail_message_id: confirmationDraft.messageId || null,
         notes: calendarSync.ok
-          ? `Google Calendar event synced: ${calendarSync.htmlLink || calendarSync.eventId}.`
-          : `Google Calendar sync failed: ${calendarSync.error}`
+          ? `Google Calendar event synced: ${calendarSync.htmlLink || calendarSync.eventId}.${confirmationDraft.id ? ` Gmail booking confirmation draft ID: ${confirmationDraft.id}.` : ` ${confirmationDraft.skippedReason || "Booking confirmation draft was not created."}`}`
+          : `Google Calendar sync failed: ${calendarSync.error}. ${confirmationDraft.id ? `Gmail booking confirmation draft ID: ${confirmationDraft.id}.` : confirmationDraft.skippedReason || "Booking confirmation draft was not created."}`
       }
     });
 
@@ -111,7 +116,8 @@ async function handleConfirmBooking(req, res) {
       paymentStatus: "Paid",
       paymentsUpdated,
       bookingId: booking?.id || "",
-      calendarSync
+      calendarSync,
+      confirmationDraft
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -208,6 +214,7 @@ async function handleVerifyStripePayment(req, res) {
 
     let booking = null;
     let calendarSync = null;
+    let confirmationDraft = null;
     if (signedAgreement) {
       if (!lead.calendar_checked) {
         return setJson(res, 409, {
@@ -224,6 +231,7 @@ async function handleVerifyStripePayment(req, res) {
         ok: false,
         error: error.message || "Google Calendar sync failed."
       }));
+      confirmationDraft = await createBookingConfirmationDraftIfPossible(refreshedLead, booking, calendarSync, now);
       await closeBookingFollowups(lead.id, now);
       await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
         method: "PATCH",
@@ -233,6 +241,7 @@ async function handleVerifyStripePayment(req, res) {
           notes: appendNotes(refreshedLead.notes, `Stripe session ${session.id} verified as paid and signed agreement confirmed on ${now}. Booking marked Booked.`)
         }
       });
+      await recordBookingConfirmationHistory(refreshedLead, booking, calendarSync, confirmationDraft);
     }
 
     return setJson(res, 200, {
@@ -243,7 +252,8 @@ async function handleVerifyStripePayment(req, res) {
       stripePaymentIntentId: stringify(session.payment_intent),
       amountPaid: session.amount_total ? Number(session.amount_total) / 100 : 0,
       bookingId: booking?.id || "",
-      calendarSync
+      calendarSync,
+      confirmationDraft
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -312,12 +322,15 @@ async function handleReconcilePayment(req, res) {
     }
 
     let calendarSync = null;
+    let confirmationDraft = null;
     if (nextStatus === "Booked" && lead.calendar_checked) {
       const booking = await createOrUpdateBookedRecord({ ...lead, payment_status: "Paid", status: "Booked" }, now);
       calendarSync = await syncBookingToCalendar(booking, lead).catch((error) => ({
         ok: false,
         error: error.message || "Google Calendar sync failed."
       }));
+      confirmationDraft = await createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now);
+      await recordBookingConfirmationHistory(lead, booking, calendarSync, confirmationDraft);
     }
 
     return setJson(res, 200, {
@@ -326,7 +339,8 @@ async function handleReconcilePayment(req, res) {
       paymentStatus: "Paid",
       paymentsUpdated,
       bookingsUpdated,
-      calendarSync
+      calendarSync,
+      confirmationDraft
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -463,7 +477,7 @@ async function createOrUpdateDepositPaidBooking(lead, session, now) {
     end_time: lead.end_time || "22:00",
     venue: lead.venue || null,
     city: lead.city || null,
-    service_requested: lead.service_requested || "DSLR Photo Booth - Digital Sharing",
+    service_requested: getBookingServiceRequested(lead),
     guest_count: lead.guest_count || 0,
     total_quote: amountPaid ? amountPaid * 2 : Number(lead.budget || 0),
     deposit_required: amountPaid || roundMoney(Number(lead.budget || 0) * 0.5),
@@ -544,7 +558,7 @@ async function createOrUpdateBookedRecord(lead, now) {
     end_time: lead.end_time || "22:00",
     venue: lead.venue || null,
     city: lead.city || null,
-    service_requested: lead.service_requested || "DSLR Photo Booth - Digital Sharing",
+    service_requested: getBookingServiceRequested(lead),
     guest_count: lead.guest_count || 0,
     total_quote: Number(lead.budget || 0),
     deposit_required: roundMoney(Number(lead.budget || 0) * 0.5),
@@ -633,7 +647,7 @@ async function findExistingCalendarEventId(accessToken, calendarId, booking, lea
   const eventDate = booking.event_date || lead.event_date;
   if (!eventDate) return "";
   const clientName = normalizeSearchText(booking.client_name || lead.client_name);
-  const service = normalizeSearchText(booking.service_requested || lead.service_requested);
+  const service = normalizeSearchText(booking.service_requested || getBookingServiceRequested(lead));
   const searchParams = new URLSearchParams({
     timeMin: toRfc3339WithOffset(eventDate, "00:00"),
     timeMax: toRfc3339WithOffset(eventDate, "23:59"),
@@ -662,7 +676,7 @@ function buildCalendarEvent(booking, lead = {}) {
     "Booth Fairy Miami",
     booking.client_name || lead.client_name || "Client",
     booking.event_type || lead.event_type || "",
-    booking.service_requested || lead.service_requested || ""
+    booking.service_requested || getBookingServiceRequested(lead) || ""
   ].filter(Boolean);
   return {
     summary: titleParts.join(" - "),
@@ -671,7 +685,7 @@ function buildCalendarEvent(booking, lead = {}) {
       `Client: ${booking.client_name || lead.client_name || "Pending"}`,
       `Phone: ${booking.phone || lead.phone || "Pending"}`,
       `Email: ${booking.email || lead.email || "Pending"}`,
-      `Service: ${booking.service_requested || lead.service_requested || "Pending"}`,
+      `Service: ${booking.service_requested || getBookingServiceRequested(lead) || "Pending"}`,
       `Guests: ${booking.guest_count || lead.guest_count || "Pending"}`,
       "",
       booking.notes || lead.notes || ""
@@ -691,6 +705,94 @@ function buildCalendarEvent(booking, lead = {}) {
       }
     }
   };
+}
+
+async function createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now) {
+  if (!isUsableEmail(lead.email || booking?.email)) {
+    return { id: "", skippedReason: "Client email is missing, so no booking confirmation draft was created." };
+  }
+  const subject = "Your Booth Fairy Miami booking is confirmed";
+  const existing = await supabaseAdmin(
+    `/message_history?lead_id=eq.${encodeURIComponent(lead.id)}&draft_created=eq.true&subject=eq.${encodeURIComponent(subject)}&select=id&limit=1`,
+    { method: "GET" }
+  ).catch(() => []);
+  if (existing?.[0]) {
+    return { id: "", skippedReason: "A booking confirmation Gmail draft already exists for this lead." };
+  }
+  const connection = await getValidGmailAccessToken();
+  if (!connection) {
+    return { id: "", skippedReason: "Gmail is not connected, so no booking confirmation draft was created." };
+  }
+
+  const raw = buildRawEmail({
+    to: lead.email || booking.email,
+    subject,
+    body: buildBookingConfirmationEmail(lead, booking, calendarSync)
+  });
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${connection.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: { raw } })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    return { id: "", skippedReason: payload?.error?.message || "Gmail booking confirmation draft could not be created." };
+  }
+  return {
+    id: payload?.id || "",
+    messageId: payload?.message?.id || "",
+    threadId: payload?.message?.threadId || "",
+    createdAt: now
+  };
+}
+
+async function recordBookingConfirmationHistory(lead, booking, calendarSync, confirmationDraft) {
+  await supabaseAdmin("/message_history", {
+    method: "POST",
+    body: {
+      lead_id: lead.id,
+      booking_id: booking?.id || null,
+      channel: confirmationDraft?.id ? "Gmail" : "CRM",
+      direction: confirmationDraft?.id ? "Outbound" : "Internal",
+      subject: "Your Booth Fairy Miami booking is confirmed",
+      summary: confirmationDraft?.id
+        ? "Booking confirmation Gmail draft created for owner review."
+        : "Booking confirmation still needs to be sent manually.",
+      draft_created: Boolean(confirmationDraft?.id),
+      gmail_thread_id: confirmationDraft?.threadId || null,
+      gmail_message_id: confirmationDraft?.messageId || null,
+      notes: confirmationDraft?.id
+        ? `Gmail draft ID: ${confirmationDraft.id}. Owner must review/send manually. Calendar: ${calendarSync?.htmlLink || calendarSync?.eventId || calendarSync?.error || "pending"}.`
+        : confirmationDraft?.skippedReason || "No Gmail draft was created."
+    }
+  }).catch(() => null);
+}
+
+function buildBookingConfirmationEmail(lead, booking, calendarSync) {
+  const eventDateTime = formatEventDateTime(booking.event_date || lead.event_date, booking.start_time || lead.start_time, booking.end_time || lead.end_time);
+  const location = [booking.venue || lead.venue, booking.city || lead.city].filter(Boolean).join(", ") || "venue pending";
+  return [
+    `Hi ${lead.client_name || booking.client_name || "there"},`,
+    "",
+    "Your Booth Fairy Miami event is officially booked. Thank you for completing the agreement and retainer/payment steps.",
+    "",
+    "Booking details:",
+    `Date and time: ${eventDateTime}`,
+    `Service: ${booking.service_requested || getBookingServiceRequested(lead)}`,
+    `Location: ${location}`,
+    "",
+    "We have your event on our calendar. If any event details change, please reply here so we can update the CRM and calendar before the event.",
+    calendarSync?.htmlLink ? `Calendar event: ${calendarSync.htmlLink}` : "",
+    "",
+    "Warmly,",
+    "Booth Fairy Miami",
+    "DSLR Photo Booth & DJ Services",
+    "(786) 315-9117",
+    "www.boothfairymiami.com"
+  ].filter((line) => line !== "").join("\n");
 }
 
 async function markCalendarSyncFailed(bookingId, message) {
@@ -727,6 +829,17 @@ function isUsableEmail(value) {
   return email && email !== "not provided" && email.includes("@");
 }
 
+function getBookingServiceRequested(lead = {}) {
+  const service = stringify(lead.service_requested || lead.serviceRequested);
+  const notes = stringify(lead.notes).toLowerCase();
+  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
+  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
+  if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
+    return "DSLR Photo Booth - Digital Sharing";
+  }
+  return service || "DSLR Photo Booth - Digital Sharing";
+}
+
 function buildRawEmail({ to, subject, body }) {
   const message = [
     `To: ${to}`,
@@ -751,6 +864,33 @@ function addDaysIso(days) {
   const date = new Date();
   date.setDate(date.getDate() + Number(days || 0));
   return date.toISOString().slice(0, 10);
+}
+
+function formatEventDateTime(date, startTime, endTime) {
+  const dateText = formatDate(date);
+  const startText = formatTime(startTime);
+  const endText = formatTime(endTime);
+  if (startText && endText) return `${dateText} · ${startText} - ${endText}`;
+  if (startText) return `${dateText} · ${startText}`;
+  return dateText;
+}
+
+function formatDate(value) {
+  const clean = stringify(value);
+  if (!clean) return "date pending";
+  const date = new Date(`${clean.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return clean;
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(date);
+}
+
+function formatTime(value) {
+  const clean = stringify(value).slice(0, 5);
+  if (!/^\d{1,2}:\d{2}$/.test(clean)) return "";
+  const [hours, minutes] = clean.split(":").map(Number);
+  if (hours > 23 || minutes > 59) return "";
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function toRfc3339WithOffset(date, time) {

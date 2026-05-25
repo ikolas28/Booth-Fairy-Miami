@@ -1514,7 +1514,7 @@ function renderUpcomingBookings() {
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
         <td>${renderEventSchedule(lead, getBookingForLead(lead.id), true)}</td>
-        <td>${escapeHtml(lead.serviceRequested)}</td>
+        <td>${escapeHtml(getDisplayServiceRequested(lead))}</td>
         <td>${statusChip(lead.status)}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
       </tr>
@@ -1545,7 +1545,7 @@ function renderLeadCards() {
       </div>
       <div class="card-meta">
         <span>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</span>
-        <span>${escapeHtml(lead.serviceRequested)}</span>
+        <span>${escapeHtml(getDisplayServiceRequested(lead))}</span>
         <span>${escapeHtml(lead.source)}</span>
         <span>${escapeHtml(String(lead.guestCount || 0))} guests</span>
         ${lead.leadScore ? `<span>Score ${escapeHtml(String(lead.leadScore))}</span>` : ""}
@@ -1561,6 +1561,17 @@ function renderLeadCards() {
   `).join("");
 }
 
+function getDisplayServiceRequested(lead = {}) {
+  const service = String(lead.serviceRequested || "").trim();
+  const notes = String(lead.notes || "").toLowerCase();
+  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
+  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
+  if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
+    return "DSLR Photo Booth - Digital Sharing";
+  }
+  return service || "DSLR Photo Booth - Digital Sharing";
+}
+
 function renderBookings() {
   const rows = [...state.leads]
     .filter((lead) => !!lead.eventDate)
@@ -1571,7 +1582,7 @@ function renderBookings() {
       <tr>
         <td>${escapeHtml(lead.clientName)}</td>
         <td class="booking-time-cell">${renderEventSchedule(lead, booking)}</td>
-        <td>${escapeHtml(lead.serviceRequested)}</td>
+        <td>${escapeHtml(getDisplayServiceRequested(lead))}</td>
         <td>${escapeHtml(lead.venue || "Pending venue")}</td>
         <td>${escapeHtml(lead.paymentStatus)}</td>
         <td>${calendarSyncChip(booking)}${booking?.calendarSyncError ? `<p class="status-note">${escapeHtml(booking.calendarSyncError)}</p>` : ""}</td>
@@ -1674,7 +1685,7 @@ function renderSourceLeads(source, container) {
         <strong>${escapeHtml(lead.clientName)}</strong>
         ${statusChip(lead.status)}
       </div>
-      <p>${escapeHtml(`${lead.eventType} on ${formatDate(lead.eventDate)} | ${lead.serviceRequested}`)}</p>
+      <p>${escapeHtml(`${lead.eventType} on ${formatDate(lead.eventDate)} | ${getDisplayServiceRequested(lead)}`)}</p>
       <div class="card-meta">
         <span>${escapeHtml(lead.email)}</span>
         <span>${escapeHtml(lead.phone)}</span>
@@ -1841,7 +1852,7 @@ function openLeadDrawer(leadId) {
         <div><dt>Source</dt><dd>${escapeHtml(lead.source)}</dd></div>
         <div><dt>Event type</dt><dd>${escapeHtml(lead.eventType)}</dd></div>
         <div><dt>Event date + time</dt><dd>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</dd></div>
-        <div><dt>Service</dt><dd>${escapeHtml(lead.serviceRequested)}</dd></div>
+        <div><dt>Service</dt><dd>${escapeHtml(getDisplayServiceRequested(lead))}</dd></div>
         <div><dt>Guests</dt><dd>${escapeHtml(String(lead.guestCount || 0))}</dd></div>
         <div><dt>Venue</dt><dd>${escapeHtml(lead.venue || "Pending")}</dd></div>
         <div><dt>City</dt><dd>${escapeHtml(lead.city || "Pending")}</dd></div>
@@ -1990,6 +2001,38 @@ async function updateLeadStatus(leadId, nextStatus) {
       return;
     }
     if (!confirm("Only mark Booked after the signed service agreement is received. Continue?")) {
+      renderAll();
+      return;
+    }
+    if (!authState.session?.accessToken) {
+      alert("Sign in with Supabase before confirming a booking.");
+      renderAll();
+      return;
+    }
+    try {
+      const response = await fetch("/api/admin/confirm-booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.session.accessToken}`
+        },
+        body: JSON.stringify({ leadId, paymentVerified: false })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw Object.assign(new Error(payload?.error || "Could not confirm booking."), { details: payload?.details });
+      }
+      await hydrateData();
+      renderAll();
+      alert([
+        "Booking confirmed.",
+        payload.calendarSync?.ok ? "Google Calendar synced." : payload.calendarSync?.error || "Calendar sync pending.",
+        payload.confirmationDraft?.id ? "Booking confirmation Gmail draft created for review." : payload.confirmationDraft?.skippedReason || "Booking confirmation email still needs to be sent manually."
+      ].filter(Boolean).join("\n"));
+      return;
+    } catch (error) {
+      console.error(error);
+      alert(getFriendlyError(error, "Could not confirm booking."));
       renderAll();
       return;
     }
@@ -2254,7 +2297,7 @@ async function prepareContractAndDeposit(leadId) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authState.session.accessToken}`
       },
-      body: JSON.stringify({ lead, depositAmount })
+      body: JSON.stringify({ lead: { ...lead, serviceRequested: getDisplayServiceRequested(lead) }, depositAmount })
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
@@ -2406,7 +2449,8 @@ async function confirmSignedBooking(leadId) {
     setSection("bookings");
     alert([
       "Booking confirmed.",
-      payload.calendarSync?.ok ? "Google Calendar synced." : payload.calendarSync?.error || "Calendar sync pending."
+      payload.calendarSync?.ok ? "Google Calendar synced." : payload.calendarSync?.error || "Calendar sync pending.",
+      payload.confirmationDraft?.id ? "Booking confirmation Gmail draft created for review." : payload.confirmationDraft?.skippedReason || "Booking confirmation email still needs to be sent manually."
     ].filter(Boolean).join("\n"));
   } catch (error) {
     console.error(error);
@@ -3072,7 +3116,7 @@ function mapLeadToDb(lead) {
     end_time: lead.endTime || null,
     venue: lead.venue || null,
     city: lead.city || null,
-    service_requested: lead.serviceRequested,
+    service_requested: getDisplayServiceRequested(lead),
     guest_count: lead.guestCount || 0,
     budget: lead.budget || 0,
     notes: lead.notes || null,
