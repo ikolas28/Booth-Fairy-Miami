@@ -1221,7 +1221,7 @@ function buildInstagramPostFromCampaign(campaign, body = {}) {
     body.mediaType
     || body.media_type
     || extractMarketingField(notes, "Media type")
-    || mediaUrl
+    || `${campaign.title || ""} ${mediaUrl}`
   );
   return {
     caption: cleanMarketingText(caption),

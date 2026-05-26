@@ -1299,7 +1299,7 @@ function getCampaignInstagramMediaUrl(campaign) {
 }
 
 function getCampaignInstagramMediaType(campaign, mediaUrl = "") {
-  const configured = `${extractCampaignField(campaign.notes, "Media type")} ${mediaUrl}`.toLowerCase();
+  const configured = `${campaign.title || ""} ${extractCampaignField(campaign.notes, "Media type")} ${mediaUrl}`.toLowerCase();
   if (configured.includes("stor")) {
     return /\.(jpg|jpeg|png|webp)(?:\?|#|$)/i.test(configured) ? "STORY_IMAGE" : "STORIES";
   }
