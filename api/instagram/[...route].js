@@ -11,8 +11,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.s
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const INSTAGRAM_WEBHOOK_VERIFY_TOKEN = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
-const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_USER_ID = process.env.INSTAGRAM_USER_ID;
+const INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
+const INSTAGRAM_USER_ID = cleanEnvValue(process.env.INSTAGRAM_USER_ID);
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
@@ -27,6 +27,10 @@ module.exports.config = {
     bodyParser: false
   }
 };
+
+function cleanEnvValue(value) {
+  return String(value || "").trim().replace(/^['"]+|['"]+$/g, "");
+}
 
 function handleStatus(req, res) {
   if (req.method !== "GET") {

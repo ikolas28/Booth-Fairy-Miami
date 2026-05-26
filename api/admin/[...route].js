@@ -11,10 +11,10 @@ const {
 } = require("../finance/_lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_USER_ID = process.env.INSTAGRAM_USER_ID;
-const INSTAGRAM_GRAPH_HOST = process.env.INSTAGRAM_GRAPH_HOST || "graph.facebook.com";
-const INSTAGRAM_GRAPH_VERSION = process.env.INSTAGRAM_GRAPH_VERSION || "v23.0";
+const INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
+const INSTAGRAM_USER_ID = cleanEnvValue(process.env.INSTAGRAM_USER_ID);
+const INSTAGRAM_GRAPH_HOST = cleanEnvValue(process.env.INSTAGRAM_GRAPH_HOST) || "graph.facebook.com";
+const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSION) || "v23.0";
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
@@ -50,6 +50,10 @@ module.exports = async (req, res) => {
     });
   }
 };
+
+function cleanEnvValue(value) {
+  return String(value || "").trim().replace(/^['"]+|['"]+$/g, "");
+}
 
 async function handleConfirmBooking(req, res) {
   if (req.method !== "POST") {
