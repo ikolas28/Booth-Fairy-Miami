@@ -13,7 +13,7 @@ const {
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
 const INSTAGRAM_USER_ID = cleanEnvValue(process.env.INSTAGRAM_USER_ID);
-const INSTAGRAM_GRAPH_HOST = cleanEnvValue(process.env.INSTAGRAM_GRAPH_HOST) || "graph.facebook.com";
+const INSTAGRAM_GRAPH_HOST = normalizeGraphHost(process.env.INSTAGRAM_GRAPH_HOST);
 const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSION) || "v23.0";
 
 module.exports = async (req, res) => {
@@ -53,6 +53,16 @@ module.exports = async (req, res) => {
 
 function cleanEnvValue(value) {
   return String(value || "").trim().replace(/^['"]+|['"]+$/g, "");
+}
+
+function normalizeGraphHost(value) {
+  const cleaned = cleanEnvValue(value);
+  if (!cleaned) return "graph.facebook.com";
+  try {
+    return new URL(cleaned.startsWith("http") ? cleaned : `https://${cleaned}`).hostname || "graph.facebook.com";
+  } catch {
+    return cleaned.replace(/^https?:\/\//i, "").split("/")[0] || "graph.facebook.com";
+  }
 }
 
 async function handleConfirmBooking(req, res) {
