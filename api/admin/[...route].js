@@ -1208,8 +1208,13 @@ function buildInstagramPostFromCampaign(campaign, body = {}) {
   const notes = stringify(campaign.notes);
   const caption = extractMarketingBlock(notes, "Caption")
     || extractMarketingBlock(notes, "Instagram caption")
+    || extractMarketingBlock(notes, "Draft caption")
+    || extractMarketingBlock(notes, "Draft story idea")
     || extractMarketingField(notes, "Caption")
-    || extractMarketingField(notes, "Instagram caption");
+    || extractMarketingField(notes, "Instagram caption")
+    || extractMarketingField(notes, "Draft caption")
+    || extractMarketingField(notes, "Draft story idea")
+    || buildInstagramCaptionFallback(campaign);
   const mediaUrl = stringify(
     body.mediaUrl
     || body.media_url
@@ -1228,6 +1233,17 @@ function buildInstagramPostFromCampaign(campaign, body = {}) {
     mediaUrl,
     mediaType
   };
+}
+
+function buildInstagramCaptionFallback(campaign) {
+  const notes = cleanMarketingText(stringify(campaign.notes));
+  if (!notes) return "";
+  return notes
+    .replace(/^Marketing automation batch[^\n.]*[.\s]*/i, "")
+    .replace(/\bOwner must review before publishing[.\s]*/i, "")
+    .replace(/\bCRM signal:[\s\S]*$/i, "")
+    .replace(/\bDo not publish paid ads without owner approval[.\s]*/i, "")
+    .trim();
 }
 
 function normalizeInstagramMediaType(value) {
