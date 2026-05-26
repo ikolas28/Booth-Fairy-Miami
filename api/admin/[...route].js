@@ -1228,6 +1228,9 @@ function buildInstagramPostFromCampaign(campaign, body = {}) {
 
 function normalizeInstagramMediaType(value) {
   const text = stringify(value).toLowerCase();
+  if (text.includes("stor")) {
+    return /\.(jpg|jpeg|png|webp)(?:\?|#|$)/i.test(text) ? "STORY_IMAGE" : "STORIES";
+  }
   if (text.includes("reel") || text.includes("video") || /\.(mp4|mov)(?:\?|#|$)/i.test(text)) return "REELS";
   return "IMAGE";
 }
@@ -1240,10 +1243,13 @@ async function publishInstagramPost(post) {
   const createParams = {
     caption: post.caption
   };
-  if (post.mediaType === "REELS") {
-    createParams.media_type = "REELS";
+  if (post.mediaType === "REELS" || post.mediaType === "STORIES") {
+    createParams.media_type = post.mediaType;
     createParams.video_url = post.mediaUrl;
-    createParams.share_to_feed = "true";
+    if (post.mediaType === "REELS") createParams.share_to_feed = "true";
+  } else if (post.mediaType === "STORY_IMAGE") {
+    createParams.media_type = "STORIES";
+    createParams.image_url = post.mediaUrl;
   } else {
     createParams.image_url = post.mediaUrl;
   }
@@ -1256,7 +1262,7 @@ async function publishInstagramPost(post) {
     throw error;
   }
 
-  if (post.mediaType === "REELS") {
+  if (post.mediaType === "REELS" || post.mediaType === "STORIES") {
     await waitForInstagramContainer(container.id);
   }
 

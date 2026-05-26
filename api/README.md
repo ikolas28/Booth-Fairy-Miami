@@ -175,6 +175,7 @@ Recommended Vercel environment variables:
 Instagram publishing:
 - CRM Instagram campaigns must be approved first, which moves the campaign to `Scheduled`.
 - Add `Caption:` and `Media URL:` to the campaign notes before publishing.
+- Add `Media type: image`, `Media type: reel`, or `Media type: story` depending on the publish target.
 - The media URL must be a direct public HTTPS image/video URL that Meta can fetch without a login.
 - Publishing uses Meta's two-step flow: create a media container, then publish that container.
 - Keep the access token in Vercel environment variables only. Do not paste Meta access tokens into chat, campaign notes, or GitHub.

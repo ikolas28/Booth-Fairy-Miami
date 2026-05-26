@@ -1300,6 +1300,9 @@ function getCampaignInstagramMediaUrl(campaign) {
 
 function getCampaignInstagramMediaType(campaign, mediaUrl = "") {
   const configured = `${extractCampaignField(campaign.notes, "Media type")} ${mediaUrl}`.toLowerCase();
+  if (configured.includes("stor")) {
+    return /\.(jpg|jpeg|png|webp)(?:\?|#|$)/i.test(configured) ? "STORY_IMAGE" : "STORIES";
+  }
   return configured.includes("reel") || configured.includes("video") || /\.(mp4|mov)(?:\?|#|$)/i.test(configured)
     ? "REELS"
     : "IMAGE";

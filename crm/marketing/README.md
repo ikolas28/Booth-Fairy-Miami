@@ -24,3 +24,8 @@ Media type: reel
 ```
 
 Only use direct public HTTPS media URLs. Private Google Drive preview links usually will not work for Graph API publishing.
+
+Supported media type notes:
+- `image` publishes a feed image post.
+- `reel` publishes a Reel from a video URL.
+- `story` publishes an Instagram Story from a public image or video URL.
