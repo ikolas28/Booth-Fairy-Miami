@@ -8,6 +8,7 @@ const {
   recordLeadScore,
   withLeadIntelligence
 } = require("../_lead-utils");
+const { syncLeadToHubSpot } = require("../_hubspot-lib");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -67,11 +68,21 @@ module.exports = async (req, res) => {
     if (leadId) {
       await recordLeadScore(supabaseAdmin, leadId, leadRecord, "Tidio lead captured");
     }
+    const hubspotSync = leadId
+      ? await syncLeadToHubSpot({ ...leadRecord, id: leadId }).catch((error) => ({
+        ok: false,
+        error: error.message || "HubSpot sync failed."
+      }))
+      : null;
+    if (leadId && hubspotSync) {
+      await patchLeadHubSpotSync(leadId, hubspotSync).catch(() => null);
+    }
 
     return sendJson(res, 201, {
       ok: true,
       leadId,
-      source: "Tidio"
+      source: "Tidio",
+      hubspotSync: summarizeHubSpotSync(hubspotSync)
     });
   } catch (error) {
     return sendJson(res, 500, {
@@ -88,6 +99,35 @@ function safeParse(value) {
   } catch {
     return null;
   }
+}
+
+async function patchLeadHubSpotSync(leadId, sync) {
+  const body = sync.ok ? {
+    hubspot_contact_id: sync.contactId || null,
+    hubspot_deal_id: sync.dealId || null,
+    hubspot_sync_status: "Synced",
+    hubspot_sync_error: null,
+    hubspot_synced_at: new Date().toISOString()
+  } : {
+    hubspot_sync_status: sync.skipped ? "Skipped" : "Failed",
+    hubspot_sync_error: sync.reason || sync.error || "HubSpot sync failed.",
+    hubspot_synced_at: new Date().toISOString()
+  };
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+function summarizeHubSpotSync(sync) {
+  if (!sync) return { ok: false, skipped: true, reason: "No HubSpot sync attempted." };
+  return {
+    ok: Boolean(sync.ok),
+    skipped: Boolean(sync.skipped),
+    contactId: sync.contactId || "",
+    dealId: sync.dealId || "",
+    reason: sync.reason || sync.error || ""
+  };
 }
 
 function normalizeLeadPayload(payload) {

@@ -76,9 +76,11 @@
           <button class="nav-item" data-section="bookings">Bookings</button>
           <button class="nav-item" data-section="followups">Follow-Ups</button>
           <button class="nav-item" data-section="payments">Payments</button>
+          <button class="nav-item" data-section="hubspot">HubSpot</button>
           <button class="nav-item" data-section="gmail">Gmail</button>
           <button class="nav-item" data-section="tidio">Tidio</button>
           <button class="nav-item" data-section="instagram">Instagram</button>
+          <button class="nav-item" data-section="content">Content Library</button>
           <button class="nav-item" data-section="marketing">Marketing</button>
         </nav>
       </div>
@@ -309,6 +311,43 @@
         </div>
       </section>
 
+      <section class="section" data-section="hubspot">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>HubSpot CRM Sync</h2>
+            <p>Use HubSpot for contacts, deals, Gmail tracking, and sales follow-ups while this admin keeps operations and marketing organized.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-secondary" id="hubspot-refresh-button">Refresh Status</button>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Connection</p>
+                <h2 id="hubspot-status-chip">Checking HubSpot</h2>
+              </div>
+            </div>
+            <div class="stack-list" id="hubspot-status-list"></div>
+          </article>
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Hybrid Plan</p>
+                <h2>What each system owns</h2>
+              </div>
+            </div>
+            <div class="status-grid">
+              <article class="status-card"><strong>HubSpot</strong><span>Contacts, deals, Gmail tracking, tasks, and sales pipeline.</span></article>
+              <article class="status-card"><strong>Admin</strong><span>Bookings, calendar sync, payments, contracts, finance, inventory, and event checklists.</span></article>
+              <article class="status-card"><strong>Google Drive</strong><span>Raw photo/video uploads for weekly content planning.</span></article>
+              <article class="status-card"><strong>Supabase</strong><span>Operational mirror, automation logs, duplicate checks, and sync status.</span></article>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section class="section" data-section="gmail">
         <div class="source-header source-header-split">
           <div>
@@ -346,6 +385,39 @@
           </div>
         </div>
         <div class="source-grid" id="instagram-leads"></div>
+      </section>
+
+      <section class="section" data-section="content">
+        <div class="toolbar">
+          <div class="toolbar-copy">
+            <h2>Content Library</h2>
+            <p>Plan weekly TikTok and Instagram content from your Google Drive uploads.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="button button-secondary" id="content-refresh-button">Refresh Plan</button>
+            <button class="button button-primary" id="content-generate-button">Generate Weekly Plan</button>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Workflow</p>
+                <h2>Google Drive to weekly posts</h2>
+              </div>
+            </div>
+            <div class="status-grid" id="content-workflow-grid"></div>
+          </article>
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">This Week</p>
+                <h2>Recommended content plan</h2>
+              </div>
+            </div>
+            <div class="tiktok-plan-grid" id="content-plan-grid"></div>
+          </article>
+        </div>
       </section>
 
       <section class="section" data-section="marketing">

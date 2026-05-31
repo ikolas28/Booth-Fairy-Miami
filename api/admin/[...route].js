@@ -9,6 +9,10 @@ const {
   getFinancialSummary,
   syncBookingFinance
 } = require("../finance/_lib");
+const {
+  getHubSpotStatus,
+  syncLeadToHubSpot
+} = require("../_hubspot-lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
@@ -22,6 +26,8 @@ module.exports = async (req, res) => {
   if (route === "calendar-sync") return handleCalendarSync(req, res);
   if (route === "finance-summary") return handleFinanceSummary(req, res);
   if (route === "finance-sync") return handleFinanceSync(req, res);
+  if (route === "hubspot-status") return handleHubSpotStatus(req, res);
+  if (route === "hubspot-sync-lead") return handleHubSpotSyncLead(req, res);
   if (route === "instagram-publish") return handleInstagramPublish(req, res);
   if (route === "marketing-draft") return handleMarketingDraft(req, res);
   if (route === "reconcile-payment") return handleReconcilePayment(req, res);
@@ -236,6 +242,62 @@ async function handleFinanceSync(req, res) {
     return setJson(res, error.statusCode || 500, {
       ok: false,
       error: error.message || "Could not sync booking to finance tracker.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleHubSpotStatus(req, res) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+    const status = await getHubSpotStatus();
+    return setJson(res, status.ok ? 200 : 409, status);
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      configured: false,
+      error: error.message || "Could not read HubSpot status.",
+      details: error.details || null
+    });
+  }
+}
+
+async function handleHubSpotSyncLead(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return setJson(res, 405, { ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    if (!await verifyAdminRequest(req)) {
+      return setJson(res, 401, { ok: false, error: "Admin authentication required." });
+    }
+
+    const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
+    const leadId = stringify(body.leadId || body.lead_id);
+    if (!leadId) return setJson(res, 400, { ok: false, error: "Missing lead ID." });
+
+    const lead = await getLead(leadId);
+    if (!lead) return setJson(res, 404, { ok: false, error: "Lead not found." });
+
+    const sync = await syncLeadToHubSpot(lead);
+    await patchLeadHubSpotSync(lead.id, sync);
+    return setJson(res, sync.ok ? 200 : 409, {
+      ok: sync.ok,
+      leadId: lead.id,
+      ...sync
+    });
+  } catch (error) {
+    return setJson(res, error.statusCode || 500, {
+      ok: false,
+      error: error.message || "Could not sync lead to HubSpot.",
       details: error.details || null
     });
   }
@@ -674,6 +736,27 @@ async function markLeadPaymentsPaid(lead, now, reason) {
   return 1;
 }
 
+async function patchLeadHubSpotSync(leadId, sync) {
+  const body = sync.ok ? {
+    hubspot_contact_id: sync.contactId || null,
+    hubspot_deal_id: sync.dealId || null,
+    hubspot_sync_status: "Synced",
+    hubspot_sync_error: null,
+    hubspot_synced_at: new Date().toISOString()
+  } : {
+    hubspot_sync_status: sync.skipped ? "Skipped" : "Failed",
+    hubspot_sync_error: sync.reason || sync.error || "HubSpot sync failed.",
+    hubspot_synced_at: new Date().toISOString()
+  };
+
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, {
+    method: "PATCH",
+    body
+  }).catch((error) => {
+    if (!isMissingHubSpotColumn(error)) throw error;
+  });
+}
+
 async function retrieveStripeCheckoutSession(sessionId, stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY)) {
   const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
     headers: {
@@ -820,6 +903,11 @@ function describeStripeKeyType(value) {
 function isMissingStripePaymentColumn(error) {
   const text = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
   return text.includes("stripe_session_id") || text.includes("stripe_payment_intent_id") || text.includes("schema cache") || text.includes("column");
+}
+
+function isMissingHubSpotColumn(error) {
+  const text = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
+  return text.includes("hubspot_") || text.includes("schema cache") || text.includes("column");
 }
 
 async function getLead(leadId) {

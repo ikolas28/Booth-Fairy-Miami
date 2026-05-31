@@ -5,6 +5,7 @@ This folder now contains the first real Supabase setup for the Booth Fairy Miami
 ## Files
 
 - [schema.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\schema.sql)
+- [hubspot_content_library.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\hubspot_content_library.sql)
 
 ## What `schema.sql` creates
 
@@ -24,6 +25,15 @@ This folder now contains the first real Supabase setup for the Booth Fairy Miami
 - Stripe session/payment intent tracking columns on `payments`
 - `updated_at` triggers
 - RLS policies that only allow the approved admin email to read and write CRM data
+
+## Optional HubSpot + content library migration
+
+Run [hubspot_content_library.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\hubspot_content_library.sql) after `schema.sql` to add:
+
+- HubSpot contact/deal sync IDs and sync status fields
+- `content_library_items` for Google Drive media planning
+- status indexes for weekly social content planning
+- admin-only RLS policies for content library records
 
 The seeded package templates include the Starter Digital Package:
 

@@ -9,6 +9,7 @@ const {
   recordLeadScore,
   withLeadIntelligence
 } = require("../_lead-utils");
+const { syncLeadToHubSpot } = require("../_hubspot-lib");
 const SITE_URL = process.env.SITE_URL || "https://www.boothfairymiami.com";
 const ALLOWED_ORIGINS = new Set([
   SITE_URL,
@@ -114,12 +115,22 @@ module.exports = async (req, res) => {
     if (leadId) {
       await recordLeadScore(supabaseAdmin, leadId, leadRecord, "Website lead captured");
     }
+    const hubspotSync = leadId
+      ? await syncLeadToHubSpot({ ...leadRecord, id: leadId, lead_code: data?.[0]?.lead_code }).catch((error) => ({
+        ok: false,
+        error: error.message || "HubSpot sync failed."
+      }))
+      : null;
+    if (leadId && hubspotSync) {
+      await patchLeadHubSpotSync(leadId, hubspotSync).catch(() => null);
+    }
 
     return sendJson(res, 201, {
       ok: true,
       leadId,
       leadCode: data?.[0]?.lead_code || null,
-      status: data?.[0]?.status || normalized.status
+      status: data?.[0]?.status || normalized.status,
+      hubspotSync: summarizeHubSpotSync(hubspotSync)
     });
   } catch (error) {
     return sendJson(res, 500, {
@@ -152,6 +163,36 @@ async function verifyTurnstile(token, remoteIp) {
     return { success: false, "error-codes": ["verification-request-failed"] };
   }
   return response.json().catch(() => ({ success: false, "error-codes": ["invalid-json"] }));
+}
+
+async function patchLeadHubSpotSync(leadId, sync) {
+  if (!sync) return;
+  const body = sync.ok ? {
+    hubspot_contact_id: sync.contactId || null,
+    hubspot_deal_id: sync.dealId || null,
+    hubspot_sync_status: "Synced",
+    hubspot_sync_error: null,
+    hubspot_synced_at: new Date().toISOString()
+  } : {
+    hubspot_sync_status: sync.skipped ? "Skipped" : "Failed",
+    hubspot_sync_error: sync.reason || sync.error || "HubSpot sync failed.",
+    hubspot_synced_at: new Date().toISOString()
+  };
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+function summarizeHubSpotSync(sync) {
+  if (!sync) return { ok: false, skipped: true, reason: "No HubSpot sync attempted." };
+  return {
+    ok: Boolean(sync.ok),
+    skipped: Boolean(sync.skipped),
+    contactId: sync.contactId || "",
+    dealId: sync.dealId || "",
+    reason: sync.reason || sync.error || ""
+  };
 }
 
 function setCorsHeaders(req, res) {

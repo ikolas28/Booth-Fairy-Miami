@@ -343,6 +343,15 @@ const state = {
     requestedPermissions: [],
     note: ""
   },
+  hubspot: {
+    configured: false,
+    portalReachable: false,
+    pipelineId: "",
+    ownerId: "",
+    defaultStages: {},
+    error: "",
+    message: ""
+  },
   leadScores: [],
   leadDuplicates: [],
   automationRuns: [],
@@ -381,6 +390,8 @@ const gmailStatusNote = document.getElementById("gmail-status-note");
 const gmailSectionCopy = document.getElementById("gmail-section-copy");
 const instagramStatusChip = document.getElementById("instagram-status-chip");
 const instagramStatusNote = document.getElementById("instagram-status-note");
+const hubspotStatusChip = document.getElementById("hubspot-status-chip");
+const hubspotStatusList = document.getElementById("hubspot-status-list");
 
 init().catch((error) => {
   console.error("CRM init failed", error);
@@ -444,6 +455,12 @@ function attachEventListeners() {
     await refreshInstagramStatus();
     updateConnectionIndicators();
   });
+  document.getElementById("hubspot-refresh-button").addEventListener("click", async () => {
+    await refreshHubSpotStatus();
+    renderHubSpotStatus();
+  });
+  document.getElementById("content-refresh-button").addEventListener("click", renderContentLibrary);
+  document.getElementById("content-generate-button").addEventListener("click", () => runAgentAutomation("marketing"));
   document.getElementById("approval-refresh-button").addEventListener("click", async () => {
     await refreshApprovalQueue();
   });
@@ -804,6 +821,7 @@ async function hydrateData() {
   await refreshFinanceSummary();
   await refreshGmailStatus();
   await refreshInstagramStatus();
+  await refreshHubSpotStatus();
   updateConnectionIndicators();
   renderAll();
   await repairPendingCalendarSyncs();
@@ -907,6 +925,42 @@ async function refreshInstagramStatus() {
       ...state.instagram,
       configured: false,
       note: "Instagram status could not be checked."
+    };
+  }
+}
+
+async function refreshHubSpotStatus() {
+  if (authState.isLocalFallback || !authState.session?.accessToken) {
+    state.hubspot = {
+      ...state.hubspot,
+      configured: false,
+      portalReachable: false,
+      message: "Sign in with Supabase to check HubSpot status."
+    };
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/hubspot-status", {
+      headers: { Authorization: `Bearer ${authState.session.accessToken}` }
+    });
+    const payload = await parseResponse(response);
+    state.hubspot = {
+      configured: Boolean(payload?.configured),
+      portalReachable: Boolean(payload?.portalReachable),
+      pipelineId: payload?.pipelineId || "",
+      ownerId: payload?.ownerId || "",
+      defaultStages: payload?.defaultStages || {},
+      error: payload?.error || "",
+      message: payload?.message || ""
+    };
+  } catch (error) {
+    console.error("HubSpot status check failed", error);
+    state.hubspot = {
+      ...state.hubspot,
+      configured: false,
+      portalReachable: false,
+      error: "HubSpot status could not be checked."
     };
   }
 }
@@ -1402,9 +1456,11 @@ function getSectionTitle(sectionName) {
     bookings: "Bookings",
     followups: "Follow-Ups",
     payments: "Payments",
+    hubspot: "HubSpot",
     gmail: "Gmail",
     tidio: "Tidio",
     instagram: "Instagram",
+    content: "Content Library",
     marketing: "Marketing"
   }[sectionName] || "Dashboard";
 }
@@ -1428,6 +1484,8 @@ function renderAll() {
   renderSourceLeads("Instagram", document.getElementById("instagram-leads"));
   renderMarketingAudience();
   renderCampaigns();
+  renderHubSpotStatus();
+  renderContentLibrary();
   refreshSelectMenus();
   persistAll();
   updateConnectionIndicators();
@@ -2115,6 +2173,100 @@ function renderMarketingAudience() {
   ` : emptyState("No eligible marketing leads", "New interested leads with emails will appear here. Booked, lost, completed, past-event, duplicate, and opted-out records are excluded.");
 }
 
+function renderHubSpotStatus() {
+  if (!hubspotStatusChip || !hubspotStatusList) return;
+
+  if (!state.hubspot.configured) {
+    hubspotStatusChip.textContent = "Setup needed";
+    hubspotStatusList.innerHTML = `
+      <article class="stack-item">
+        <strong>HubSpot token missing</strong>
+        <span>${escapeHtml(state.hubspot.message || "Add HUBSPOT_PRIVATE_APP_TOKEN in Vercel, then refresh this page.")}</span>
+      </article>
+      <article class="stack-item">
+        <strong>Next step</strong>
+        <span>Create a HubSpot private app token with CRM object read/write scopes and add it as a Production env var.</span>
+      </article>
+    `;
+    return;
+  }
+
+  hubspotStatusChip.textContent = state.hubspot.portalReachable ? "Connected" : "Needs attention";
+  const stageRows = Object.entries(state.hubspot.defaultStages || {})
+    .map(([label, value]) => `${titleCase(label.replace(/([A-Z])/g, " $1"))}: ${value}`)
+    .join(" | ");
+  hubspotStatusList.innerHTML = `
+    <article class="stack-item">
+      <strong>Private app</strong>
+      <span>${state.hubspot.portalReachable ? "HubSpot API is reachable." : escapeHtml(state.hubspot.error || "Could not reach HubSpot.")}</span>
+    </article>
+    <article class="stack-item">
+      <strong>Pipeline</strong>
+      <span>${escapeHtml(state.hubspot.pipelineId || "default")} ${state.hubspot.ownerId ? `| Owner ${escapeHtml(state.hubspot.ownerId)}` : ""}</span>
+    </article>
+    <article class="stack-item">
+      <strong>Stage mapping</strong>
+      <span>${escapeHtml(stageRows || "Using default HubSpot stage mapping.")}</span>
+    </article>
+  `;
+}
+
+function renderContentLibrary() {
+  const workflow = document.getElementById("content-workflow-grid");
+  const plan = document.getElementById("content-plan-grid");
+  if (!workflow || !plan) return;
+
+  const workflowItems = [
+    ["Upload", "Add raw clips/photos to Google Drive"],
+    ["Review", "Use Marketing drafts to pick weekly posts"],
+    ["Prepare", "Caption, hashtags, platform, and posting window"],
+    ["Publish", "Post manually or publish Instagram-approved media"],
+    ["Track", "Mark posted and save results"]
+  ];
+
+  workflow.innerHTML = workflowItems.map(([title, copy]) => `
+    <article class="status-card">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(copy)}</span>
+    </article>
+  `).join("");
+
+  const socialDrafts = state.campaigns
+    .filter((campaign) => ["Instagram", "TikTok"].includes(campaign.channel))
+    .sort((a, b) => compareDates(b.updatedAt || b.createdAt, a.updatedAt || a.createdAt))
+    .slice(0, 6);
+
+  if (!socialDrafts.length) {
+    plan.innerHTML = emptyState("No weekly content drafts yet", "Run Marketing after uploading Drive content, then review generated TikTok and Instagram ideas here.");
+    return;
+  }
+
+  plan.innerHTML = socialDrafts.map((campaign) => {
+    const caption = extractCampaignBlock(campaign.notes, "Caption")
+      || extractCampaignField(campaign.notes, "Draft caption")
+      || extractCampaignField(campaign.notes, "Draft story idea")
+      || "Caption needs review";
+    const hashtags = extractCampaignField(campaign.notes, "Hashtags")
+      || extractCampaignField(campaign.notes, "Suggested hashtags")
+      || "Hashtags need review";
+    return `
+      <article class="tiktok-plan-card">
+        <div class="campaign-head">
+          <strong>${escapeHtml(campaign.title)}</strong>
+          ${statusChip(getCampaignStatusLabel(campaign.status, campaign.channel))}
+        </div>
+        <div class="campaign-helper"><strong>Platform</strong><span>${escapeHtml(campaign.channel)}</span></div>
+        <div class="campaign-helper"><strong>Caption</strong><span>${escapeHtml(caption)}</span></div>
+        <div class="campaign-helper"><strong>Hashtags</strong><span>${escapeHtml(hashtags)}</span></div>
+        <div class="card-actions">
+          ${campaign.status !== "Scheduled" && campaign.status !== "Published" ? `<button class="button button-primary" onclick="approveCampaign('${campaign.id}')">Approve</button>` : ""}
+          <button class="button button-secondary" onclick="openCampaignModal('${campaign.id}')">Edit</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function getCampaignStatusLabel(status, channel = "") {
   if (status === "Scheduled" && channel === "TikTok") return "Approved to post";
   if (status === "Scheduled") return "Draft prepared";
@@ -2321,6 +2473,8 @@ function openLeadDrawer(leadId) {
         <div><dt>Deposit</dt><dd>${escapeHtml(formatCurrency(relatedBooking?.depositRequired || calculateDepositAmount(lead)))}</dd></div>
         <div><dt>Balance due</dt><dd>${escapeHtml(formatCurrency(Math.max((relatedBooking?.totalQuote || lead.budget || 0) - (relatedBooking?.depositRequired || 0), 0)))}</dd></div>
         <div><dt>Finance sheet row</dt><dd>${relatedBooking?.id ? `<button class="button button-secondary button-small" onclick="syncFinanceForBooking('${lead.id}', '${relatedBooking.id}')">Sync finance</button>` : "Booking pending"}</dd></div>
+        <div><dt>HubSpot</dt><dd>${lead.hubspotDealId ? `<a href="https://app.hubspot.com/contacts/record/0-3/${escapeAttribute(lead.hubspotDealId)}" target="_blank" rel="noreferrer">Open deal</a>` : `<button class="button button-secondary button-small" onclick="syncLeadHubSpot('${lead.id}')">Sync HubSpot</button>`}</dd></div>
+        <div><dt>HubSpot sync</dt><dd>${escapeHtml(lead.hubspotSyncStatus || "Not Synced")}</dd></div>
       </div>
       <section class="detail-section detail-section-notes">
         <div class="stack-item"><strong>Customer notes</strong><span>Lead summary</span></div>
@@ -2670,6 +2824,33 @@ async function syncFinanceForBooking(leadId, bookingId = "") {
   } catch (error) {
     console.error(error);
     alert(getFriendlyError(error, "Could not sync finance tracker."));
+  }
+}
+
+async function syncLeadHubSpot(leadId) {
+  if (!authState.session?.accessToken) {
+    alert("Sign in with Supabase before syncing HubSpot.");
+    return;
+  }
+  try {
+    const response = await fetch("/api/admin/hubspot-sync-lead", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authState.session.accessToken}`
+      },
+      body: JSON.stringify({ leadId })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || payload?.reason || "HubSpot sync failed.");
+    }
+    await hydrateData();
+    renderAll();
+    alert(`HubSpot synced.\nContact ID: ${payload.contactId || "created/updated"}\nDeal ID: ${payload.dealId || "created/updated"}`);
+  } catch (error) {
+    console.error(error);
+    alert(getFriendlyError(error, "Could not sync this lead to HubSpot."));
   }
 }
 
@@ -3681,6 +3862,11 @@ function mapLeadFromDb(row) {
     paymentStatus: row.payment_status || "Not Requested",
     calendarChecked: row.calendar_checked ? "Yes" : "No",
     source: row.source || "Website",
+    hubspotContactId: row.hubspot_contact_id || "",
+    hubspotDealId: row.hubspot_deal_id || "",
+    hubspotSyncStatus: row.hubspot_sync_status || "Not Synced",
+    hubspotSyncError: row.hubspot_sync_error || "",
+    hubspotSyncedAt: row.hubspot_synced_at || "",
     createdAt: normalizeDateValue(row.created_at) || todayIso(),
     updatedAt: normalizeDateValue(row.updated_at) || todayIso()
   };
@@ -3930,6 +4116,7 @@ window.updateLeadStatus = updateLeadStatus;
 window.checkLeadAvailability = checkLeadAvailability;
 window.syncBookingCalendar = syncBookingCalendar;
 window.syncFinanceForBooking = syncFinanceForBooking;
+window.syncLeadHubSpot = syncLeadHubSpot;
 window.prepareContractAndDeposit = prepareContractAndDeposit;
 window.verifyStripePayment = verifyStripePayment;
 window.confirmSignedBooking = confirmSignedBooking;

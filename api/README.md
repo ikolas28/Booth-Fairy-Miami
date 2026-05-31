@@ -9,6 +9,7 @@ Integrations:
 - Calendar
 - Tidio
 - Instagram
+- HubSpot
 - Website form intake
 
 ## Website lead intake
@@ -28,6 +29,48 @@ Expected use:
 
 Required Vercel environment variables:
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Optional HubSpot sync:
+- Add `HUBSPOT_PRIVATE_APP_TOKEN` to create/update a HubSpot contact and deal after a clean website lead is saved.
+- The website lead endpoint treats HubSpot sync failures as non-blocking, so the public form keeps working even if HubSpot needs setup.
+- Optional mapping env vars: `HUBSPOT_PIPELINE_ID`, `HUBSPOT_OWNER_ID`, `HUBSPOT_DEAL_STAGE_NEW`, `HUBSPOT_DEAL_STAGE_CONTACTED`, `HUBSPOT_DEAL_STAGE_QUOTE_SENT`, `HUBSPOT_DEAL_STAGE_AWAITING_DEPOSIT`, `HUBSPOT_DEAL_STAGE_BOOKED`, `HUBSPOT_DEAL_STAGE_COMPLETED`, `HUBSPOT_DEAL_STAGE_LOST`.
+
+## HubSpot CRM sync
+
+The project includes HubSpot admin endpoints inside:
+
+- [api/admin/[...route].js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\admin\[...route].js)
+
+Routes:
+- `/api/admin/hubspot-status`
+- `/api/admin/hubspot-sync-lead`
+
+Expected use:
+- HubSpot becomes the main contact/deal system.
+- Supabase remains the business operations mirror for bookings, payments, calendar sync, contracts, expenses, and marketing automation.
+- New website, Tidio, and Instagram leads attempt to sync into HubSpot when `HUBSPOT_PRIVATE_APP_TOKEN` is configured.
+- The sync uses standard HubSpot fields first and automatically skips custom properties that do not exist yet.
+
+Recommended custom deal properties:
+- `booth_fairy_event_date`
+- `booth_fairy_event_start_time`
+- `booth_fairy_event_end_time`
+- `booth_fairy_event_type`
+- `booth_fairy_venue`
+- `booth_fairy_event_city`
+- `booth_fairy_service_requested`
+- `booth_fairy_guest_count`
+- `booth_fairy_deposit_amount`
+- `booth_fairy_balance_due`
+- `booth_fairy_lead_source`
+- `booth_fairy_crm_lead_id`
+- `booth_fairy_crm_booking_id`
+
+Recommended custom contact properties:
+- `booth_fairy_lead_source`
+- `booth_fairy_event_type`
+- `booth_fairy_preferred_service`
+- `booth_fairy_crm_lead_id`
 
 ## Gmail inbox sync
 

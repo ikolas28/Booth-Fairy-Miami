@@ -6,6 +6,7 @@ const {
   recordLeadScore,
   withLeadIntelligence
 } = require("../_lead-utils");
+const { syncLeadToHubSpot } = require("../_hubspot-lib");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -179,10 +180,16 @@ async function importInstagramLead(payload) {
   await createFollowup(lead.id, normalized);
   await updateInstagramImport(normalized, lead.id);
   await recordLeadScore(supabaseAdmin, lead.id, lead, "Instagram lead captured");
+  const hubspotSync = await syncLeadToHubSpot(lead).catch((error) => ({
+    ok: false,
+    error: error.message || "HubSpot sync failed."
+  }));
+  await patchLeadHubSpotSync(lead.id, hubspotSync).catch(() => null);
   return {
     duplicate: false,
     leadId: lead.id,
-    leadCode: lead.lead_code || null
+    leadCode: lead.lead_code || null,
+    hubspotSync: summarizeHubSpotSync(hubspotSync)
   };
 }
 
@@ -375,6 +382,35 @@ async function updateInstagramImport(lead, leadId) {
   } catch {
     // Optional table may not exist yet.
   }
+}
+
+async function patchLeadHubSpotSync(leadId, sync) {
+  const body = sync.ok ? {
+    hubspot_contact_id: sync.contactId || null,
+    hubspot_deal_id: sync.dealId || null,
+    hubspot_sync_status: "Synced",
+    hubspot_sync_error: null,
+    hubspot_synced_at: new Date().toISOString()
+  } : {
+    hubspot_sync_status: sync.skipped ? "Skipped" : "Failed",
+    hubspot_sync_error: sync.reason || sync.error || "HubSpot sync failed.",
+    hubspot_synced_at: new Date().toISOString()
+  };
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(leadId)}`, {
+    method: "PATCH",
+    body
+  });
+}
+
+function summarizeHubSpotSync(sync) {
+  if (!sync) return { ok: false, skipped: true, reason: "No HubSpot sync attempted." };
+  return {
+    ok: Boolean(sync.ok),
+    skipped: Boolean(sync.skipped),
+    contactId: sync.contactId || "",
+    dealId: sync.dealId || "",
+    reason: sync.reason || sync.error || ""
+  };
 }
 
 async function supabaseAdmin(path, options = {}) {
