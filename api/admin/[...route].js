@@ -15,9 +15,12 @@ const {
 } = require("../_hubspot-lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
+const CRON_SECRET = cleanEnvValue(process.env.CRON_SECRET);
+const RAW_INSTAGRAM_ACCESS_TOKEN = cleanEnvValue(process.env.INSTAGRAM_ACCESS_TOKEN);
+const RAW_INSTAGRAM_GRAPH_HOST = cleanEnvValue(process.env.INSTAGRAM_GRAPH_HOST);
+const INSTAGRAM_ACCESS_TOKEN = resolveInstagramAccessToken(RAW_INSTAGRAM_ACCESS_TOKEN, RAW_INSTAGRAM_GRAPH_HOST);
 const INSTAGRAM_USER_ID = cleanEnvValue(process.env.INSTAGRAM_USER_ID);
-const INSTAGRAM_GRAPH_HOST = normalizeGraphHost(process.env.INSTAGRAM_GRAPH_HOST);
+const INSTAGRAM_GRAPH_HOST = normalizeGraphHost(RAW_INSTAGRAM_GRAPH_HOST);
 const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSION) || "v23.0";
 
 module.exports = async (req, res) => {
@@ -65,10 +68,40 @@ function normalizeGraphHost(value) {
   const cleaned = cleanEnvValue(value);
   if (!cleaned) return "graph.facebook.com";
   try {
-    return new URL(cleaned.startsWith("http") ? cleaned : `https://${cleaned}`).hostname || "graph.facebook.com";
+    const host = new URL(cleaned.startsWith("http") ? cleaned : `https://${cleaned}`).hostname;
+    return isValidGraphHost(host) ? host : "graph.facebook.com";
   } catch {
-    return cleaned.replace(/^https?:\/\//i, "").split("/")[0] || "graph.facebook.com";
+    const host = cleaned.replace(/^https?:\/\//i, "").split("/")[0];
+    return isValidGraphHost(host) ? host : "graph.facebook.com";
   }
+}
+
+function isValidGraphHost(host) {
+  const value = cleanEnvValue(host).toLowerCase();
+  return value === "graph.facebook.com" || value.endsWith(".facebook.com");
+}
+
+function resolveInstagramAccessToken(accessToken, graphHost) {
+  if (looksLikeMetaAccessToken(accessToken)) return accessToken;
+  if (looksLikeMetaAccessToken(graphHost)) return graphHost;
+  if (looksLikeAccessToken(accessToken)) return accessToken;
+  if (looksLikeAccessToken(graphHost)) return graphHost;
+  return accessToken;
+}
+
+function looksLikeMetaAccessToken(value) {
+  return cleanEnvValue(value).toUpperCase().startsWith("EAA");
+}
+
+function looksLikeAccessToken(value) {
+  const token = cleanEnvValue(value);
+  return token.length > 40 && !token.includes(".") && !token.includes("/");
+}
+
+function isCronSecretRequest(req) {
+  if (!CRON_SECRET) return false;
+  const supplied = cleanEnvValue(req.headers["x-cron-secret"] || req.headers["x-admin-secret"]);
+  return Boolean(supplied && supplied === CRON_SECRET);
 }
 
 async function handleConfirmBooking(req, res) {
@@ -530,7 +563,8 @@ async function handleInstagramPublish(req, res) {
   }
 
   try {
-    if (!await verifyAdminRequest(req)) {
+    const cronAuthorized = isCronSecretRequest(req);
+    if (!cronAuthorized && !await verifyAdminRequest(req)) {
       return setJson(res, 401, { ok: false, error: "Admin authentication required." });
     }
 
@@ -543,6 +577,9 @@ async function handleInstagramPublish(req, res) {
 
     const body = typeof req.body === "string" ? safeParse(req.body) : req.body || {};
     const campaignId = stringify(body.campaignId || body.campaign_id);
+    if (!campaignId && cronAuthorized) {
+      return await publishDirectInstagramPost(res, body);
+    }
     if (!campaignId) return setJson(res, 400, { ok: false, error: "Missing campaign ID." });
 
     const campaign = await getCampaignById(campaignId);
@@ -605,6 +642,42 @@ async function handleInstagramPublish(req, res) {
       details: error.details || null
     });
   }
+}
+
+async function publishDirectInstagramPost(res, body) {
+  const post = {
+    caption: cleanMarketingText(body.caption || body.instagramCaption || body.instagram_caption),
+    mediaUrl: stringify(body.mediaUrl || body.media_url),
+    mediaType: normalizeInstagramMediaType(body.mediaType || body.media_type || body.mediaUrl || body.media_url)
+  };
+  if (!post.mediaUrl) return setJson(res, 400, { ok: false, error: "Missing mediaUrl." });
+  if (!post.caption) return setJson(res, 400, { ok: false, error: "Missing caption." });
+
+  const publishResult = await publishInstagramPost(post);
+  await supabaseAdmin("/message_history", {
+    method: "POST",
+    body: {
+      channel: "Instagram",
+      direction: "Outbound",
+      subject: stringify(body.title || "Direct Instagram publish"),
+      summary: "Instagram post published through a secured owner automation request.",
+      draft_created: false,
+      notes: [
+        `Instagram media ID: ${publishResult.mediaId || ""}`,
+        publishResult.permalink ? `Permalink: ${publishResult.permalink}` : "",
+        `Media URL: ${post.mediaUrl}`,
+        `Media type: ${post.mediaType}`
+      ].filter(Boolean).join("\n")
+    }
+  }).catch(() => null);
+
+  return setJson(res, 200, {
+    ok: true,
+    status: "Published",
+    mediaId: publishResult.mediaId || "",
+    permalink: publishResult.permalink || "",
+    containerId: publishResult.containerId || ""
+  });
 }
 
 async function handleReconcilePayment(req, res) {
@@ -1418,10 +1491,24 @@ async function instagramGraphPost(path, params) {
   });
   body.set("access_token", INSTAGRAM_ACCESS_TOKEN);
 
-  const response = await fetch(`https://${INSTAGRAM_GRAPH_HOST}/${INSTAGRAM_GRAPH_VERSION}/${path}`, {
-    method: "POST",
-    body
-  });
+  const graphUrl = `https://${INSTAGRAM_GRAPH_HOST}/${INSTAGRAM_GRAPH_VERSION}/${path}`;
+  let response;
+  try {
+    response = await fetch(graphUrl, {
+      method: "POST",
+      body
+    });
+  } catch (fetchError) {
+    const error = new Error(`Instagram Graph request could not reach ${INSTAGRAM_GRAPH_HOST}: ${fetchError.message || "fetch failed"}`);
+    error.statusCode = 502;
+    error.details = {
+      graphHost: INSTAGRAM_GRAPH_HOST,
+      graphVersion: INSTAGRAM_GRAPH_VERSION,
+      path,
+      cause: fetchError.cause?.message || fetchError.cause?.code || ""
+    };
+    throw error;
+  }
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const error = new Error(payload?.error?.message || "Instagram Graph API request failed.");
