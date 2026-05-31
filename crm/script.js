@@ -2185,7 +2185,7 @@ function renderHubSpotStatus() {
       </article>
       <article class="stack-item">
         <strong>Next step</strong>
-        <span>Create a HubSpot private app token with CRM object read/write scopes and add it as a Production env var.</span>
+        <span>Create a HubSpot Service Key with contact/deal read-write scopes and add it as HUBSPOT_PRIVATE_APP_TOKEN in Vercel Production.</span>
       </article>
     `;
     return;
@@ -2197,9 +2197,15 @@ function renderHubSpotStatus() {
     .join(" | ");
   hubspotStatusList.innerHTML = `
     <article class="stack-item">
-      <strong>Private app</strong>
+      <strong>Service key</strong>
       <span>${state.hubspot.portalReachable ? "HubSpot API is reachable." : escapeHtml(state.hubspot.error || "Could not reach HubSpot.")}</span>
     </article>
+    ${state.hubspot.warning ? `
+      <article class="stack-item">
+        <strong>Optional setup</strong>
+        <span>${escapeHtml(state.hubspot.warning)}</span>
+      </article>
+    ` : ""}
     <article class="stack-item">
       <strong>Pipeline</strong>
       <span>${escapeHtml(state.hubspot.pipelineId || "default")} ${state.hubspot.ownerId ? `| Owner ${escapeHtml(state.hubspot.ownerId)}` : ""}</span>

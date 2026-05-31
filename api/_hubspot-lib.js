@@ -10,6 +10,36 @@ const HUBSPOT_DEAL_STAGE_COMPLETED = cleanEnvValue(process.env.HUBSPOT_DEAL_STAG
 const HUBSPOT_DEAL_STAGE_LOST = cleanEnvValue(process.env.HUBSPOT_DEAL_STAGE_LOST) || "closedlost";
 
 const propertyCache = new Map();
+const REQUIRED_HUBSPOT_SCOPES = [
+  "crm.objects.contacts.read",
+  "crm.objects.contacts.write",
+  "crm.objects.deals.read",
+  "crm.objects.deals.write"
+];
+const OPTIONAL_HUBSPOT_SCOPES = [
+  "crm.schemas.contacts.read",
+  "crm.schemas.deals.read"
+];
+const FALLBACK_PROPERTY_NAMES = {
+  contacts: new Set([
+    "email",
+    "firstname",
+    "lastname",
+    "phone",
+    "lifecyclestage",
+    "hs_lead_status",
+    "hubspot_owner_id"
+  ]),
+  deals: new Set([
+    "dealname",
+    "pipeline",
+    "dealstage",
+    "amount",
+    "dealtype",
+    "hubspot_owner_id",
+    "description"
+  ])
+};
 
 async function getHubSpotStatus() {
   if (!HUBSPOT_PRIVATE_APP_TOKEN) {
@@ -20,18 +50,40 @@ async function getHubSpotStatus() {
     };
   }
 
-  const owner = await hubspotFetch("/crm/v3/owners?limit=1").catch((error) => ({
-    error: error.message
-  }));
+  const connection = await validateCrmAccess();
+  const propertyAccess = await validatePropertyAccess();
   return {
-    ok: !owner.error,
+    ok: connection.ok,
     configured: true,
-    portalReachable: !owner.error,
+    portalReachable: connection.ok,
     ownerId: HUBSPOT_OWNER_ID || "",
     pipelineId: HUBSPOT_PIPELINE_ID,
     defaultStages: getStageSummary(),
-    error: owner.error || ""
+    requiredScopes: REQUIRED_HUBSPOT_SCOPES,
+    optionalScopes: OPTIONAL_HUBSPOT_SCOPES,
+    propertyReadEnabled: propertyAccess.ok,
+    warning: propertyAccess.ok ? "" : propertyAccess.error,
+    error: connection.error || ""
   };
+}
+
+async function validateCrmAccess() {
+  try {
+    await hubspotFetch("/crm/v3/objects/contacts?limit=1&properties=email");
+    await hubspotFetch("/crm/v3/objects/deals?limit=1&properties=dealname");
+    return { ok: true, error: "" };
+  } catch (error) {
+    return { ok: false, error: formatHubSpotError(error) };
+  }
+}
+
+async function validatePropertyAccess() {
+  try {
+    await Promise.all([getPropertyNames("contacts"), getPropertyNames("deals")]);
+    return { ok: true, error: "" };
+  } catch (error) {
+    return { ok: false, error: formatHubSpotError(error) };
+  }
 }
 
 async function syncLeadToHubSpot(lead, options = {}) {
@@ -207,10 +259,19 @@ async function filterExistingProperties(objectType, properties) {
 
 async function getPropertyNames(objectType) {
   if (propertyCache.has(objectType)) return propertyCache.get(objectType);
-  const payload = await hubspotFetch(`/crm/v3/properties/${objectType}`);
-  const names = new Set((payload.results || []).map((property) => property.name));
-  propertyCache.set(objectType, names);
-  return names;
+  try {
+    const payload = await hubspotFetch(`/crm/v3/properties/${objectType}`);
+    const names = new Set((payload.results || []).map((property) => property.name));
+    propertyCache.set(objectType, names);
+    return names;
+  } catch (error) {
+    if (isMissingScopeError(error) && FALLBACK_PROPERTY_NAMES[objectType]) {
+      const names = FALLBACK_PROPERTY_NAMES[objectType];
+      propertyCache.set(objectType, names);
+      return names;
+    }
+    throw error;
+  }
 }
 
 async function hubspotFetch(path, options = {}) {
@@ -231,6 +292,26 @@ async function hubspotFetch(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function isMissingScopeError(error) {
+  const message = `${error?.message || ""} ${JSON.stringify(error?.details || {})}`.toLowerCase();
+  return message.includes("scope") || message.includes("forbidden") || error?.statusCode === 403;
+}
+
+function formatHubSpotError(error) {
+  const details = error?.details || {};
+  const message = details.message || error?.message || "HubSpot API request failed.";
+  const missingScopes = details.errors
+    ?.flatMap((item) => item.context?.requiredScopes || item.context?.missingScopes || [])
+    ?.filter(Boolean);
+  if (missingScopes?.length) {
+    return `HubSpot key is missing scope: ${[...new Set(missingScopes)].join(", ")}`;
+  }
+  if (String(message).toLowerCase().includes("scope")) {
+    return `${message} Required for CRM sync: ${REQUIRED_HUBSPOT_SCOPES.join(", ")}. Optional property detection: ${OPTIONAL_HUBSPOT_SCOPES.join(", ")}.`;
+  }
+  return message;
 }
 
 function normalizeLead(lead = {}) {
