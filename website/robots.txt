@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://booth-fairy-miami.vercel.app/sitemap.xml
+Sitemap: https://www.boothfairymiami.com/sitemap.xml

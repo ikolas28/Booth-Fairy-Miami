@@ -39,12 +39,32 @@
       "destination": "/website/script.js"
     },
     {
+      "source": "/tracking.js",
+      "destination": "/website/tracking.js"
+    },
+    {
       "source": "/thank-you.html",
       "destination": "/website/thank-you.html"
     },
     {
       "source": "/wedding-photo-booth-miami.html",
       "destination": "/website/wedding-photo-booth-miami.html"
+    },
+    {
+      "source": "/photo-booth-rental-miami.html",
+      "destination": "/website/photo-booth-rental-miami.html"
+    },
+    {
+      "source": "/photo-booth-rental-hialeah.html",
+      "destination": "/website/photo-booth-rental-hialeah.html"
+    },
+    {
+      "source": "/photo-booth-rental-miami-lakes.html",
+      "destination": "/website/photo-booth-rental-miami-lakes.html"
+    },
+    {
+      "source": "/wedding-photo-booth-south-florida.html",
+      "destination": "/website/wedding-photo-booth-south-florida.html"
     },
     {
       "source": "/service-agreement.html",
