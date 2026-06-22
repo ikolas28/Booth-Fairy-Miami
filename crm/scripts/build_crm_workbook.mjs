@@ -18,7 +18,7 @@ const leadStatuses = [
 ];
 
 const depositStatuses = ["Not Requested", "Deposit Pending", "Deposit Paid", "Paid in Full", "Refunded"];
-const serviceOptions = ["DSLR Photo Booth - Digital Sharing", "Premium DJ Services", "Photo Booth + DJ Bundle"];
+const serviceOptions = ["DSLR Print Photo Booth - 2 Hours ($450)", "DSLR Print Photo Booth - 3 Hours ($575)", "DSLR Print Photo Booth - 4 Hours ($700)", "Premium DJ Services", "Photo Booth + DJ Bundle"];
 const booleanOptions = ["Yes", "No"];
 const followUpStatuses = ["Open", "Scheduled", "Completed", "Canceled"];
 const quoteStatuses = ["Draft", "Sent", "Accepted", "Declined", "Expired"];
@@ -60,9 +60,9 @@ const sheets = [
       { range: "E2:E1000", source: leadStatuses },
       { range: "O2:O1000", source: serviceOptions },
       { range: "Q2:Q1000", source: [
-        "Starter Digital Package - 2 Hours ($450)",
-        "Starter Digital Package - 3 Hours ($575)",
-        "Starter Digital Package - 4 Hours ($700)",
+        "DSLR Print Photo Booth - 2 Hours ($450)",
+        "DSLR Print Photo Booth - 3 Hours ($575)",
+        "DSLR Print Photo Booth - 4 Hours ($700)",
         "Premium DJ Services",
         "Photo Booth + DJ Bundle",
         "Custom Quote",
@@ -297,38 +297,38 @@ const sheets = [
     rows: [
       [
         "PKG-001",
-        "DSLR Photo Booth - Digital Sharing",
-        "Starter Digital Package - 2 Hours",
+        "DSLR Print Photo Booth",
+        "DSLR Print Photo Booth - 2 Hours",
         2,
         450,
         "=E2*50%",
         "=E2-F2",
         "DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant",
-        "Digital photos only. No prints. No 360 booth.",
+        "Unlimited prints and instant digital sharing included. 50% retainer is $225. No 360 booth.",
         "Yes",
       ],
       [
         "PKG-002",
-        "DSLR Photo Booth - Digital Sharing",
-        "Starter Digital Package - 3 Hours",
+        "DSLR Print Photo Booth",
+        "DSLR Print Photo Booth - 3 Hours",
         3,
         575,
         "=E3*50%",
         "=E3-F3",
         "DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant",
-        "Digital photos only. No prints. No 360 booth.",
+        "Unlimited prints and instant digital sharing included. 50% retainer is $287.50. No 360 booth.",
         "Yes",
       ],
       [
         "PKG-003",
-        "DSLR Photo Booth - Digital Sharing",
-        "Starter Digital Package - 4 Hours",
+        "DSLR Print Photo Booth",
+        "DSLR Print Photo Booth - 4 Hours",
         4,
         700,
         "=E4*50%",
         "=E4-F4",
         "DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant",
-        "Digital photos only. No prints. No 360 booth.",
+        "Unlimited prints and instant digital sharing included. 50% retainer is $350. No 360 booth.",
         "Yes",
       ],
       [
@@ -351,7 +351,7 @@ const sheets = [
         "",
         "",
         "",
-        "DSLR digital photo booth package plus premium DJ services",
+        "DSLR print photo booth package with unlimited prints plus premium DJ services",
         "Bundle quote requires owner-approved final pricing.",
         "Yes",
       ],
@@ -377,8 +377,8 @@ const sheets = [
       [
         "QT-001",
         "Client asks for photo booth pricing",
-        "Starter Digital Package",
-        "Thank you for reaching out to Booth Fairy Miami. Our Starter Digital Package includes a DSLR booth, instant digital sharing, one premium backdrop, professional lighting, custom overlay, props, and an attendant. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.",
+        "DSLR Print Photo Booth",
+        "Thank you for reaching out to Booth Fairy Miami. Every DSLR Print Photo Booth package includes unlimited prints, instant digital sharing, a premium backdrop, studio flash lighting, custom overlay, props, an attendant, unlimited sessions, and digital gallery delivery. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.",
         "No",
         "Yes",
       ],
@@ -394,15 +394,15 @@ const sheets = [
         "QT-003",
         "Client asks about DJ services",
         "Premium DJ Services",
-        "We also offer premium DJ services for Miami and South Florida events. DJ pricing is quoted based on event date, venue, hours, sound needs, timeline, and whether you want to bundle DJ with the DSLR digital photo booth.",
+        "We also offer premium DJ services for Miami and South Florida events. DJ pricing is quoted based on event date, venue, hours, sound needs, timeline, and whether you want to bundle DJ with the DSLR print photo booth.",
         "Yes",
         "Yes",
       ],
       [
         "QT-004",
         "Client asks for prints or 360 booth",
-        "DSLR Digital Photo Booth",
-        "At this time Booth Fairy Miami offers DSLR digital photo booth service with high-quality digital photos and instant digital sharing. We do not currently offer print packages or 360 photo booth services.",
+        "DSLR Print Photo Booth",
+        "Every DSLR Print Photo Booth package includes unlimited prints and instant digital sharing. We do not currently offer 360 photo booth services.",
         "No",
         "Yes",
       ],

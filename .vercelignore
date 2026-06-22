@@ -1,0 +1,8 @@
+brand/
+crm/contracts/outputs/
+crm/outputs/
+finance/outputs/
+social-output/
+tools/
+tmp-*.png
+tmp/

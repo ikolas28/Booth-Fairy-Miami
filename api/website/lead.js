@@ -10,6 +10,7 @@ const {
   withLeadIntelligence
 } = require("../_lead-utils");
 const { syncLeadToHubSpot } = require("../_hubspot-lib");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 const SITE_URL = process.env.SITE_URL || "https://www.boothfairymiami.com";
 const ALLOWED_ORIGINS = new Set([
   SITE_URL,
@@ -285,13 +286,11 @@ function normalizeWebsiteLead(payload) {
 function normalizeServiceRequested(payload, packageInterest = "") {
   const selected = stringify(payload.serviceRequested || payload["service-requested"]);
   const packageText = packageInterest.toLowerCase();
-  if (/starter digital package|dslr photo booth|digital photo booth/.test(packageText)) {
-    return "DSLR Photo Booth - Digital Sharing";
-  }
   if (/dj \+ photo booth bundle|photo booth \+ dj bundle/.test(packageText)) {
     return "Photo Booth + DJ Bundle";
   }
-  return selected || "DSLR Photo Booth - Digital Sharing";
+  const fixedPackage = getPhotoBoothPackageLabel(packageInterest, selected);
+  return fixedPackage || selected || "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 function getSpamReason(lead, payload) {

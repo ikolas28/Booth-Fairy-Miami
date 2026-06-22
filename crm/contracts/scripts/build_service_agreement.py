@@ -8,7 +8,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 OUTPUT_DIR = Path("crm/contracts/outputs")
@@ -22,7 +22,7 @@ ES_PDF = PUBLIC_DIR / "booth-fairy-miami-acuerdo-de-servicios-espanol.pdf"
 
 ENGLISH = {
     "title": "Booth Fairy Miami Service Agreement",
-    "subtitle": "DSLR digital photo booth, instant digital sharing, high-quality image delivery, and premium DJ services",
+    "subtitle": "DSLR print photo booth, unlimited prints, instant digital sharing, and premium DJ services",
     "client_info": "Client Information",
     "event_details": "Event Details",
     "services_selected": "Services Selected",
@@ -49,7 +49,7 @@ ENGLISH = {
             ("Special instructions", ""),
         ],
         "services": [
-            ("DSLR digital photo booth", "Included / Not included"),
+            ("DSLR print photo booth", "Included / Not included"),
             ("Premium DJ services", "Included / Not included"),
             ("Package or custom quote", ""),
             ("Total service fee", "$"),
@@ -67,22 +67,22 @@ ENGLISH = {
         ],
     },
     "clauses": [
-        ("Starter Digital Package", [
-            "The Starter Digital Package includes DSLR booth service, instant digital sharing, one premium backdrop, professional lighting, custom overlay, props, and an attendant.",
-            "Starter Digital Package pricing: 2 hours is $450, 3 hours is $575, and 4 hours is $700. Additional time, travel, parking, venue fees, premium add-ons, or DJ services must be confirmed in writing and may increase the total service fee.",
+        ("DSLR Print Photo Booth", [
+            "Every DSLR Print Photo Booth package includes unlimited prints, instant digital sharing, a premium backdrop, studio flash lighting, custom event overlay, props, an attendant, unlimited sessions, and digital gallery delivery.",
+            "Pricing: 2 hours is $450, 3 hours is $575, and 4 hours is $700. Additional time, travel, parking, venue fees, premium add-ons, or DJ services must be confirmed in writing and may increase the total service fee.",
         ]),
         ("Agreement", [
             "This Service Agreement is between the client listed above (Client) and Booth Fairy Miami (Company). Company agrees to provide the event services selected in this Agreement and any attached written quote or invoice. This Agreement, together with any written quote, invoice, or approved addendum, is the entire agreement between the parties. Any change must be confirmed in writing by both parties.",
-            "Company currently provides DSLR digital photo booth services with digital photo delivery and instant digital sharing. Company does not provide print photo booth packages or 360 photo booth services under this Agreement. Company also provides premium DJ services when selected in the Services Selected section or in an attached written quote.",
+            "Company provides DSLR print photo booth services with unlimited prints, digital gallery delivery, and instant digital sharing. Company does not provide 360 photo booth services under this Agreement. Company also provides premium DJ services when selected in the Services Selected section or in an attached written quote.",
         ]),
         ("Service Period", [
             "Company will provide the selected services during the service period listed in the Event Details. Setup and breakdown time are not included in the paid service period unless expressly stated in the written quote.",
             "Additional event time must be requested by Client and approved by Company. Overtime is subject to Company availability and will be billed at the overtime rate stated in the quote or invoice, or at a rate mutually confirmed in writing before overtime begins.",
         ]),
-        ("DSLR Digital Photo Booth Services", [
-            "When DSLR digital photo booth services are selected, Company will provide a professional DSLR photo booth setup designed to capture high-quality digital photographs. The booth experience may include lighting, camera, booth station, attendant, digital gallery, and instant digital sharing features depending on the package selected.",
+        ("DSLR Print Photo Booth Services", [
+            "When DSLR print photo booth services are selected, Company will provide a professional DSLR photo booth setup designed to capture high-quality photographs. The experience includes unlimited prints during the booked service period, studio flash lighting, camera, booth station, attendant, digital gallery, and instant digital sharing.",
             "Digital sharing may include text, email, QR code, online gallery, or similar delivery methods, subject to venue internet access, mobile carrier availability, device compatibility, and third-party platform performance. Company will make commercially reasonable efforts to support instant digital sharing during the event, but cannot guarantee uninterrupted wireless or internet-dependent delivery.",
-            "Client understands that no printed photo strips, printed photo cards, print packages, or 360 photo booth service are included.",
+            "Client understands that unlimited prints are included during the booked service period. A 360 photo booth service is not included.",
         ]),
         ("Premium DJ Services", [
             "When DJ services are selected, Company will provide professional DJ entertainment for the service period listed in the Agreement or quote. DJ services may include music playback, basic event announcements, sound equipment, microphones, and lighting elements depending on the package selected.",
@@ -106,7 +106,7 @@ ENGLISH = {
             "Company may pause, relocate, delay, or end service if weather, electrical conditions, crowd behavior, venue conditions, or safety concerns could damage equipment or create risk.",
         ]),
         ("Digital Gallery and Image Delivery", [
-            "For DSLR digital photo booth bookings, Company will provide digital photo access through an online gallery, downloadable link, sharing platform, or comparable digital delivery method. Delivery timing may vary based on event size, internet access, file processing, platform availability, and package selected.",
+            "For DSLR print photo booth bookings, Company will also provide digital photo access through an online gallery, downloadable link, sharing platform, or comparable digital delivery method. Delivery timing may vary based on event size, internet access, file processing, platform availability, and package selected.",
             "Client is responsible for downloading, saving, backing up, and archiving delivered files. Company may retain files for a limited period but does not guarantee permanent storage or indefinite gallery availability.",
         ]),
         ("Client Content and Approvals", [
@@ -136,7 +136,7 @@ ENGLISH = {
 
 SPANISH = {
     "title": "Acuerdo de Servicios de Booth Fairy Miami",
-    "subtitle": "Cabina fotografica digital DSLR, envio digital instantaneo, imagenes de alta calidad y servicios premium de DJ",
+    "subtitle": "Cabina fotografica DSLR con impresiones ilimitadas, envio digital instantaneo y servicios premium de DJ",
     "client_info": "Informacion del Cliente",
     "event_details": "Detalles del Evento",
     "services_selected": "Servicios Seleccionados",
@@ -163,7 +163,7 @@ SPANISH = {
             ("Instrucciones especiales", ""),
         ],
         "services": [
-            ("Cabina fotografica digital DSLR", "Incluido / No incluido"),
+            ("Cabina fotografica DSLR con impresiones", "Incluido / No incluido"),
             ("Servicios premium de DJ", "Incluido / No incluido"),
             ("Paquete o cotizacion personalizada", ""),
             ("Tarifa total del servicio", "$"),
@@ -181,22 +181,22 @@ SPANISH = {
         ],
     },
     "clauses": [
-        ("Paquete Digital Inicial", [
-            "El Paquete Digital Inicial incluye servicio de cabina DSLR, envio digital instantaneo, un fondo premium, iluminacion profesional, diseno de overlay personalizado, accesorios y un asistente.",
-            "Precios del Paquete Digital Inicial: 2 horas $450, 3 horas $575 y 4 horas $700. Tiempo adicional, viajes, estacionamiento, cargos del lugar, servicios adicionales premium o servicios de DJ deben confirmarse por escrito y pueden aumentar la tarifa total.",
+        ("Cabina Fotografica DSLR con Impresiones", [
+            "Cada paquete incluye impresiones ilimitadas, envio digital instantaneo, fondo premium, iluminacion de flash de estudio, overlay personalizado, accesorios, asistente, sesiones ilimitadas y entrega de galeria digital.",
+            "Precios: 2 horas $450, 3 horas $575 y 4 horas $700. Tiempo adicional, viajes, estacionamiento, cargos del lugar, servicios adicionales premium o servicios de DJ deben confirmarse por escrito y pueden aumentar la tarifa total.",
         ]),
         ("Acuerdo", [
             "Este Acuerdo de Servicios es entre el cliente indicado arriba (Cliente) y Booth Fairy Miami (Compania). La Compania acepta proporcionar los servicios seleccionados en este Acuerdo y en cualquier cotizacion o factura escrita adjunta. Este Acuerdo, junto con cualquier cotizacion, factura o anexo aprobado por escrito, constituye el acuerdo completo entre las partes. Cualquier cambio debe confirmarse por escrito por ambas partes.",
-            "La Compania actualmente ofrece servicios de cabina fotografica digital DSLR con entrega digital de fotos y envio digital instantaneo. La Compania no ofrece paquetes de fotos impresas ni servicio de cabina 360 bajo este Acuerdo. La Compania tambien ofrece servicios premium de DJ cuando sean seleccionados en este Acuerdo o en una cotizacion escrita.",
+            "La Compania ofrece servicios de cabina fotografica DSLR con impresiones ilimitadas, entrega de galeria digital y envio digital instantaneo. La Compania no ofrece servicio de cabina 360 bajo este Acuerdo. La Compania tambien ofrece servicios premium de DJ cuando sean seleccionados en este Acuerdo o en una cotizacion escrita.",
         ]),
         ("Periodo de Servicio", [
             "La Compania proporcionara los servicios seleccionados durante el periodo indicado en los Detalles del Evento. El tiempo de montaje y desmontaje no esta incluido en el periodo pagado del servicio, a menos que se indique expresamente en la cotizacion escrita.",
             "Cualquier tiempo adicional debe ser solicitado por el Cliente y aprobado por la Compania. El tiempo extra esta sujeto a disponibilidad y se cobrara segun la tarifa indicada en la cotizacion o factura, o segun una tarifa confirmada por escrito antes de comenzar.",
         ]),
         ("Servicios de Cabina Fotografica Digital DSLR", [
-            "Cuando se seleccionan servicios de cabina fotografica digital DSLR, la Compania proporcionara una configuracion profesional disenada para capturar fotografias digitales de alta calidad. La experiencia puede incluir iluminacion, camara, estacion de cabina, asistente, galeria digital y funciones de envio digital instantaneo segun el paquete seleccionado.",
+            "Cuando se seleccionan servicios de cabina fotografica DSLR con impresiones, la Compania proporcionara una configuracion profesional disenada para capturar fotografias de alta calidad. La experiencia incluye impresiones ilimitadas durante el periodo contratado, iluminacion, camara, estacion de cabina, asistente, galeria digital y envio digital instantaneo.",
             "El envio digital puede incluir texto, correo electronico, codigo QR, galeria en linea u otros metodos similares, sujeto al acceso de internet del lugar, senal celular, compatibilidad de dispositivos y plataformas de terceros. La Compania hara esfuerzos comercialmente razonables para apoyar el envio digital instantaneo durante el evento, pero no garantiza servicio ininterrumpido dependiente de internet o senal inalambrica.",
-            "El Cliente entiende que no se incluyen tiras impresas, tarjetas impresas, paquetes de impresion ni servicio de cabina 360.",
+            "El Cliente entiende que las impresiones ilimitadas estan incluidas durante el periodo contratado. El servicio de cabina 360 no esta incluido.",
         ]),
         ("Servicios Premium de DJ", [
             "Cuando se seleccionan servicios de DJ, la Compania proporcionara entretenimiento profesional de DJ durante el periodo indicado en el Acuerdo o cotizacion. Los servicios pueden incluir reproduccion de musica, anuncios basicos, equipo de sonido, microfonos y elementos de iluminacion segun el paquete seleccionado.",
@@ -220,7 +220,7 @@ SPANISH = {
             "La Compania puede pausar, reubicar, retrasar o terminar el servicio si el clima, condiciones electricas, comportamiento de invitados, condiciones del lugar o temas de seguridad pueden danar el equipo o crear riesgo.",
         ]),
         ("Galeria Digital y Entrega de Imagenes", [
-            "Para reservas de cabina fotografica digital DSLR, la Compania proporcionara acceso digital a las fotos mediante galeria en linea, enlace de descarga, plataforma de envio u otro metodo comparable. El tiempo de entrega puede variar segun el tamano del evento, internet, procesamiento de archivos, disponibilidad de plataformas y paquete seleccionado.",
+            "Para reservas de cabina fotografica DSLR con impresiones, la Compania tambien proporcionara acceso digital a las fotos mediante galeria en linea, enlace de descarga, plataforma de envio u otro metodo comparable. El tiempo de entrega puede variar segun el tamano del evento, internet, procesamiento de archivos, disponibilidad de plataformas y paquete seleccionado.",
             "El Cliente es responsable de descargar, guardar, respaldar y archivar los archivos entregados. La Compania puede conservar archivos por un periodo limitado, pero no garantiza almacenamiento permanente ni disponibilidad indefinida de la galeria.",
         ]),
         ("Contenido del Cliente y Aprobaciones", [
@@ -371,19 +371,19 @@ def pdf_styles():
         "ContractHeading",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=12,
-        leading=15,
+        fontSize=11.5,
+        leading=14,
         textColor=colors.HexColor("#25172d"),
-        spaceBefore=10,
-        spaceAfter=4,
+        spaceBefore=8,
+        spaceAfter=3,
     ))
     styles.add(ParagraphStyle(
         "ContractBody",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=8.7,
-        leading=11,
-        spaceAfter=4,
+        fontSize=8.4,
+        leading=10.2,
+        spaceAfter=3,
     ))
     return styles
 
@@ -408,6 +408,31 @@ def add_pdf_table(story, title, rows, styles):
     story.append(Spacer(1, 7))
 
 
+def add_pdf_signature_table(story, title, rows, styles):
+    paired_rows = [
+        [rows[0][0], rows[0][1], rows[4][0], rows[4][1]],
+        [rows[1][0], rows[1][1], rows[3][0], rows[3][1]],
+        [rows[2][0], rows[2][1], rows[5][0], rows[5][1]],
+    ]
+    heading = Paragraph(title, styles["ContractHeading"])
+    table = Table(paired_rows, colWidths=[1.65 * inch, 1.65 * inch, 1.85 * inch, 1.65 * inch], hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d8cbdc")),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#fff4f7")),
+        ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#fff4f7")),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("LEADING", (0, 0), (-1, -1), 10),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    story.append(KeepTogether([heading, table, Spacer(1, 7)]))
+
+
 def build_pdf(data, path):
     styles = pdf_styles()
     doc = SimpleDocTemplate(
@@ -430,7 +455,7 @@ def build_pdf(data, path):
         story.append(Paragraph(heading, styles["ContractHeading"]))
         for text in paragraphs:
             story.append(Paragraph(text, styles["ContractBody"]))
-    add_pdf_table(story, data["signatures"], data["field_rows"]["signatures"], styles)
+    add_pdf_signature_table(story, data["signatures"], data["field_rows"]["signatures"], styles)
     doc.build(story)
 
 

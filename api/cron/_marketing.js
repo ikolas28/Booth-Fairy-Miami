@@ -121,7 +121,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
       notes: [
         batch,
         "Draft caption:",
-        `A luxury DSLR digital photo booth experience for ${stats.topEventType} in ${stats.topCity}. Flattering studio flash, polished booth styling, custom overlay, instant sharing, and a digital gallery your guests can enjoy right away.`,
+        `A luxury DSLR print photo booth experience for ${stats.topEventType} in ${stats.topCity}. Unlimited prints, flattering studio flash, polished booth styling, custom overlay, instant sharing, and a digital gallery your guests can enjoy right away.`,
         "",
         "Suggested CTA: Send us your event date to check availability.",
         "Suggested hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents #LuxuryEventsMiami",
@@ -151,7 +151,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
       notes: [
         batch,
         "Draft post:",
-        "Planning a Miami celebration? Booth Fairy Miami brings a refined DSLR digital photo booth setup with instant sharing, premium backdrop options, studio flash lighting, props, and an attendant. DJ services are also available as a premium add-on for a seamless entertainment experience.",
+        "Planning a Miami celebration? Booth Fairy Miami brings a refined DSLR print photo booth setup with unlimited prints, instant sharing, a premium backdrop, studio flash lighting, props, and an attendant. DJ services are also available as a premium add-on for a seamless entertainment experience.",
         "",
         "Suggested CTA: Request a quote.",
         "Owner approval required before posting."
@@ -175,7 +175,7 @@ function buildCampaignDrafts(stats, weekKey, today) {
         "",
         "If you are still planning entertainment for your event, Booth Fairy Miami can make the setup feel simple and polished with one coordinated team for music, energy, and guest photos.",
         "",
-        "Our luxury DSLR digital photo booth includes instant digital sharing, a premium backdrop look, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
+        "Our luxury DSLR print photo booth includes unlimited prints, instant digital sharing, a premium backdrop, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
         "",
         "Reply with your event date, venue or city, and guest count, and we can check availability before sending the best package option.",
         "",
@@ -240,7 +240,7 @@ function buildTikTokContentDrafts(stats, weekKey, today) {
         "4. Screen recording or close-up showing instant digital sharing.",
         "5. End card with Booth Fairy Miami and website.",
         "Caption:",
-        `Luxury DSLR digital photo booth for ${eventType} in ${city}. Instant digital sharing, premium setup, custom overlay, and a polished guest experience. Send your event date to check availability. @boothfairymiami`,
+        `Luxury DSLR print photo booth for ${eventType} in ${city}. Unlimited prints, instant digital sharing, premium setup, custom overlay, and a polished guest experience. Send your event date to check availability. @boothfairymiami`,
         "Hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents #LuxuryEventsMiami #SouthFloridaEvents",
         "CTA: Comment or DM your event date, venue/city, and guest count.",
         "Production notes: Use real setup footage when available. Do not mention prints or 360 booth."
@@ -263,7 +263,7 @@ function buildTikTokContentDrafts(stats, weekKey, today) {
         "4. Show booth sharing or event energy.",
         "5. End with website/DM CTA.",
         "Caption:",
-        "For Miami events, booking photo booth + DJ together can make the night feel more coordinated. Booth Fairy Miami offers luxury DSLR digital booth service with premium DJ add-ons for weddings, birthdays, corporate events, and private parties. @boothfairymiami",
+        "For Miami events, booking photo booth + DJ together can make the night feel more coordinated. Booth Fairy Miami offers a luxury DSLR print booth with unlimited prints and premium DJ add-ons for weddings, birthdays, corporate events, and private parties. @boothfairymiami",
         "Hashtags: #MiamiDJ #MiamiPhotoBooth #BoothFairyMiami #WeddingTok #MiamiWeddings #EventPlanning",
         "CTA: DM your date and venue/city so we can check availability.",
         `CRM signal: ${stats.djCount} open DJ/bundle lead(s), ${stats.boothCount} open booth lead(s).`
@@ -288,7 +288,7 @@ function buildTikTokContentDrafts(stats, weekKey, today) {
         "Booth Fairy Miami focuses on polished DSLR photos with instant digital sharing, so guests can receive and share their photos right away. Digital photo booth only right now. @boothfairymiami",
         "Hashtags: #DigitalPhotoBooth #MiamiEvents #PhotoBoothRental #BoothFairyMiami #EventTips",
         "CTA: Ask us for package options after we check your event date.",
-        "Production notes: Keep it clear and simple. Do not imply print packages."
+        "Production notes: Keep it clear and simple. Mention that unlimited prints are included."
       ].join("\n")
     },
     {

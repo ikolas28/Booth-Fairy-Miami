@@ -7,6 +7,7 @@ const {
   withLeadIntelligence
 } = require("../_lead-utils");
 const { syncLeadToHubSpot } = require("../_hubspot-lib");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -290,7 +291,7 @@ async function createLead(lead) {
     lead.instagramUserId ? `Instagram user ID: ${lead.instagramUserId}` : "",
     lead.sourceReference ? `Instagram reference: ${lead.sourceReference}` : "",
     lead.missing.length ? `Missing info to request: ${lead.missing.join(", ")}` : "",
-    "Instagram lead. Do not confirm availability until calendar is checked. Do not offer print packages."
+    "Instagram lead. Do not confirm availability until calendar is checked. DSLR photo booth packages include unlimited prints and instant digital sharing."
   ].filter(Boolean).join("\n");
 
   const rows = await insertLeadWithFallback(supabaseAdmin, withLeadIntelligence({
@@ -480,7 +481,7 @@ function inferService(text) {
   const lower = String(text || "").toLowerCase();
   if (lower.includes("dj") && (lower.includes("photo") || lower.includes("booth"))) return "Photo Booth + DJ Bundle";
   if (lower.includes("dj")) return "Premium DJ Services";
-  return "DSLR Photo Booth - Digital Sharing";
+  return getPhotoBoothPackageLabel(lower) || "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 function inferEventType(text) {

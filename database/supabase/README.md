@@ -35,7 +35,7 @@ Run [hubspot_content_library.sql](C:\Users\andyy\OneDrive\Documents\Andy's proje
 - status indexes for weekly social content planning
 - admin-only RLS policies for content library records
 
-The seeded package templates include the Starter Digital Package:
+The seeded package templates include the DSLR Print Photo Booth with unlimited prints and instant digital sharing:
 
 - 2 hours: $450
 - 3 hours: $575

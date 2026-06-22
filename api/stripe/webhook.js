@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { syncBookingFinance } = require("../finance/_lib");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -361,13 +362,15 @@ function roundMoney(value) {
 
 function getBookingServiceRequested(lead = {}) {
   const service = stringify(lead.service_requested || lead.serviceRequested);
-  const notes = stringify(lead.notes).toLowerCase();
-  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
-  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
+  const notes = stringify(lead.notes);
+  const notesPackageLabel = getPhotoBoothPackageLabel(notes);
+  const packageLabel = getPhotoBoothPackageLabel(service) || notesPackageLabel;
+  const packageLooksPhotoBoothOnly = Boolean(packageLabel);
+  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes.toLowerCase());
   if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
-    return "DSLR Photo Booth - Digital Sharing";
+    return notesPackageLabel || "DSLR Print Photo Booth - 2 Hours ($450)";
   }
-  return service || "DSLR Photo Booth - Digital Sharing";
+  return packageLabel || service || "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 function stringify(value) {

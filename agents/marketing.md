@@ -16,9 +16,9 @@ Support growth through SEO, lead source tracking, campaigns, promotions, and con
 
 ## Business Rules
 
-- Booth Fairy Miami offers DSLR photo booth services
-- Digital photos only for now
-- Do not market prints
+- Booth Fairy Miami offers a DSLR Print Photo Booth with unlimited prints and instant digital sharing
+- Published pricing is 2 hours $450, 3 hours $575, and 4 hours $700
+- Market unlimited prints as a signature inclusion
 - Booth Fairy Miami also offers high-end DJ services
 - Keep messaging visually premium and conversion-focused
 

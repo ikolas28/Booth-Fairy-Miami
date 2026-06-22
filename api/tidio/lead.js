@@ -9,6 +9,7 @@ const {
   withLeadIntelligence
 } = require("../_lead-utils");
 const { syncLeadToHubSpot } = require("../_hubspot-lib");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -149,7 +150,7 @@ function normalizeLeadPayload(payload) {
     eventDate: normalizeDate(payload.eventDate || payload.event_date),
     venue: stringify(payload.venue),
     city: stringify(payload.city),
-    serviceRequested: stringify(payload.serviceRequested || payload.service_requested || "DSLR Photo Booth - Digital Sharing"),
+    serviceRequested: getPhotoBoothPackageLabel(payload.serviceRequested, payload.service_requested, JSON.stringify(payload)) || stringify(payload.serviceRequested || payload.service_requested || "DSLR Print Photo Booth - 2 Hours ($450)"),
     guestCount: normalizeNumber(payload.guestCount || payload.guest_count, 0),
     budget: normalizeNumber(payload.budget, 0),
     notes: buildNotes(payload),
@@ -169,7 +170,7 @@ function buildSupabaseLead(payload) {
     event_date: payload.eventDate || null,
     venue: payload.venue || null,
     city: payload.city || null,
-    service_requested: payload.serviceRequested || "DSLR Photo Booth - Digital Sharing",
+    service_requested: payload.serviceRequested || "DSLR Print Photo Booth - 2 Hours ($450)",
     guest_count: payload.guestCount,
     budget: payload.budget,
     notes: finalNotes || "Lead captured from Tidio chat.",

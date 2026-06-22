@@ -3,6 +3,7 @@ const {
   setJson,
   verifyAdminRequest
 } = require("../gmail/_lib");
+const { resolvePhotoBoothPackage } = require("../_packages");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const SERVICE_AGREEMENT_URL = process.env.SERVICE_AGREEMENT_URL || "https://www.boothfairymiami.com/client-agreement.html";
@@ -43,14 +44,34 @@ module.exports = async (req, res) => {
       return setJson(res, 400, { ok: false, error: "Calendar must be checked before preparing contract and deposit." });
     }
 
-    const depositAmount = normalizeDepositAmount(body.depositAmount, lead);
-    const payment = await createStripeCheckoutSession(lead, depositAmount);
-    const draft = await createGmailDraftIfPossible(lead, depositAmount, payment.url);
+    const pricing = normalizeRetainerPricing(body.depositAmount, lead);
+    if (body.dryRun === true) {
+      return setJson(res, 200, {
+        ok: true,
+        dryRun: true,
+        packageLabel: pricing.label,
+        packageTotal: pricing.total,
+        depositAmount: pricing.deposit,
+        stripeKeyType: describeStripeKeyType(normalizeStripeSecretKey(STRIPE_SECRET_KEY)),
+        calendarChecked: lead.calendarChecked === "Yes"
+      });
+    }
+    const payment = await createStripeCheckoutSession(lead, pricing);
+    let draft;
+    try {
+      draft = await createGmailDraftIfPossible(lead, pricing, payment.url);
+    } catch (error) {
+      draft = {
+        id: "",
+        skippedReason: `Gmail draft unavailable: ${error.message || "Google connection failed."}`
+      };
+    }
 
     return setJson(res, 200, {
       ok: true,
       contractUrl: SERVICE_AGREEMENT_URL,
-      depositAmount,
+      packageTotal: pricing.total,
+      depositAmount: pricing.deposit,
       paymentUrl: payment.url,
       stripeSessionId: payment.sessionId || "",
       stripePaymentIntentId: payment.paymentIntentId || "",
@@ -62,7 +83,7 @@ module.exports = async (req, res) => {
       gmailDraftReady: Boolean(draft.id),
       gmailDraftSkippedReason: draft.skippedReason || "",
       subject: buildSubject(lead),
-      emailBody: buildEmailBody(lead, depositAmount, payment.url)
+      emailBody: buildEmailBody(lead, pricing, payment.url)
     });
   } catch (error) {
     return setJson(res, error.statusCode || 500, {
@@ -84,28 +105,27 @@ function normalizeLead(lead) {
     eventDate: stringify(lead.eventDate || lead.event_date),
     venue: stringify(lead.venue),
     city: stringify(lead.city),
-    serviceRequested: stringify(lead.serviceRequested || lead.service_requested || "DSLR Photo Booth - Digital Sharing"),
-    budget: Number(lead.budget || 0),
+    serviceRequested: stringify(lead.serviceRequested || lead.service_requested || "DSLR Print Photo Booth - 2 Hours ($450)"),
+    notes: stringify(lead.notes),
     calendarChecked: stringify(lead.calendarChecked || (lead.calendar_checked ? "Yes" : "No"))
   };
 }
 
-function normalizeDepositAmount(value, lead) {
+function normalizeRetainerPricing(value, lead) {
   const explicit = Number(value);
-  if (Number.isFinite(explicit) && explicit > 0) return roundMoney(explicit);
-  if (lead.budget > 0) return roundMoney(lead.budget * 0.5);
-  const packageAmount = getPackageAmount(lead.serviceRequested);
-  return roundMoney(packageAmount * 0.5);
+  const fixedPackage = resolvePhotoBoothPackage(lead.serviceRequested, lead.notes);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return { total: roundMoney(explicit * 2), deposit: roundMoney(explicit), label: fixedPackage?.label || lead.serviceRequested };
+  }
+  if (!fixedPackage) {
+    const error = new Error("A fixed 2-, 3-, or 4-hour DSLR Print Photo Booth package or an owner-approved deposit amount is required before creating a Stripe link.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { total: fixedPackage.total, deposit: fixedPackage.deposit, label: fixedPackage.label };
 }
 
-function getPackageAmount(serviceRequested) {
-  const text = serviceRequested.toLowerCase();
-  if (text.includes("4 hour") || text.includes("$700")) return 700;
-  if (text.includes("3 hour") || text.includes("$575")) return 575;
-  return 450;
-}
-
-async function createStripeCheckoutSession(lead, depositAmount) {
+async function createStripeCheckoutSession(lead, pricing) {
   const stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY);
   if (!stripeSecretKey) {
     return { url: "", skippedReason: "Missing STRIPE_SECRET_KEY. Add it in Vercel to create Stripe deposit links automatically." };
@@ -125,9 +145,9 @@ async function createStripeCheckoutSession(lead, depositAmount) {
     body: new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "usd",
-      "line_items[0][price_data][product_data][name]": `Booth Fairy Miami 50% Retainer - ${lead.clientName}`,
-      "line_items[0][price_data][product_data][description]": buildPaymentDescription(lead),
-      "line_items[0][price_data][unit_amount]": String(Math.round(depositAmount * 100)),
+      "line_items[0][price_data][product_data][name]": `Booth Fairy Miami 50% Retainer - ${pricing.label}`,
+      "line_items[0][price_data][product_data][description]": buildPaymentDescription(lead, pricing),
+      "line_items[0][price_data][unit_amount]": String(Math.round(pricing.deposit * 100)),
       "line_items[0][quantity]": "1",
       customer_email: lead.email,
       success_url: `${SITE_URL}/thank-you.html?payment=success`,
@@ -135,6 +155,9 @@ async function createStripeCheckoutSession(lead, depositAmount) {
       "metadata[lead_id]": lead.id || "",
       "metadata[lead_code]": lead.leadCode || "",
       "metadata[payment_type]": "50_percent_retainer",
+      "metadata[package_total]": String(pricing.total),
+      "metadata[deposit_amount]": String(pricing.deposit),
+      "metadata[service_requested]": pricing.label,
       "metadata[client_name]": lead.clientName || "",
       "metadata[event_date]": lead.eventDate || ""
     })
@@ -178,7 +201,7 @@ function describeStripeKeyType(value) {
   return "unknown key format";
 }
 
-async function createGmailDraftIfPossible(lead, depositAmount, paymentUrl) {
+async function createGmailDraftIfPossible(lead, pricing, paymentUrl) {
   const connection = await getValidGmailAccessToken();
   if (!connection) {
     return { id: "", skippedReason: "Google/Gmail is not connected." };
@@ -187,8 +210,8 @@ async function createGmailDraftIfPossible(lead, depositAmount, paymentUrl) {
   const raw = buildRawEmail({
     to: lead.email,
     subject: buildSubject(lead),
-    body: buildEmailBody(lead, depositAmount, paymentUrl),
-    html: buildEmailHtml(lead, depositAmount, paymentUrl)
+    body: buildEmailBody(lead, pricing, paymentUrl),
+    html: buildEmailHtml(lead, pricing, paymentUrl)
   });
 
   const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
@@ -277,16 +300,18 @@ function buildSubject(lead) {
   return `Booth Fairy Miami next steps${datePart}`;
 }
 
-function buildEmailBody(lead, depositAmount, paymentUrl) {
+function buildEmailBody(lead, pricing, paymentUrl) {
   return [
     `Hi ${lead.clientName || "there"},`,
     "",
     "Your date looks open. To reserve it, please review the service agreement and submit the non-refundable 50% retainer. The remaining balance is due the day of the event.",
     "",
     "Next steps:",
+    `Package: ${pricing.label}`,
+    `Package total: $${pricing.total.toFixed(2)}`,
     `1. Review the service agreement: ${SERVICE_AGREEMENT_URL}`,
     paymentUrl ? `2. Pay the 50% retainer: ${paymentUrl}` : "2. Pay the 50% retainer: [Add Stripe payment link before sending]",
-    `Retainer due today: $${depositAmount.toFixed(2)}`,
+    `Retainer due today: $${pricing.deposit.toFixed(2)}`,
     "",
     "Please note: your booking is not confirmed until the signed agreement and retainer payment are received.",
     "",
@@ -299,7 +324,7 @@ function buildEmailBody(lead, depositAmount, paymentUrl) {
   ].join("\n");
 }
 
-function buildEmailHtml(lead, depositAmount, paymentUrl) {
+function buildEmailHtml(lead, pricing, paymentUrl) {
   const safeName = escapeHtml(lead.clientName || "there");
   const paymentAction = paymentUrl
     ? `<p><a href="${escapeAttribute(paymentUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#171125;color:#ffffff;text-decoration:none;font-weight:700;">Pay 50% retainer</a></p>`
@@ -311,7 +336,8 @@ function buildEmailHtml(lead, depositAmount, paymentUrl) {
     "<p><strong>Next steps:</strong></p>",
     "<ol>",
     `<li><a href="${escapeAttribute(SERVICE_AGREEMENT_URL)}">Review the service agreement</a> <span style="color:#6e647d;">(English and Spanish PDFs are available on this page)</span></li>`,
-    `<li>Submit the 50% retainer: <strong>$${depositAmount.toFixed(2)}</strong></li>`,
+    `<li>Selected package: <strong>${escapeHtml(pricing.label)}</strong> — $${pricing.total.toFixed(2)}</li>`,
+    `<li>Submit the 50% retainer: <strong>$${pricing.deposit.toFixed(2)}</strong></li>`,
     "</ol>",
     paymentAction,
     "<p><strong>Please note:</strong> your booking is not confirmed until the signed agreement and retainer payment are received.</p>",
@@ -347,8 +373,9 @@ function encodeMimeSubject(subject) {
   return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
 }
 
-function buildPaymentDescription(lead) {
+function buildPaymentDescription(lead, pricing) {
   return [
+    pricing?.label,
     lead.eventType,
     lead.eventDate,
     lead.serviceRequested,

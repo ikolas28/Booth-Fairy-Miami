@@ -44,7 +44,7 @@ const seedLeads = [
     endTime: "22:00",
     venue: "Villa Toscana Miami",
     city: "Miami",
-    serviceRequested: "DSLR Photo Booth - Digital Sharing",
+    serviceRequested: "DSLR Print Photo Booth - 2 Hours ($450)",
     guestCount: 120,
     budget: 900,
     notes: "Luxury wedding inquiry. Wants clean white backdrop and digital gallery. Availability still needs to be checked.",
@@ -90,7 +90,7 @@ const seedLeads = [
     endTime: "20:00",
     venue: "Private Residence",
     city: "Hallandale",
-    serviceRequested: "DSLR Photo Booth - Digital Sharing",
+    serviceRequested: "DSLR Print Photo Booth - 3 Hours ($575)",
     guestCount: 55,
     budget: 550,
     notes: "Came in from Tidio chat. Wants quick digital sharing only. Deposit link requested.",
@@ -113,7 +113,7 @@ const seedLeads = [
     endTime: "16:00",
     venue: "Coral Gables Country Club",
     city: "Coral Gables",
-    serviceRequested: "DSLR Photo Booth - Digital Sharing",
+    serviceRequested: "DSLR Print Photo Booth - 4 Hours ($700)",
     guestCount: 70,
     budget: 700,
     notes: "Instagram DM lead. Wants feminine floral setup and soft glam editing.",
@@ -201,7 +201,7 @@ const seedBookings = [
     city: seedLeads[2].city,
     serviceRequested: seedLeads[2].serviceRequested,
     guestCount: seedLeads[2].guestCount,
-    packageInterest: "Starter Digital Package - 2 Hours",
+    packageInterest: "DSLR Print Photo Booth - 2 Hours ($450)",
     totalQuote: 450,
     depositRequired: 225,
     depositStatus: "Pending",
@@ -243,7 +243,7 @@ const seedCampaigns = [
       "2. Slow pan of backdrop, props, and DSLR camera.",
       "3. Show instant digital sharing on a phone.",
       "Caption:",
-      "Luxury DSLR digital photo booth for Miami events. Instant digital sharing, premium setup, and a polished guest experience. Send your event date to check availability. @boothfairymiami",
+      "Luxury DSLR print photo booth for Miami events with unlimited prints, instant digital sharing, premium setup, and a polished guest experience. Send your event date to check availability. @boothfairymiami",
       "Hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents",
       "CTA: DM your event date, venue/city, and guest count."
     ].join("\n"),
@@ -1917,12 +1917,17 @@ function renderLeadCards() {
 function getDisplayServiceRequested(lead = {}) {
   const service = String(lead.serviceRequested || "").trim();
   const notes = String(lead.notes || "").toLowerCase();
-  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
+  const fourHour = /4\s*hours?|4-hour|\$700/.test(`${service} ${notes}`);
+  const threeHour = /3\s*hours?|3-hour|\$575/.test(`${service} ${notes}`);
+  const packageLooksPhotoBoothOnly = /dslr|photo booth|photobooth|print booth/.test(`${service} ${notes}`);
   const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
   if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
-    return "DSLR Photo Booth - Digital Sharing";
+    return fourHour ? "DSLR Print Photo Booth - 4 Hours ($700)" : threeHour ? "DSLR Print Photo Booth - 3 Hours ($575)" : "DSLR Print Photo Booth - 2 Hours ($450)";
   }
-  return service || "DSLR Photo Booth - Digital Sharing";
+  if (packageLooksPhotoBoothOnly && service !== "Photo Booth + DJ Bundle") {
+    return fourHour ? "DSLR Print Photo Booth - 4 Hours ($700)" : threeHour ? "DSLR Print Photo Booth - 3 Hours ($575)" : "DSLR Print Photo Booth - 2 Hours ($450)";
+  }
+  return service || "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 function renderBookings() {
@@ -3528,11 +3533,14 @@ function formatMonthLabel(isoMonth) {
 }
 
 function formatCurrency(value) {
+  const amount = Number(value || 0);
+  const fractionDigits = Number.isInteger(amount) ? 0 : 2;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0
-  }).format(value || 0);
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  }).format(amount);
 }
 
 function emptyState(title, copy) {
@@ -3574,14 +3582,11 @@ function addDaysIso(days) {
 }
 
 function calculateDepositAmount(lead) {
-  const budget = Number(lead.budget || 0);
-  if (budget > 0) {
-    return Math.round(budget * 50) / 100;
-  }
   const service = `${lead.serviceRequested || ""}`.toLowerCase();
   if (service.includes("4 hour") || service.includes("$700")) return 350;
   if (service.includes("3 hour") || service.includes("$575")) return 287.5;
-  return 225;
+  if (service.includes("2 hour") || service.includes("$450")) return 225;
+  return 0;
 }
 
 function updateConnectionIndicators() {
@@ -3858,7 +3863,7 @@ function mapLeadFromDb(row) {
     endTime: normalizeTimeValue(row.end_time),
     venue: row.venue || "",
     city: row.city || "",
-    serviceRequested: row.service_requested || "DSLR Photo Booth - Digital Sharing",
+    serviceRequested: row.service_requested || "DSLR Print Photo Booth - 2 Hours ($450)",
     guestCount: Number(row.guest_count || 0),
     budget: Number(row.budget || 0),
     notes: row.notes || "",

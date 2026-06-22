@@ -80,7 +80,7 @@ async function getFinancialSummary() {
 function buildIncomeRow(lead, booking, payment, rowNumber) {
   const invoiceTotal = money(booking.total_quote) || money(lead.budget) || defaultPackageTotal(lead.service_requested || booking.service_requested);
   const depositReceived = getPaidDepositAmount(lead, booking, payment, invoiceTotal);
-  const service = booking.service_requested || lead.service_requested || "DSLR Photo Booth - Digital Sharing";
+  const service = booking.service_requested || lead.service_requested || "DSLR Print Photo Booth - 2 Hours ($450)";
   const packageBooked = booking.package_interest || inferPackage(service, invoiceTotal);
   return [
     todayIso(),
@@ -227,9 +227,9 @@ function inferPaymentMethod(payment) {
 function inferPackage(service, total) {
   if (service === "Photo Booth + DJ Bundle") return "Photo Booth + DJ Bundle";
   if (service === "Premium DJ Services") return "Premium DJ Services";
-  if (total >= 700) return "Starter Digital Package - 4 Hours ($700)";
-  if (total >= 575) return "Starter Digital Package - 3 Hours ($575)";
-  return "Starter Digital Package - 2 Hours ($450)";
+  if (total >= 700) return "DSLR Print Photo Booth - 4 Hours ($700)";
+  if (total >= 575) return "DSLR Print Photo Booth - 3 Hours ($575)";
+  return "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 function defaultPackageTotal(service) {

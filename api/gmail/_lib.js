@@ -7,6 +7,7 @@ const {
   recordLeadScore,
   withLeadIntelligence
 } = require("../_lead-utils");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://hwwhyrpwfewxevocjjzk.supabase.co";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3d2h5cnB3ZmV3eGV2b2NqanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MDAzMDksImV4cCI6MjA5NDk3NjMwOX0.-55qhrFYuzcAqQRhO01oxP4EJP3jyR9qU-qNDW_pAxI";
@@ -460,7 +461,7 @@ async function importMessageAsLead(message) {
     end_time: extracted.endTime || null,
     venue: extracted.venue || null,
     city: extracted.city || null,
-    service_requested: extracted.serviceRequested || "DSLR Photo Booth - Digital Sharing",
+    service_requested: extracted.serviceRequested || "DSLR Print Photo Booth - 2 Hours ($450)",
     guest_count: 0,
     budget: 0,
     notes: [
@@ -781,7 +782,7 @@ function inferServiceRequested(text) {
   const wantsBooth = /\b(dslr|photo booth|photobooth|booth|digital booth)\b/.test(source);
   if (wantsBooth && wantsDj) return "Photo Booth + DJ Bundle";
   if (wantsDj && !wantsBooth) return "Premium DJ Services";
-  if (wantsBooth || wantsNoDj) return "DSLR Photo Booth - Digital Sharing";
+  if (wantsBooth || wantsNoDj) return getPhotoBoothPackageLabel(source) || "DSLR Print Photo Booth - 2 Hours ($450)";
   return "";
 }
 

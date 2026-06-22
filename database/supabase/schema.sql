@@ -223,11 +223,11 @@ create table if not exists public.package_templates (
 
 insert into public.package_templates (id, service, package_name, hours, base_price, includes, notes, active)
 values
-  ('PKG-001', 'DSLR Photo Booth - Digital Sharing', 'Starter Digital Package - 2 Hours', 2, 450, 'DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant', 'Digital photos only. No prints. No 360 booth.', true),
-  ('PKG-002', 'DSLR Photo Booth - Digital Sharing', 'Starter Digital Package - 3 Hours', 3, 575, 'DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant', 'Digital photos only. No prints. No 360 booth.', true),
-  ('PKG-003', 'DSLR Photo Booth - Digital Sharing', 'Starter Digital Package - 4 Hours', 4, 700, 'DSLR booth; instant sharing; one premium backdrop; professional lighting; custom overlay; props; attendant', 'Digital photos only. No prints. No 360 booth.', true),
+  ('PKG-001', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 2 Hours', 2, 450, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $225. No 360 booth.', true),
+  ('PKG-002', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 3 Hours', 3, 575, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $287.50. No 360 booth.', true),
+  ('PKG-003', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 4 Hours', 4, 700, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $350. No 360 booth.', true),
   ('PKG-004', 'Premium DJ Services', 'Premium DJ Services', null, null, 'High-end DJ services for Miami and South Florida events', 'Quote per event. Do not publish paid ads or discounts without owner approval.', true),
-  ('PKG-005', 'Photo Booth + DJ Bundle', 'Photo Booth + DJ Bundle', null, null, 'DSLR digital photo booth package plus premium DJ services', 'Bundle quote requires owner-approved final pricing.', true)
+  ('PKG-005', 'Photo Booth + DJ Bundle', 'Photo Booth + DJ Bundle', null, null, 'DSLR print photo booth package with unlimited prints plus premium DJ services', 'Bundle quote requires owner-approved final pricing.', true)
 on conflict (id) do update
 set service = excluded.service,
     package_name = excluded.package_name,
@@ -251,10 +251,10 @@ create table if not exists public.quote_templates (
 
 insert into public.quote_templates (id, trigger, recommended_package, draft_copy, owner_approval_needed, active)
 values
-  ('QT-001', 'Client asks for photo booth pricing', 'Starter Digital Package', 'Thank you for reaching out to Booth Fairy Miami. Our Starter Digital Package includes a DSLR booth, instant digital sharing, one premium backdrop, professional lighting, custom overlay, props, and an attendant. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.', false, true),
+  ('QT-001', 'Client asks for photo booth pricing', 'DSLR Print Photo Booth', 'Thank you for reaching out to Booth Fairy Miami. Every DSLR Print Photo Booth package includes unlimited prints, instant digital sharing, a premium backdrop, studio flash lighting, custom overlay, props, an attendant, unlimited sessions, and digital gallery delivery. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.', false, true),
   ('QT-002', 'Client wants to book', 'Calendar availability check', 'I would love to help reserve your date. Before confirming, I need to check calendar availability. Once availability is confirmed, booking is secured with a signed agreement and a non-refundable 50% retainer. The remaining 50% is due on the day of the event.', false, true),
-  ('QT-003', 'Client asks about DJ services', 'Premium DJ Services', 'We also offer premium DJ services for Miami and South Florida events. DJ pricing is quoted based on event date, venue, hours, sound needs, timeline, and whether you want to bundle DJ with the DSLR digital photo booth.', true, true),
-  ('QT-004', 'Client asks for prints or 360 booth', 'DSLR Digital Photo Booth', 'At this time Booth Fairy Miami offers DSLR digital photo booth service with high-quality digital photos and instant digital sharing. We do not currently offer print packages or 360 photo booth services.', false, true)
+  ('QT-003', 'Client asks about DJ services', 'Premium DJ Services', 'We also offer premium DJ services for Miami and South Florida events. DJ pricing is quoted based on event date, venue, hours, sound needs, timeline, and whether you want to bundle DJ with the DSLR print photo booth.', true, true),
+  ('QT-004', 'Client asks about prints or 360 booth', 'DSLR Print Photo Booth', 'Every DSLR Print Photo Booth package includes unlimited prints and instant digital sharing. We do not currently offer 360 photo booth services.', false, true)
 on conflict (id) do update
 set trigger = excluded.trigger,
     recommended_package = excluded.recommended_package,

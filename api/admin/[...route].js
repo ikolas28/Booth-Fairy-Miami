@@ -13,6 +13,7 @@ const {
   getHubSpotStatus,
   syncLeadToHubSpot
 } = require("../_hubspot-lib");
+const { getPhotoBoothPackageLabel } = require("../_packages");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const CRON_SECRET = cleanEnvValue(process.env.CRON_SECRET);
@@ -1324,13 +1325,15 @@ function isUsableEmail(value) {
 
 function getBookingServiceRequested(lead = {}) {
   const service = stringify(lead.service_requested || lead.serviceRequested);
-  const notes = stringify(lead.notes).toLowerCase();
-  const packageLooksPhotoBoothOnly = /starter digital package|dslr photo booth|digital photo booth|photo booth 2 hours|2 hours \(\$450\)|2-hour|2 hour/.test(notes);
-  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes);
+  const notes = stringify(lead.notes);
+  const notesPackageLabel = getPhotoBoothPackageLabel(notes);
+  const packageLabel = getPhotoBoothPackageLabel(service) || notesPackageLabel;
+  const packageLooksPhotoBoothOnly = Boolean(packageLabel);
+  const packageLooksBundle = /dj \+ photo booth bundle|photo booth \+ dj bundle/.test(notes.toLowerCase());
   if (service === "Photo Booth + DJ Bundle" && packageLooksPhotoBoothOnly && !packageLooksBundle) {
-    return "DSLR Photo Booth - Digital Sharing";
+    return notesPackageLabel || "DSLR Print Photo Booth - 2 Hours ($450)";
   }
-  return service || "DSLR Photo Booth - Digital Sharing";
+  return packageLabel || service || "DSLR Print Photo Booth - 2 Hours ($450)";
 }
 
 async function createMarketingGmailDraft(accessToken, email) {
@@ -1545,7 +1548,7 @@ function extractMarketingBlock(notes, label) {
 function defaultMarketingSubject(campaign) {
   const title = stringify(campaign.title).toLowerCase();
   if (title.includes("dj") || title.includes("bundle")) return "Make your Miami event feel effortless";
-  return "A polished digital photo booth experience for your event";
+  return "A luxury print photo booth experience for your event";
 }
 
 function defaultMarketingBody(campaign) {
@@ -1556,7 +1559,7 @@ function defaultMarketingBody(campaign) {
       "",
       "If you are still planning entertainment for your event, Booth Fairy Miami can make the setup feel simple and polished with one coordinated team for music, energy, and guest photos.",
       "",
-      "Our luxury DSLR digital photo booth includes instant digital sharing, a premium backdrop look, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
+      "Our luxury DSLR print photo booth includes unlimited prints, instant digital sharing, a premium backdrop, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
       "",
       "Reply with your event date, venue or city, and guest count, and we can check availability before sending the best package option.",
       "",
@@ -1568,9 +1571,9 @@ function defaultMarketingBody(campaign) {
   return [
     "Hi there,",
     "",
-    "Booth Fairy Miami offers a luxury DSLR digital photo booth experience for weddings, birthdays, corporate events, and private celebrations across Miami and South Florida.",
+    "Booth Fairy Miami offers a luxury DSLR print photo booth experience for weddings, birthdays, corporate events, and private celebrations across Miami and South Florida.",
     "",
-    "The booth is digital-only and includes instant sharing, polished lighting, a custom overlay, a premium backdrop look, props, and an attendant.",
+    "Every package includes unlimited prints, instant digital sharing, polished lighting, a custom overlay, a premium backdrop, props, and an attendant.",
     "",
     "Reply with your event date, venue or city, and guest count, and we can check availability before sending package options.",
     "",
