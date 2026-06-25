@@ -15,6 +15,45 @@ const observer = new IntersectionObserver(
 
 document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
 
+async function updateGoogleRatingProof() {
+  const ratingElement = document.querySelector("[data-google-rating]");
+  const reviewCountElement = document.querySelector("[data-google-review-count]");
+
+  if (!ratingElement || !reviewCountElement) return;
+
+  try {
+    const response = await fetch("/api/website/lead?resource=google-rating", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const rating = Number(data.rating);
+    const reviewCount = Number(data.reviewCount);
+
+    if (Number.isFinite(rating) && rating > 0) {
+      ratingElement.textContent = rating.toFixed(1);
+    }
+
+    if (Number.isFinite(reviewCount) && reviewCount >= 0) {
+      reviewCountElement.textContent = new Intl.NumberFormat("en-US").format(reviewCount);
+    }
+
+    if (data.googleMapsUri) {
+      document.querySelectorAll(".proof-strip a[href*='maps.app.goo.gl']").forEach((link) => {
+        link.href = data.googleMapsUri;
+      });
+    }
+  } catch (error) {
+    // Keep the static fallback values if live Google rating data is unavailable.
+  }
+}
+
+updateGoogleRatingProof();
+
 const productionHostnames = new Set(["www.boothfairymiami.com", "boothfairymiami.com"]);
 const requiresTurnstile = productionHostnames.has(window.location.hostname);
 

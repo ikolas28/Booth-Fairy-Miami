@@ -20,7 +20,19 @@ const ALLOWED_ORIGINS = new Set([
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 8;
 const MAX_BODY_BYTES = 12_000;
+const GOOGLE_RATING_CACHE_MAX_AGE_SECONDS = 60 * 60 * 12;
+const DEFAULT_GOOGLE_RATING = "5.0";
+const DEFAULT_GOOGLE_REVIEW_COUNT = 4;
+const DEFAULT_GOOGLE_MAPS_URI = "https://maps.app.goo.gl/J58XHk8V5N2ZDfx4A";
+const DEFAULT_PLACE_TEXT_QUERIES = [
+  "Booth Fairy Miami",
+  "Booth Fairy Miami photo booth",
+  "Booth Fairy Miami Hialeah FL",
+  "Booth Fairy Miami Miami FL"
+];
 const rateLimitBuckets = new Map();
+let cachedGoogleRatingPayload = null;
+let cachedGoogleRatingAt = 0;
 
 module.exports = async (req, res) => {
   setCorsHeaders(req, res);
@@ -30,8 +42,12 @@ module.exports = async (req, res) => {
     return res.end();
   }
 
+  if (req.method === "GET" && getRequestQueryValue(req, "resource") === "google-rating") {
+    return handleGoogleRatingRequest(req, res);
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST, OPTIONS");
+    res.setHeader("Allow", "GET, POST, OPTIONS");
     return sendJson(res, 405, { ok: false, error: "Method not allowed" });
   }
 
@@ -202,7 +218,7 @@ function setCorsHeaders(req, res) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
   }
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
 }
 
@@ -451,6 +467,192 @@ function fallbackName(email, phone) {
 function stringify(value) {
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+function getRequestQueryValue(req, key) {
+  if (req.query && req.query[key] !== undefined) {
+    return Array.isArray(req.query[key]) ? stringify(req.query[key][0]) : stringify(req.query[key]);
+  }
+
+  try {
+    const url = new URL(req.url, "https://www.boothfairymiami.com");
+    return stringify(url.searchParams.get(key));
+  } catch {
+    return "";
+  }
+}
+
+function fallbackGoogleRatingPayload(reason = "fallback") {
+  return {
+    rating: DEFAULT_GOOGLE_RATING,
+    reviewCount: DEFAULT_GOOGLE_REVIEW_COUNT,
+    googleMapsUri: DEFAULT_GOOGLE_MAPS_URI,
+    source: "fallback",
+    reason,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function normalizeGooglePlaceName(placeId) {
+  const trimmedPlaceId = stringify(placeId);
+  if (!trimmedPlaceId) return "";
+  return trimmedPlaceId.startsWith("places/") ? trimmedPlaceId : `places/${trimmedPlaceId}`;
+}
+
+function formatGoogleRating(value) {
+  const numericRating = Number(value);
+  if (!Number.isFinite(numericRating) || numericRating <= 0) return DEFAULT_GOOGLE_RATING;
+  return numericRating.toFixed(1);
+}
+
+function buildGoogleRatingPayload(place) {
+  const reviewCount = Number(place?.userRatingCount);
+  return {
+    rating: formatGoogleRating(place?.rating),
+    reviewCount: Number.isFinite(reviewCount) && reviewCount >= 0 ? reviewCount : DEFAULT_GOOGLE_REVIEW_COUNT,
+    googleMapsUri: place?.googleMapsUri || DEFAULT_GOOGLE_MAPS_URI,
+    source: "google-places",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function fetchGooglePlaceById(apiKey, placeName) {
+  const response = await fetch(`https://places.googleapis.com/v1/${encodeURI(placeName)}`, {
+    headers: {
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,googleMapsUri"
+    }
+  });
+
+  if (!response.ok) {
+    const error = new Error(`Google Places details request failed with ${response.status}`);
+    error.googleStatusCode = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+async function fetchGooglePlaceByTextSearch(apiKey) {
+  const textQueries = process.env.GOOGLE_PLACE_TEXT_QUERY
+    ? [process.env.GOOGLE_PLACE_TEXT_QUERY]
+    : DEFAULT_PLACE_TEXT_QUERIES;
+
+  for (const textQuery of textQueries) {
+    const place = await fetchFirstGooglePlaceByTextSearch(apiKey, textQuery);
+    if (place) return place;
+  }
+
+  for (const textQuery of textQueries) {
+    const place = await fetchFirstLegacyGooglePlaceByTextSearch(apiKey, textQuery);
+    if (place) return place;
+  }
+
+  return null;
+}
+
+async function fetchFirstGooglePlaceByTextSearch(apiKey, textQuery) {
+  const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.googleMapsUri"
+    },
+    body: JSON.stringify({
+      textQuery,
+      locationBias: {
+        circle: {
+          center: {
+            latitude: 25.9552664,
+            longitude: -80.4482804
+          },
+          radius: 50000
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const error = new Error(`Google Places text search request failed with ${response.status}`);
+    error.googleStatusCode = response.status;
+    throw error;
+  }
+
+  const searchResults = await response.json();
+  return Array.isArray(searchResults.places) ? searchResults.places[0] : null;
+}
+
+async function fetchFirstLegacyGooglePlaceByTextSearch(apiKey, textQuery) {
+  const params = new URLSearchParams({
+    query: textQuery,
+    key: apiKey
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?${params.toString()}`);
+
+  if (!response.ok) {
+    const error = new Error(`Legacy Google Places text search request failed with ${response.status}`);
+    error.googleStatusCode = response.status;
+    throw error;
+  }
+
+  const searchResults = await response.json();
+  if (searchResults.status && !["OK", "ZERO_RESULTS"].includes(searchResults.status)) {
+    const error = new Error(`Legacy Google Places text search returned ${searchResults.status}`);
+    error.googleStatusCode = searchResults.status;
+    throw error;
+  }
+
+  const place = Array.isArray(searchResults.results) ? searchResults.results[0] : null;
+  if (!place) return null;
+
+  return {
+    rating: place.rating,
+    userRatingCount: place.user_ratings_total,
+    googleMapsUri: place.place_id
+      ? `https://www.google.com/maps/search/?api=1&query=Booth%20Fairy%20Miami&query_place_id=${encodeURIComponent(place.place_id)}`
+      : DEFAULT_GOOGLE_MAPS_URI
+  };
+}
+
+async function handleGoogleRatingRequest(req, res) {
+  const now = Date.now();
+  res.setHeader(
+    "Cache-Control",
+    `s-maxage=${GOOGLE_RATING_CACHE_MAX_AGE_SECONDS}, stale-while-revalidate=${GOOGLE_RATING_CACHE_MAX_AGE_SECONDS}`
+  );
+
+  if (cachedGoogleRatingPayload && now - cachedGoogleRatingAt < GOOGLE_RATING_CACHE_MAX_AGE_SECONDS * 1000) {
+    return sendJson(res, 200, cachedGoogleRatingPayload);
+  }
+
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+  const placeName = normalizeGooglePlaceName(process.env.GOOGLE_PLACE_ID);
+
+  if (!apiKey) {
+    return sendJson(res, 200, fallbackGoogleRatingPayload("missing-google-places-config"));
+  }
+
+  try {
+    const place = placeName
+      ? await fetchGooglePlaceById(apiKey, placeName)
+      : await fetchGooglePlaceByTextSearch(apiKey);
+
+    if (!place) throw new Error("Google Places did not return a matching place.");
+
+    const payload = buildGoogleRatingPayload(place);
+    cachedGoogleRatingPayload = payload;
+    cachedGoogleRatingAt = now;
+
+    return sendJson(res, 200, payload);
+  } catch (error) {
+    const payload = cachedGoogleRatingPayload || fallbackGoogleRatingPayload(
+      error?.googleStatusCode
+        ? `google-places-request-failed-${error.googleStatusCode}`
+        : "google-places-unavailable"
+    );
+    return sendJson(res, 200, payload);
+  }
 }
 
 function sendJson(res, status, body) {

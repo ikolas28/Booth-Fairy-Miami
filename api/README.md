@@ -12,6 +12,24 @@ Integrations:
 - HubSpot
 - Website form intake
 
+## Google rating proof strip
+
+The public homepage can auto-update the Google rating and review count through the existing website API function:
+
+- [api/website/lead.js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\website\lead.js)
+
+Route:
+- `/api/website/lead?resource=google-rating`
+
+Required Vercel environment variables:
+- `GOOGLE_PLACES_API_KEY`: Google Maps Platform API key with Places API access.
+
+Optional Vercel environment variables:
+- `GOOGLE_PLACE_ID`: Booth Fairy Miami's Google Place ID. Recommended for the most exact match.
+- `GOOGLE_PLACE_TEXT_QUERY`: Exact search text used if no Place ID is configured. If omitted, the endpoint tries a short list of Booth Fairy Miami search phrases.
+
+If the API key is missing, the homepage keeps the safe fallback values already printed in `website/index.html`.
+
 ## Website lead intake
 
 The public website contact form posts to:
