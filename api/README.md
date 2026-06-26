@@ -102,8 +102,9 @@ The project now includes a Gmail OAuth + sync path for CRM lead capture:
 
 Expected use:
 - connect `info@boothfairymiami.com` through `/admin`
-- label inbox leads in Gmail
-- sync those labeled messages into CRM leads
+- label real inbox leads in Gmail with `CRM-Lead`
+- sync only those labeled lead candidates into CRM leads
+- skip newsletters, social notifications, platform promos, security emails, and messages without enough event-booking intent
 - reconnect Google after deploying scope changes so Calendar free/busy checks are authorized
 
 Required Vercel environment variables:
@@ -115,8 +116,14 @@ Optional Vercel environment variables:
 - `GOOGLE_REDIRECT_URI`
 - `GMAIL_ACCOUNT_EMAIL`
 - `GMAIL_SYNC_QUERY`
-- `GMAIL_IGNORED_SENDERS` - comma-separated emails or domains to skip during Gmail lead sync. Defaults already skip Facebook/ManyChat notification senders.
+- `GMAIL_IGNORED_SENDERS` - comma-separated emails or domains to skip during Gmail lead sync. Defaults already skip common social, platform, payment, website-builder, and notification senders.
 - `GOOGLE_CALENDAR_ID`
+
+Default Gmail sync query:
+
+- `newer_than:30d label:CRM-Lead -category:promotions -category:social -category:forums`
+
+The sync intentionally does not import every message sent to the mailbox. This prevents newsletters, TikTok/Yelp/Blinq/Formspree notifications, and other non-leads from becoming `Missing Info` CRM leads.
 
 ## Calendar availability
 

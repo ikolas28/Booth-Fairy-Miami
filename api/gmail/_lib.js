@@ -35,11 +35,15 @@ const DEFAULT_IGNORED_GMAIL_SENDERS = [
   "manychat.com",
   "instagram.com",
   "instagrammail.com",
+  "tiktok.com",
+  "tiktokmail.com",
   "stripe.com",
   "google.com",
   "accounts.google.com",
   "wix.com",
-  "squarespace.com"
+  "squarespace.com",
+  "blinq.me",
+  "blinq.com"
 ];
 const GMAIL_IGNORED_SENDERS = parseIgnoredSenders(process.env.GMAIL_IGNORED_SENDERS);
 
@@ -340,12 +344,13 @@ function parseIgnoredSenders(value = "") {
 }
 
 function buildDefaultGmailSyncQuery() {
-  return `newer_than:30d {label:CRM-Lead to:${GMAIL_ACCOUNT_EMAIL}}`;
+  return "newer_than:30d label:CRM-Lead -category:promotions -category:social -category:forums";
 }
 
 function normalizeGmailSyncQuery(value = "") {
   const configured = String(value || "").trim();
-  if (!configured || configured === "label:CRM-Lead") {
+  const oldBroadMailboxQuery = /\{\s*label:CRM-Lead\s+to:[^}]+\}/i.test(configured);
+  if (!configured || configured === "label:CRM-Lead" || oldBroadMailboxQuery) {
     return buildDefaultGmailSyncQuery();
   }
   return configured;
@@ -394,6 +399,16 @@ function getGmailImportDecision(message) {
     };
   }
 
+  const leadIntent = getGmailLeadIntent(message, subject);
+  if (!leadIntent.shouldImport) {
+    return {
+      shouldImport: false,
+      reason: leadIntent.reason,
+      fromEmail,
+      subject
+    };
+  }
+
   return {
     shouldImport: true,
     reason: "",
@@ -409,6 +424,26 @@ function isIgnoredSystemNotification(message, subject = "") {
     getReadableMessageText(message).slice(0, 1200)
   ].join(" ").toLowerCase();
   return [
+    "here's what you need to know",
+    "good morning from apple news",
+    "your free trial",
+    "upgrade now",
+    "performance stats",
+    "mid-year pulse check",
+    "automatically respond to new submissions",
+    "formspree news",
+    "turn introductions into opportunities",
+    "posted a new story",
+    "posted:",
+    "reposted:",
+    "liked your post",
+    "liked your posts",
+    "left you a comment",
+    "mentioned you on tiktok",
+    "watched your video",
+    "catch up on the latest stories",
+    "is your tiktok friend",
+    "is in your contacts",
     "your stripe verification link",
     "unrecognized device signed in to your stripe account",
     "security alert",
@@ -420,6 +455,44 @@ function isIgnoredSystemNotification(message, subject = "") {
     "see what's been happening on instagram",
     "squarespace verification code"
   ].some((phrase) => text.includes(phrase));
+}
+
+function getGmailLeadIntent(message, subject = "") {
+  const fullText = [
+    subject,
+    message?.snippet || "",
+    getReadableMessageText(message).slice(0, 2500)
+  ].join("\n");
+  const source = fullText.toLowerCase();
+
+  const hasServiceSignal = /\b(photo\s*booth|photobooth|dslr|print booth|digital booth|mirror booth|360 booth|booth rental|dj|deejay)\b/i.test(fullText);
+  const hasEventSignal = /\b(wedding|quince|quincea(?:n|ñ)era|sweet\s*16|birthday|baby shower|corporate|school|graduation|holiday party|hoa|church|grand opening|event|party|venue|guests?)\b/i.test(fullText);
+  const hasActionSignal = /\b(availability|available|quote|pricing|price|package|book|booking|reserve|reservation|retainer|deposit|invoice|contract|interested|looking for|need|inquiry|enquiry)\b/i.test(fullText);
+  const hasDetailSignal = Boolean(extractEventDate(fullText) || extractPhone(fullText) || inferCity(fullText) || extractTimeRange(fullText).startTime);
+
+  const noiseScore = [
+    /\b(newsletter|unsubscribe|notification settings|privacy policy|terms of service)\b/,
+    /\b(reposted|posted|liked|commented|story|followers?|watched your video|mentioned you)\b/,
+    /\b(free trial|upgrade|performance stats|pulse check|automatically respond|introductions into opportunities)\b/,
+    /\b(adhd|earthquake|social security|retirement tax|peptide|cannabis|apple news)\b/
+  ].reduce((score, pattern) => score + (pattern.test(source) ? 1 : 0), 0);
+
+  const intentScore = [
+    hasServiceSignal,
+    hasEventSignal,
+    hasActionSignal,
+    hasDetailSignal
+  ].filter(Boolean).length;
+
+  if (noiseScore >= 1 && intentScore < 3) {
+    return { shouldImport: false, reason: "Skipped non-lead notification or newsletter." };
+  }
+
+  if (intentScore >= 2 && (hasServiceSignal || hasActionSignal)) {
+    return { shouldImport: true, reason: "" };
+  }
+
+  return { shouldImport: false, reason: "Skipped Gmail message without enough event booking intent." };
 }
 
 async function recordSkippedGmailImport(message, reason) {
