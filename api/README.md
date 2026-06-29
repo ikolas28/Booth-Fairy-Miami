@@ -29,6 +29,7 @@ Optional Vercel environment variables:
 - `GOOGLE_PLACE_TEXT_QUERY`: Exact search text used if no Place ID is configured. If omitted, the endpoint tries a short list of Booth Fairy Miami search phrases.
 
 If the API key is missing, the homepage keeps the safe fallback values already printed in `website/index.html`.
+The response is cached for one hour. Use `/api/website/lead?resource=google-rating&refresh=1` for a one-time manual refresh check.
 
 ## Website lead intake
 

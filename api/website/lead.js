@@ -20,7 +20,7 @@ const ALLOWED_ORIGINS = new Set([
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 8;
 const MAX_BODY_BYTES = 12_000;
-const GOOGLE_RATING_CACHE_MAX_AGE_SECONDS = 60 * 60 * 12;
+const GOOGLE_RATING_CACHE_MAX_AGE_SECONDS = 60 * 60;
 const DEFAULT_GOOGLE_RATING = "5.0";
 const DEFAULT_GOOGLE_REVIEW_COUNT = 4;
 const DEFAULT_GOOGLE_MAPS_URI = "https://maps.app.goo.gl/J58XHk8V5N2ZDfx4A";
@@ -617,12 +617,13 @@ async function fetchFirstLegacyGooglePlaceByTextSearch(apiKey, textQuery) {
 
 async function handleGoogleRatingRequest(req, res) {
   const now = Date.now();
+  const forceRefresh = getRequestQueryValue(req, "refresh") === "1";
   res.setHeader(
     "Cache-Control",
     `s-maxage=${GOOGLE_RATING_CACHE_MAX_AGE_SECONDS}, stale-while-revalidate=${GOOGLE_RATING_CACHE_MAX_AGE_SECONDS}`
   );
 
-  if (cachedGoogleRatingPayload && now - cachedGoogleRatingAt < GOOGLE_RATING_CACHE_MAX_AGE_SECONDS * 1000) {
+  if (!forceRefresh && cachedGoogleRatingPayload && now - cachedGoogleRatingAt < GOOGLE_RATING_CACHE_MAX_AGE_SECONDS * 1000) {
     return sendJson(res, 200, cachedGoogleRatingPayload);
   }
 
