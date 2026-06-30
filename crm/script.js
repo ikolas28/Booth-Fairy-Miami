@@ -856,7 +856,7 @@ async function refreshLeadIntelligence() {
   try {
     const [leadScores, leadDuplicates, automationRuns] = await Promise.all([
       supabaseRest("/lead_scores?select=*&order=score.desc,created_at.desc&limit=30"),
-      supabaseRest("/lead_duplicates?select=*&order=created_at.desc&limit=20"),
+      supabaseRest("/lead_duplicates?select=*&resolved=eq.false&order=created_at.desc&limit=20"),
       supabaseRest("/automation_runs?select=*&order=started_at.desc&limit=12")
     ]);
     state.leadScores = leadScores || [];
@@ -1538,7 +1538,7 @@ function renderDuplicateWarnings() {
   if (!container) return;
 
   const items = state.leadDuplicates
-    .filter((item) => !item.resolved)
+    .filter(isActionableDuplicateWarning)
     .slice(0, 6);
 
   if (!items.length) {
@@ -1575,6 +1575,13 @@ function renderDuplicateWarnings() {
       </div>
     `;
   }).join("");
+}
+
+function isActionableDuplicateWarning(item) {
+  if (!item || item.resolved) return false;
+  const lead = getLeadById(item.matched_lead_id);
+  if (!lead) return false;
+  return !["Lost", "Completed", "Event Completed", "Review Requested"].includes(lead.status);
 }
 
 function getDuplicateReasonCopy(item, lead) {
@@ -3174,8 +3181,11 @@ async function ignoreDuplicateWarning(warningId) {
   try {
     await supabaseRest(`/lead_duplicates?id=eq.${encodeURIComponent(warningId)}`, {
       method: "PATCH",
-      body: { resolved: true }
+      body: { resolved: true },
+      prefer: "return=minimal"
     });
+    await refreshLeadIntelligence();
+    renderLeadIntelligence();
   } catch (error) {
     warning.resolved = false;
     renderLeadIntelligence();
