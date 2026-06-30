@@ -97,6 +97,13 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
       throw new Error("CRM lead submission failed");
     }
 
+    window.bfmTrackEvent?.("crm_lead_submit_success", {
+      form_id: form.id || "quote-form",
+      form_name: "website_quote_form",
+      service_requested: String(formData.get("service-requested") || ""),
+      package_interest: String(formData.get("package-interest") || ""),
+    });
+
     const response = await fetch(form.action, {
       method: form.method,
       body: formData,
@@ -108,6 +115,11 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
     if (!response.ok && requiresTurnstile) {
       throw new Error("Form submission failed");
     }
+
+    window.bfmTrackEvent?.("form_submit_success", {
+      form_id: form.id || "quote-form",
+      form_name: "website_quote_form",
+    });
 
     button.textContent = "Inquiry Sent";
     form.reset();
