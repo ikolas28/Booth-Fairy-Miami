@@ -55,6 +55,10 @@
       "destination": "/website/photo-booth-rental-miami.html"
     },
     {
+      "source": "/dj-services-miami.html",
+      "destination": "/website/dj-services-miami.html"
+    },
+    {
       "source": "/photo-booth-rental-hialeah.html",
       "destination": "/website/photo-booth-rental-hialeah.html"
     },
