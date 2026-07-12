@@ -107,6 +107,10 @@
       "destination": "/website/google04f5f8c2c05f04bb.html"
     },
     {
+      "source": "/tiktokWXKfRRmIyiyxWipk2jrV6erPEoF0LzlO.txt",
+      "destination": "/website/tiktokWXKfRRmIyiyxWipk2jrV6erPEoF0LzlO.txt"
+    },
+    {
       "source": "/assets/:path*",
       "destination": "/website/assets/:path*"
     }
