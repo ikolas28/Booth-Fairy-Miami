@@ -1016,7 +1016,7 @@ async function handleTikTokConnect() {
   try {
     const response = await fetch("/api/tiktok/connect", {
       method: "POST",
-      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
+      headers: await getTikTokAdminAuthHeaders({ "Content-Type": "application/json" })
     });
     const payload = await parseResponse(response);
     if (!response.ok || !payload?.ok || !payload.authorizeUrl) {
@@ -1035,7 +1035,7 @@ async function handleTikTokDisconnect() {
   try {
     const response = await fetch("/api/tiktok/disconnect", {
       method: "POST",
-      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
+      headers: await getTikTokAdminAuthHeaders({ "Content-Type": "application/json" })
     });
     const payload = await parseResponse(response);
     if (!response.ok || !payload?.ok) {
@@ -1063,7 +1063,7 @@ async function handleTikTokUpload() {
   try {
     const response = await fetch("/api/tiktok/upload", {
       method: "POST",
-      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
+      headers: await getTikTokAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ videoUrl })
     });
     const payload = await parseResponse(response);
@@ -1079,6 +1079,22 @@ async function handleTikTokUpload() {
     tiktokUploadButton.disabled = !state.tiktok.connected;
     tiktokUploadButton.textContent = "Send to TikTok Drafts";
   }
+}
+
+async function getTikTokAdminAuthHeaders(headers = {}) {
+  if (!authState.session?.accessToken) {
+    throw new Error("Your CRM sign-in is missing. Please sign in again.");
+  }
+  if (!authState.isLocalFallback && needsRefresh(authState.session) && authState.session.refreshToken) {
+    const refreshed = await refreshSession(authState.session.refreshToken);
+    if (!refreshed) {
+      throw new Error("Your CRM sign-in expired. Please sign in again.");
+    }
+  }
+  return {
+    ...headers,
+    Authorization: `Bearer ${authState.session.accessToken}`
+  };
 }
 
 async function refreshHubSpotStatus() {
