@@ -27,8 +27,14 @@ const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSIO
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
-  if (route.startsWith("tiktok/")) {
-    return handleTikTokRequest(req, res, route.slice("tiktok/".length));
+  const originalTikTokRoute = new URL(req.url, "https://www.boothfairymiami.com")
+    .pathname
+    .match(/^\/api\/tiktok\/([^/]+)$/)?.[1];
+  if (originalTikTokRoute) {
+    return handleTikTokRequest(req, res, originalTikTokRoute);
+  }
+  if (route.startsWith("tiktok-")) {
+    return handleTikTokRequest(req, res, route.slice("tiktok-".length));
   }
   if (route === "confirm-booking") return handleConfirmBooking(req, res);
   if (route === "calendar-sync") return handleCalendarSync(req, res);

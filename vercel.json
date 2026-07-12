@@ -11,8 +11,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api/tiktok/:path*",
-      "destination": "/api/admin/tiktok/:path*"
+      "source": "/api/tiktok/:path",
+      "destination": "/api/admin/tiktok-:path"
     },
     {
       "source": "/admin",
