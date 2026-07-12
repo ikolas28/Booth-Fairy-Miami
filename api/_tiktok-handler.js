@@ -13,18 +13,14 @@ const CONNECTION_COOKIE = "bfm_tiktok_connection";
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 const ALLOWED_MEDIA_HOSTS = new Set(["www.boothfairymiami.com", "boothfairymiami.com"]);
 
-module.exports = async (req, res) => {
-  const route = getRoute(req);
+module.exports = async (req, res, routeOverride = "") => {
+  const route = routeOverride || getRoute(req);
   if (!route || route === "status") return handleStatus(req, res);
   if (route === "connect") return handleConnect(req, res);
   if (route === "callback") return handleCallback(req, res);
   if (route === "disconnect") return handleDisconnect(req, res);
   if (route === "upload") return handleUpload(req, res);
   return sendJson(res, 404, { ok: false, error: "TikTok route not found." });
-};
-
-module.exports.config = {
-  maxDuration: 60
 };
 
 async function handleStatus(req, res) {

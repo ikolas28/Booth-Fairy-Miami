@@ -14,6 +14,7 @@ const {
   syncLeadToHubSpot
 } = require("../_hubspot-lib");
 const { getPhotoBoothPackageLabel } = require("../_packages");
+const handleTikTokRequest = require("../_tiktok-handler");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const CRON_SECRET = cleanEnvValue(process.env.CRON_SECRET);
@@ -26,6 +27,9 @@ const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSIO
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
+  if (route.startsWith("tiktok/")) {
+    return handleTikTokRequest(req, res, route.slice("tiktok/".length));
+  }
   if (route === "confirm-booking") return handleConfirmBooking(req, res);
   if (route === "calendar-sync") return handleCalendarSync(req, res);
   if (route === "finance-summary") return handleFinanceSummary(req, res);
