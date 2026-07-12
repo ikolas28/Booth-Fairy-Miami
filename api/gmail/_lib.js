@@ -381,6 +381,15 @@ function getGmailImportDecision(message) {
   const senderEmail = extractEmail(senderHeader);
   const subject = getHeader(message, "Subject");
 
+  if (Array.isArray(message?.labelIds) && message.labelIds.includes("SENT")) {
+    return {
+      shouldImport: false,
+      reason: "Skipped Gmail message with SENT system label.",
+      fromEmail,
+      subject
+    };
+  }
+
   if ([GMAIL_ACCOUNT_EMAIL, ...ADMIN_EMAILS].includes(fromEmail) || [GMAIL_ACCOUNT_EMAIL, ...ADMIN_EMAILS].includes(senderEmail)) {
     return {
       shouldImport: false,

@@ -219,30 +219,17 @@ function extractInstagramEvents(payload) {
   for (const entry of entries) {
     for (const messaging of entry.messaging || []) {
       const message = messaging.message || {};
-      const text = message.text || message.quick_reply?.payload || "";
+      const text = message.text || message.quick_reply?.payload || messaging.postback?.payload || "";
+      if (!String(text).trim()) continue;
+
       const messageId = message.mid || messaging.postback?.mid || `${messaging.sender?.id || "sender"}-${messaging.timestamp || Date.now()}`;
       events.push({
         sourceReference: messageId,
         senderId: messaging.sender?.id || "",
         instagramUserId: messaging.sender?.id || "",
-        text: text || messaging.postback?.payload || "Instagram DM event received.",
+        text,
         eventType: "General Inquiry"
       });
-    }
-
-    for (const change of entry.changes || []) {
-      const value = change.value || {};
-      const text = value.text || value.message || value.comment || value.caption || "";
-      const reference = value.id || value.comment_id || `${change.field || "change"}-${entry.time || Date.now()}`;
-      if (text || change.field) {
-        events.push({
-          sourceReference: reference,
-          instagramUserId: value.from?.id || value.user_id || "",
-          instagramHandle: value.from?.username || value.username || "",
-          text: text || `Instagram ${change.field || "event"} received.`,
-          eventType: "General Inquiry"
-        });
-      }
     }
   }
 
