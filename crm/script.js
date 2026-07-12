@@ -343,6 +343,14 @@ const state = {
     requestedPermissions: [],
     note: ""
   },
+  tiktok: {
+    configured: false,
+    connected: false,
+    displayName: "",
+    scopes: [],
+    mode: "Sandbox",
+    error: ""
+  },
   hubspot: {
     configured: false,
     portalReachable: false,
@@ -392,6 +400,14 @@ const instagramStatusChip = document.getElementById("instagram-status-chip");
 const instagramStatusNote = document.getElementById("instagram-status-note");
 const hubspotStatusChip = document.getElementById("hubspot-status-chip");
 const hubspotStatusList = document.getElementById("hubspot-status-list");
+const tiktokConnectionChip = document.getElementById("tiktok-connection-chip");
+const tiktokAccountName = document.getElementById("tiktok-account-name");
+const tiktokStatusNote = document.getElementById("tiktok-status-note");
+const tiktokConnectButton = document.getElementById("tiktok-connect-button");
+const tiktokDisconnectButton = document.getElementById("tiktok-disconnect-button");
+const tiktokUploadButton = document.getElementById("tiktok-upload-button");
+const tiktokVideoUrl = document.getElementById("tiktok-video-url");
+const tiktokUploadStatus = document.getElementById("tiktok-upload-status");
 
 init().catch((error) => {
   console.error("CRM init failed", error);
@@ -405,10 +421,12 @@ async function init() {
   attachEventListeners();
   showLocalDevNote();
   await refreshGmailStatus();
+  await refreshTikTokStatus();
   updateConnectionIndicators();
   renderAll();
 
   handleGmailQueryReturn();
+  handleTikTokQueryReturn();
 
   const oauthState = handleOAuthReturn();
   if (oauthState.error) {
@@ -425,6 +443,10 @@ async function init() {
 
   unlockApp();
   await hydrateData();
+  const tiktokReturnSection = new URLSearchParams(window.location.search).get("section");
+  if (tiktokReturnSection === "content" || state.activeSection === "content") {
+    setSection("content");
+  }
   applyPendingBanner();
 }
 
@@ -435,6 +457,9 @@ function attachEventListeners() {
   gmailConnectButton.addEventListener("click", handleGmailConnect);
   gmailSyncButton.addEventListener("click", handleGmailSync);
   gmailDisconnectButton.addEventListener("click", handleGmailDisconnect);
+  tiktokConnectButton.addEventListener("click", handleTikTokConnect);
+  tiktokDisconnectButton.addEventListener("click", handleTikTokDisconnect);
+  tiktokUploadButton.addEventListener("click", handleTikTokUpload);
 
   navButtons.forEach((button) => {
     button.addEventListener("click", () => setSection(button.dataset.section));
@@ -546,6 +571,30 @@ function handleGmailQueryReturn() {
 
   if (connected || error) {
     history.replaceState(null, "", window.location.pathname);
+  }
+}
+
+function handleTikTokQueryReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get("tiktok_connected");
+  const error = params.get("tiktok_error");
+
+  if (connected === "1") {
+    state.pendingBanner = {
+      message: "TikTok Sandbox connected. You can now send an approved video to TikTok drafts.",
+      tone: "success"
+    };
+    state.activeSection = "content";
+  } else if (error) {
+    state.pendingBanner = {
+      message: `TikTok connection issue: ${error}`,
+      tone: "warning"
+    };
+    state.activeSection = "content";
+  }
+
+  if (connected || error) {
+    history.replaceState(null, "", "/admin?section=content");
   }
 }
 
@@ -817,6 +866,7 @@ async function hydrateData() {
     hideSetupBanner();
   }
 
+  await refreshTikTokStatus();
   await refreshLeadIntelligence();
   await refreshFinanceSummary();
   await refreshGmailStatus();
@@ -926,6 +976,108 @@ async function refreshInstagramStatus() {
       configured: false,
       note: "Instagram status could not be checked."
     };
+  }
+}
+
+async function refreshTikTokStatus() {
+  try {
+    const response = await fetch("/api/tiktok/status");
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not read TikTok status.");
+    }
+    state.tiktok = {
+      configured: Boolean(payload.configured),
+      connected: Boolean(payload.connected),
+      displayName: payload.displayName || "",
+      scopes: Array.isArray(payload.scopes) ? payload.scopes : [],
+      mode: payload.mode || "Sandbox",
+      error: payload.error || ""
+    };
+  } catch (error) {
+    if (!isLocalPreview()) console.error("TikTok status check failed", error);
+    state.tiktok = {
+      ...state.tiktok,
+      connected: false,
+      error: error.message || "TikTok status could not be checked."
+    };
+  }
+  renderTikTokIntegration();
+}
+
+async function handleTikTokConnect() {
+  if (!authState.session?.accessToken || authState.isLocalFallback) {
+    showSetupBanner("Sign in with the approved CRM account before connecting TikTok.", "warning");
+    return;
+  }
+
+  tiktokConnectButton.disabled = true;
+  tiktokConnectButton.textContent = "Connecting...";
+  try {
+    const response = await fetch("/api/tiktok/connect", {
+      method: "POST",
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok || !payload.authorizeUrl) {
+      throw new Error(payload?.error || "Could not start TikTok connection.");
+    }
+    window.location.href = payload.authorizeUrl;
+  } catch (error) {
+    showSetupBanner(getFriendlyError(error, "Could not start TikTok connection."), "warning");
+    tiktokConnectButton.disabled = false;
+    tiktokConnectButton.textContent = "Connect TikTok";
+  }
+}
+
+async function handleTikTokDisconnect() {
+  tiktokDisconnectButton.disabled = true;
+  try {
+    const response = await fetch("/api/tiktok/disconnect", {
+      method: "POST",
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Could not disconnect TikTok.");
+    }
+    await refreshTikTokStatus();
+    showSetupBanner("TikTok Sandbox disconnected from this browser.", "info");
+  } catch (error) {
+    showSetupBanner(getFriendlyError(error, "Could not disconnect TikTok."), "warning");
+  } finally {
+    tiktokDisconnectButton.disabled = false;
+  }
+}
+
+async function handleTikTokUpload() {
+  if (!state.tiktok.connected) {
+    showSetupBanner("Connect the TikTok Sandbox account before sending a draft.", "warning");
+    return;
+  }
+
+  const videoUrl = new URL(tiktokVideoUrl.value, window.location.origin).href;
+  tiktokUploadButton.disabled = true;
+  tiktokUploadButton.textContent = "Sending...";
+  tiktokUploadStatus.textContent = "Uploading the approved video to TikTok...";
+  try {
+    const response = await fetch("/api/tiktok/upload", {
+      method: "POST",
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ videoUrl })
+    });
+    const payload = await parseResponse(response);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "TikTok draft upload failed.");
+    }
+    tiktokUploadStatus.textContent = `${payload.message} Draft reference: ${payload.publishId || "processing"}.`;
+    showSetupBanner("Video sent to TikTok drafts. Check the TikTok inbox notification to finish editing.", "success");
+  } catch (error) {
+    tiktokUploadStatus.textContent = getFriendlyError(error, "TikTok draft upload failed.");
+    showSetupBanner(tiktokUploadStatus.textContent, "warning");
+  } finally {
+    tiktokUploadButton.disabled = !state.tiktok.connected;
+    tiktokUploadButton.textContent = "Send to TikTok Drafts";
   }
 }
 
@@ -1485,6 +1637,7 @@ function renderAll() {
   renderMarketingAudience();
   renderCampaigns();
   renderHubSpotStatus();
+  renderTikTokIntegration();
   renderContentLibrary();
   refreshSelectMenus();
   persistAll();
@@ -2238,7 +2391,7 @@ function renderContentLibrary() {
     ["Upload", "Add raw clips/photos to Google Drive"],
     ["Review", "Use Marketing drafts to pick weekly posts"],
     ["Prepare", "Caption, hashtags, platform, and posting window"],
-    ["Publish", "Post manually or publish Instagram-approved media"],
+    ["Publish", "Send approved TikTok videos to drafts or publish Instagram media"],
     ["Track", "Mark posted and save results"]
   ];
 
@@ -2283,6 +2436,43 @@ function renderContentLibrary() {
       </article>
     `;
   }).join("");
+}
+
+function renderTikTokIntegration() {
+  if (!tiktokConnectionChip || !tiktokConnectButton || !tiktokUploadButton) return;
+
+  if (!state.tiktok.configured) {
+    tiktokConnectionChip.textContent = "Setup needed";
+    tiktokAccountName.textContent = "TikTok credentials are not configured";
+    tiktokStatusNote.textContent = state.tiktok.error || "Add the TikTok Sandbox credentials in Vercel.";
+    tiktokConnectButton.hidden = false;
+    tiktokConnectButton.disabled = true;
+    tiktokDisconnectButton.hidden = true;
+    tiktokUploadButton.disabled = true;
+    return;
+  }
+
+  if (!state.tiktok.connected) {
+    tiktokConnectionChip.textContent = "Not connected";
+    tiktokAccountName.textContent = "TikTok Sandbox target account";
+    tiktokStatusNote.textContent = state.tiktok.error || "Connect @boothfairymiami and approve draft upload access.";
+    tiktokConnectButton.hidden = false;
+    tiktokConnectButton.disabled = false;
+    tiktokConnectButton.textContent = "Connect TikTok";
+    tiktokDisconnectButton.hidden = true;
+    tiktokUploadButton.disabled = true;
+    return;
+  }
+
+  const canUpload = state.tiktok.scopes.includes("video.upload");
+  tiktokConnectionChip.textContent = `${state.tiktok.mode} connected`;
+  tiktokAccountName.textContent = `Connected as ${state.tiktok.displayName || "boothfairymiami"}`;
+  tiktokStatusNote.textContent = canUpload
+    ? "Draft upload permission is active. Direct Post remains disabled."
+    : "Reconnect TikTok and approve the video.upload permission.";
+  tiktokConnectButton.hidden = true;
+  tiktokDisconnectButton.hidden = false;
+  tiktokUploadButton.disabled = !canUpload;
 }
 
 function getCampaignStatusLabel(status, channel = "") {
