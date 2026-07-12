@@ -1057,7 +1057,7 @@ async function handleLeadSubmit(event) {
     leadCode: existingLead?.leadCode || `BFM-LOCAL-${String(state.leads.length + 1).padStart(3, "0")}`,
     clientName: document.getElementById("lead-client-name").value.trim(),
     phone: document.getElementById("lead-phone").value.trim(),
-    email: document.getElementById("lead-email").value.trim(),
+    email: document.getElementById("lead-email").value.trim() || "Not provided",
     eventType: document.getElementById("lead-event-type").value.trim(),
     eventDate: document.getElementById("lead-event-date").value,
     startTime: document.getElementById("lead-start-time").value,
@@ -2367,7 +2367,7 @@ function openLeadModal(leadId = "") {
     document.getElementById("lead-id").value = lead.id;
     document.getElementById("lead-client-name").value = lead.clientName;
     document.getElementById("lead-phone").value = lead.phone;
-    document.getElementById("lead-email").value = lead.email;
+    document.getElementById("lead-email").value = lead.email === "Not provided" ? "" : lead.email;
     document.getElementById("lead-event-type").value = lead.eventType;
     document.getElementById("lead-event-date").value = lead.eventDate;
     document.getElementById("lead-start-time").value = lead.startTime || "";
