@@ -87,6 +87,10 @@
       "destination": "/website/privacy-policy.html"
     },
     {
+      "source": "/social-publisher-terms.html",
+      "destination": "/website/social-publisher-terms.html"
+    },
+    {
       "source": "/data-deletion.html",
       "destination": "/website/data-deletion.html"
     },
