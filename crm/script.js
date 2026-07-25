@@ -2957,6 +2957,7 @@ function openLeadDrawer(leadId) {
         <div><dt>Status</dt><dd>${escapeHtml(lead.status)}</dd></div>
         <div><dt>Lead ID</dt><dd>${escapeHtml(lead.leadCode || "Pending")}</dd></div>
         <div><dt>Source</dt><dd>${escapeHtml(lead.source)}</dd></div>
+        <div><dt>Campaign attribution</dt><dd>${escapeHtml(formatMarketingAttribution(lead.marketingAttribution, lead.notes))}</dd></div>
         <div><dt>Event type</dt><dd>${escapeHtml(lead.eventType)}</dd></div>
         <div><dt>Event date + time</dt><dd>${escapeHtml(formatEventDateTime(lead.eventDate, lead.startTime, lead.endTime))}</dd></div>
         <div><dt>Service</dt><dd>${escapeHtml(getDisplayServiceRequested(lead))}</dd></div>
@@ -4009,6 +4010,26 @@ function formatMonthLabel(isoMonth) {
   });
 }
 
+function formatMarketingAttribution(value = {}, notes = "") {
+  const attribution = value && typeof value === "object" ? value : {};
+  const parts = [
+    attribution.utm_source ? `Source: ${attribution.utm_source}` : "",
+    attribution.utm_medium ? `Medium: ${attribution.utm_medium}` : "",
+    attribution.utm_campaign ? `Campaign: ${attribution.utm_campaign}` : "",
+    attribution.utm_content ? `Content: ${attribution.utm_content}` : "",
+    attribution.utm_term ? `Term: ${attribution.utm_term}` : "",
+    attribution.fbclid ? "Meta click ID captured" : "",
+    attribution.gclid ? "Google click ID captured" : "",
+    attribution.referrer_host ? `Referrer: ${attribution.referrer_host}` : "",
+    attribution.landing_page ? `Landing: ${attribution.landing_page}` : ""
+  ].filter(Boolean);
+  if (parts.length) return parts.join(" · ");
+  const noteLine = String(notes || "")
+    .split(/\r?\n/)
+    .find((line) => line.startsWith("Marketing attribution:"));
+  return noteLine ? noteLine.replace("Marketing attribution:", "").trim() : "Not captured";
+}
+
 function formatCurrency(value) {
   const amount = Number(value || 0);
   const fractionDigits = Number.isInteger(amount) ? 0 : 2;
@@ -4378,6 +4399,7 @@ function mapLeadToDb(lead) {
     payment_status: lead.paymentStatus,
     calendar_checked: lead.calendarChecked === "Yes",
     source: lead.source,
+    marketing_attribution: lead.marketingAttribution || {},
     created_at: lead.createdAt || todayIso(),
     updated_at: todayIso()
   };
@@ -4406,6 +4428,9 @@ function mapLeadFromDb(row) {
     paymentStatus: row.payment_status || "Not Requested",
     calendarChecked: row.calendar_checked ? "Yes" : "No",
     source: row.source || "Website",
+    marketingAttribution: row.marketing_attribution && typeof row.marketing_attribution === "object"
+      ? row.marketing_attribution
+      : {},
     hubspotContactId: row.hubspot_contact_id || "",
     hubspotDealId: row.hubspot_deal_id || "",
     hubspotSyncStatus: row.hubspot_sync_status || "Not Synced",

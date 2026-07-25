@@ -276,6 +276,9 @@ function normalizeWebsiteLead(payload) {
   const serviceRequested = normalizeServiceRequested(payload, packageInterest);
   const message = stringify(payload.message);
   const galleryReferral = normalizeGalleryReferral(payload["gallery-referral"] || payload.galleryReferral);
+  const marketingAttribution = normalizeMarketingAttribution(
+    payload.marketingAttribution || payload["marketing-attribution"] || payload
+  );
   const notes = [
     message ? `Message: ${message}` : "",
     packageInterest ? `Package interest: ${packageInterest}` : "",
@@ -283,6 +286,7 @@ function normalizeWebsiteLead(payload) {
       ? `Keepsake add-on interest: ${addonInterest}`
       : "",
     galleryReferral ? `Client gallery referral: /gallery/${galleryReferral}` : "",
+    formatMarketingAttributionNote(marketingAttribution),
     missing.length ? `Missing info to request: ${missing.join(", ")}` : "",
     "Website form lead. Do not confirm availability until calendar is checked."
   ].filter(Boolean).join("\n");
@@ -300,6 +304,7 @@ function normalizeWebsiteLead(payload) {
     serviceRequested,
     guestCount: normalizeNumber(payload.guestCount || payload["guest-count"], 0),
     budget: normalizeNumber(payload.budget, 0),
+    marketingAttribution,
     notes,
     status: missing.length ? "Missing Info" : "New Lead"
   };
@@ -308,6 +313,38 @@ function normalizeWebsiteLead(payload) {
 function normalizeGalleryReferral(value) {
   const clean = stringify(value).toLowerCase();
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(clean) ? clean.slice(0, 120) : "";
+}
+
+function normalizeMarketingAttribution(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const clean = (input, maxLength = 160) => stringify(input).slice(0, maxLength);
+  return {
+    landing_page: clean(source.landingPage || source.landing_page, 200),
+    referrer_host: clean(source.referrerHost || source.referrer_host, 120),
+    utm_source: clean(source.utmSource || source.utm_source, 80),
+    utm_medium: clean(source.utmMedium || source.utm_medium, 80),
+    utm_campaign: clean(source.utmCampaign || source.utm_campaign, 120),
+    utm_content: clean(source.utmContent || source.utm_content, 120),
+    utm_term: clean(source.utmTerm || source.utm_term, 120),
+    gclid: clean(source.gclid, 160),
+    fbclid: clean(source.fbclid, 160),
+    captured_at: clean(source.capturedAt || source.captured_at, 40)
+  };
+}
+
+function formatMarketingAttributionNote(attribution = {}) {
+  const parts = [
+    attribution.utm_source ? `source=${attribution.utm_source}` : "",
+    attribution.utm_medium ? `medium=${attribution.utm_medium}` : "",
+    attribution.utm_campaign ? `campaign=${attribution.utm_campaign}` : "",
+    attribution.utm_content ? `content=${attribution.utm_content}` : "",
+    attribution.utm_term ? `term=${attribution.utm_term}` : "",
+    attribution.gclid ? "gclid=present" : "",
+    attribution.fbclid ? "fbclid=present" : "",
+    attribution.referrer_host ? `referrer=${attribution.referrer_host}` : "",
+    attribution.landing_page ? `landing=${attribution.landing_page}` : ""
+  ].filter(Boolean);
+  return parts.length ? `Marketing attribution: ${parts.join(" | ")}` : "";
 }
 
 function normalizeServiceRequested(payload, packageInterest = "") {
@@ -402,6 +439,7 @@ function buildLeadRecord(lead) {
     service_requested: lead.serviceRequested,
     guest_count: lead.guestCount,
     budget: lead.budget,
+    marketing_attribution: lead.marketingAttribution,
     notes: lead.notes,
     status: lead.status,
     payment_status: "Not Requested",

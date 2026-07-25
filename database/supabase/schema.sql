@@ -56,6 +56,7 @@ create table if not exists public.leads (
   source text not null default 'Website' check (
     source in ('Website', 'Gmail', 'Tidio', 'Instagram', 'Referral')
   ),
+  marketing_attribution jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -74,6 +75,9 @@ add column if not exists start_time time;
 
 alter table public.leads
 add column if not exists end_time time;
+
+alter table public.leads
+add column if not exists marketing_attribution jsonb not null default '{}'::jsonb;
 
 alter table public.leads
 alter column lead_code set default ('BFM-' || lpad(nextval('public.lead_code_seq')::text, 4, '0'));

@@ -122,6 +122,7 @@ function stripUnavailableLeadColumns(error, lead) {
   }
   if (text.includes("start_time")) delete next.start_time;
   if (text.includes("end_time")) delete next.end_time;
+  if (text.includes("marketing_attribution")) delete next.marketing_attribution;
   return next;
 }
 

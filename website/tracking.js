@@ -1,5 +1,24 @@
 (function () {
   const googleMeasurementId = "G-8D92QEYZ5H";
+  const qaStorageKey = "bfm_internal_qa";
+  const qaParam = new URLSearchParams(window.location.search).get("bfm_qa");
+  try {
+    if (qaParam === "1") window.localStorage.setItem(qaStorageKey, "1");
+    if (qaParam === "0") window.localStorage.removeItem(qaStorageKey);
+  } catch {
+    // Continue with normal tracking when local storage is unavailable.
+  }
+  let isInternalQa = false;
+  try {
+    isInternalQa = window.localStorage.getItem(qaStorageKey) === "1";
+  } catch {
+    isInternalQa = false;
+  }
+  if (isInternalQa) {
+    window.bfmTrackEvent = () => {};
+    window.bfmTrackOnce = () => {};
+    return;
+  }
   // Fill these from Google Ads after creating conversion actions for form leads, call clicks, text clicks, and website calls.
   const googleAdsConversions = {
     conversionId: "",

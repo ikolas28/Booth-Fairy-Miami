@@ -3,6 +3,7 @@ setupStructuredFooter();
 setupDeferredTidio();
 setupMobileCtaViewport();
 setupRevealEffects();
+setupMarketingAttribution();
 setupFormPresets();
 stabilizeHashNavigation();
 
@@ -301,9 +302,69 @@ function setupFormPresets() {
   }
 
   const params = new URLSearchParams(window.location.search);
-  setSelectValue("#service-requested", params.get("service"));
-  setSelectValue("#package-interest", params.get("package"));
+  const service = params.get("service");
+  const packageInterest = params.get("package");
+  setSelectValue("#service-requested", service);
+  if (packageInterest) {
+    setSelectValue("#package-interest", packageInterest);
+  } else if (service === "Premium DJ Services") {
+    setSelectValue("#package-interest", "Custom Quote");
+  } else if (service === "Photo Booth + DJ Bundle") {
+    setSelectValue("#package-interest", "DJ + Photo Booth Bundle");
+  }
   setSelectValue("#addon-interest", params.get("addon"));
+}
+
+function setupMarketingAttribution() {
+  const storageKey = "bfm_session_attribution_v1";
+  const params = new URLSearchParams(window.location.search);
+  const clean = (value, maxLength = 160) => String(value || "").trim().slice(0, maxLength);
+  const campaignFields = {
+    utmSource: clean(params.get("utm_source"), 80),
+    utmMedium: clean(params.get("utm_medium"), 80),
+    utmCampaign: clean(params.get("utm_campaign"), 120),
+    utmContent: clean(params.get("utm_content"), 120),
+    utmTerm: clean(params.get("utm_term"), 120),
+    gclid: clean(params.get("gclid"), 160),
+    fbclid: clean(params.get("fbclid"), 160),
+  };
+  const hasCampaignData = Object.values(campaignFields).some(Boolean);
+  let referrerHost = "";
+
+  try {
+    const referrerUrl = document.referrer ? new URL(document.referrer) : null;
+    if (referrerUrl && referrerUrl.origin !== window.location.origin) {
+      referrerHost = clean(referrerUrl.hostname, 120);
+    }
+  } catch {
+    referrerHost = "";
+  }
+
+  let stored = null;
+  try {
+    stored = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
+  } catch {
+    stored = null;
+  }
+
+  const attribution = !stored || hasCampaignData
+    ? {
+        landingPage: clean(window.location.pathname, 200) || "/",
+        referrerHost,
+        ...campaignFields,
+        capturedAt: new Date().toISOString(),
+      }
+    : stored;
+
+  try {
+    window.sessionStorage.setItem(storageKey, JSON.stringify(attribution));
+  } catch {
+    // Attribution remains available for the current page when storage is unavailable.
+  }
+
+  window.bfmGetMarketingAttribution = () => ({ ...attribution });
+  const form = document.querySelector("#quote-form");
+  if (form) form.dataset.marketingAttribution = JSON.stringify(attribution);
 }
 
 function setSelectValue(selector, value) {
@@ -463,12 +524,27 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
 
   try {
     const formData = new FormData(form);
+    const email = String(formData.get("email") || "").trim();
+    const phone = String(formData.get("phone") || "").trim();
+    if (!email && !phone) {
+      throw new Error("Please include an email or phone number.");
+    }
     const turnstileToken = formData.get("cf-turnstile-response");
     if (requiresTurnstile && !turnstileToken) {
       throw new Error("Please complete the verification.");
     }
 
     const crmPayload = Object.fromEntries(formData.entries());
+    let marketingAttribution = {};
+    try {
+      marketingAttribution = JSON.parse(form.dataset.marketingAttribution || "{}");
+    } catch {
+      marketingAttribution = window.bfmGetMarketingAttribution?.() || {};
+    }
+    crmPayload.marketingAttribution = marketingAttribution;
+    Object.entries(marketingAttribution).forEach(([key, value]) => {
+      if (value) formData.set(`attribution-${key}`, String(value));
+    });
     const galleryReferral = getGalleryReferral();
     if (galleryReferral) {
       crmPayload["gallery-referral"] = galleryReferral;
@@ -547,7 +623,9 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
     showFormStatus(
       error?.message === "Please complete the verification."
         ? "Please complete the verification, then try again."
-        : "We couldn’t send your inquiry. Your information is still here—please try again or text us at (786) 315-9117.",
+        : error?.message === "Please include an email or phone number."
+          ? "Please include an email address or phone number so we can reply."
+          : "We couldn’t send your inquiry. Your information is still here—please try again or text us at (786) 315-9117.",
       "error"
     );
     document.querySelector("#form-status")?.focus({ preventScroll: true });
