@@ -266,6 +266,24 @@ body {
   background: rgba(255, 255, 255, 0.055);
 }
 
+.cta-card span {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.cta-card.cta-primary {
+  color: #17140e;
+  border-color: rgba(240, 216, 147, 0.72);
+  background: linear-gradient(135deg, #f0d893 0%, #d4b66f 56%, #bf9340 100%);
+}
+
+.cta-card.cta-primary strong {
+  color: #17140e;
+}
+
+.cta-card.cta-primary span {
+  color: rgba(23, 20, 14, 0.78);
+}
+
 .cta-card:hover,
 .cta-card:focus-visible {
   background: rgba(255, 255, 255, 0.1);

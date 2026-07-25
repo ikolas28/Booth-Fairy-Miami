@@ -898,6 +898,41 @@ body::before {
   }
 }
 
+/* Keep the copy-only Why Us section visually centered on wide desktop screens. */
+.why-layout.why-layout-copy-only {
+  grid-template-columns: minmax(0, 1fr);
+  margin-inline: auto;
+}
+
+.why-layout.why-layout-copy-only .why-copy {
+  width: 100%;
+}
+
+.why-layout.why-layout-copy-only .why-copy > .eyebrow {
+  text-align: center;
+}
+
+.why-layout.why-layout-copy-only .why-copy > h2 {
+  max-width: 18ch;
+  margin-inline: auto;
+  font-size: clamp(2.4rem, 4vw, 4.25rem);
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (max-width: 900px) {
+  .why-layout.why-layout-copy-only .why-copy > .eyebrow,
+  .why-layout.why-layout-copy-only .why-copy > h2 {
+    margin-inline: 0;
+    text-align: left;
+  }
+
+  .why-layout.why-layout-copy-only .why-copy > h2 {
+    max-width: 15ch;
+    font-size: clamp(2.2rem, 9vw, 3.2rem);
+  }
+}
+
 /* Premium hero, verified review, and structured footer refinements */
 .hero-media img {
   object-position: 56% 43%;
@@ -5156,5 +5191,27 @@ body.page-dj .seo-hero .seo-card::before {
   .hero h1 {
     max-width: 13ch;
     font-size: clamp(2.65rem, 12vw, 3.65rem);
+  }
+}
+
+/* Final responsive readability safeguards. */
+@media (max-width: 540px) {
+  .section-events .event-grid,
+  .section-process .process-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .section-events .event-pill h3,
+  .section-process .process-step h3 {
+    font-size: 1.18rem;
+  }
+
+  .section-events .event-pill p,
+  .section-process .process-step p {
+    display: block;
+    overflow: visible;
+    font-size: 0.94rem;
+    line-height: 1.6;
+    -webkit-line-clamp: unset;
   }
 }
