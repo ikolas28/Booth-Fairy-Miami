@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /gallery/
 
 Sitemap: https://www.boothfairymiami.com/sitemap.xml

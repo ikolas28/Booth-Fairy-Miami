@@ -1,8 +1,18 @@
 brand/
+archive/
+agents/
+database/
+docs/
+Logo/
+Overlay examples/
 crm/contracts/outputs/
 crm/outputs/
 finance/outputs/
 social-output/
 tools/
 tmp-*.png
+tmp-*.jpg
+tmp-*.local
 tmp/
+website-audit-*.png
+WEBSITE-AUDIT-*.md

@@ -148,12 +148,13 @@ This does not confirm the booking. It:
 - creates a deposit payment record
 - creates a next-day follow-up
 - creates a Gmail draft when Gmail has compose permission
-- creates a Stripe Checkout retainer link when `STRIPE_SECRET_KEY` is configured
+- creates a Stripe-hosted 50% retainer invoice with Florida sales tax when Stripe is configured
 
 Required for full automation:
 
 - reconnect Gmail after deployment so Google grants `gmail.compose`
 - add `STRIPE_SECRET_KEY` in Vercel
+- add `STRIPE_SALES_TAX_RATE_ID` in Vercel using the active exclusive Florida 7% tax rate ID
 - optionally set `SERVICE_AGREEMENT_URL` to override the public read-only agreement page at `https://www.boothfairymiami.com/service-agreement.html`
 - set `STRIPE_WEBHOOK_SECRET` after creating the Stripe webhook endpoint so paid retainers are confirmed in the CRM automatically
 

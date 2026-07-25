@@ -617,9 +617,170 @@ textarea {
 .card-grid,
 .source-grid,
 .campaign-board,
-.approval-grid {
+.approval-grid,
+.gallery-admin-grid,
+.gallery-admin-summary {
   display: grid;
   gap: 18px;
+}
+
+.gallery-admin-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.gallery-metric {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.gallery-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.gallery-metric strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.7rem;
+}
+
+.gallery-admin-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gallery-admin-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.gallery-admin-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gallery-admin-card h3 {
+  margin: 10px 0 4px;
+  font-size: 1.12rem;
+}
+
+.gallery-admin-card p {
+  color: var(--muted);
+}
+
+.gallery-lock-state {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.gallery-private-url {
+  display: block;
+  overflow: hidden;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #f8f4fa;
+  color: #6e3f92;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.gallery-card-metrics span {
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.gallery-card-metrics strong {
+  display: block;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.gallery-expiry-copy {
+  margin: 12px 0;
+  font-size: 0.82rem;
+}
+
+.slug-field {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.slug-field span {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  background: #f8f4fa;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.slug-field input {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.field-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.gallery-check-label {
+  align-content: center;
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+}
+
+.gallery-check-label input {
+  width: 18px;
+  height: 18px;
+}
+
+.gallery-form-note {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid rgba(159, 77, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(159, 77, 255, 0.05);
+}
+
+.gallery-form-note span {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .approval-grid {
@@ -1277,7 +1438,9 @@ tbody tr:hover {
   .source-grid,
   .approval-grid,
   .campaign-board,
-  .status-grid {
+  .status-grid,
+  .gallery-admin-grid,
+  .gallery-admin-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1308,6 +1471,25 @@ tbody tr:hover {
   .drawer-grid,
   .tiktok-export-grid {
     grid-template-columns: 1fr;
+  }
+
+  .gallery-admin-grid,
+  .gallery-admin-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-admin-card-head {
+    display: grid;
+  }
+
+  .slug-field {
+    display: grid;
+  }
+
+  .slug-field span {
+    min-height: 36px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
   .drawer-card {

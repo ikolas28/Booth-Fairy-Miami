@@ -15,45 +15,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Syne:wght@500;600;700;800&amp;display=swap"
       rel="stylesheet"
     />
-    <script>
-      !(function (f, b, e, v, n, t, s) {
-        if (f.fbq) return;
-        n = f.fbq = function () {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-        };
-        if (!f._fbq) f._fbq = n;
-        n.push = n;
-        n.loaded = true;
-        n.version = "2.0";
-        n.queue = [];
-        t = b.createElement(e);
-        t.async = true;
-        t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s);
-      })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
-      fbq("init", "2082384575668865");
-      fbq("track", "PageView");
-      fbq("track", "Lead");
-    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="thank-you-page">
     <noscript
       ><img
         height="1"
         width="1"
         style="display: none"
-        src="https://www.facebook.com/tr?id=2082384575668865&ev=PageView&noscript=1"
+        src="https://www.facebook.com/tr?id=858672350435032&amp;ev=PageView&amp;noscript=1"
         alt=""
     /></noscript>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body class="thank-you-page">
     <header class="site-header">
       <div class="container nav-shell">
         <a class="brand" href="/#top" aria-label="Booth Fairy Miami home">
-          <img class="brand-logo" src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" />
+          <img class="brand-logo" src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" width="560" height="347" />
         </a>
         <div class="nav-actions">
           <a class="button button-secondary nav-text-cta" href="sms:17863159117?body=Hi%20Booth%20Fairy%20Miami,%20I%27m%20following%20up%20on%20my%20inquiry.">Text / Call Now</a>
@@ -77,13 +56,18 @@
               <span>Call or text anytime</span>
               <span>Serving Miami and surrounding areas</span>
             </div>
+            <div class="lead-confirmation" data-lead-confirmation hidden>
+              <span class="lead-confirmation-label">Confirmation</span>
+              <strong data-lead-reference>Website inquiry received</strong>
+              <span data-lead-status>Added to the Booth Fairy Miami CRM for follow-up.</span>
+            </div>
             <div class="seo-hero-actions">
               <a class="button button-primary" href="sms:17863159117?body=Hi%20Booth%20Fairy%20Miami,%20I%27m%20following%20up%20on%20my%20inquiry.">Text Us Now</a>
               <a class="button button-secondary" href="tel:17863159117">Call Now</a>
             </div>
           </div>
           <aside class="seo-card reveal">
-            <h3>What happens next</h3>
+            <h2>What happens next</h2>
             <ul class="seo-list">
               <li>We review your event date, location, and event type</li>
               <li>We recommend the best booth package for your event</li>
@@ -98,5 +82,27 @@
     </main>
     <script src="tracking.js"></script>
     <script src="script.js"></script>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("source") !== "website_form") return;
+
+        const confirmation = document.querySelector("[data-lead-confirmation]");
+        const referenceElement = document.querySelector("[data-lead-reference]");
+        const statusElement = document.querySelector("[data-lead-status]");
+        const leadCode = String(params.get("lead") || "").replace(/[^a-z0-9_-]/gi, "").slice(0, 80);
+        const crmResult = String(params.get("crm") || "").replace(/[^a-z0-9_-]/gi, "").toLowerCase();
+
+        if (!confirmation || !referenceElement || !statusElement) return;
+
+        referenceElement.textContent = leadCode
+          ? `Inquiry ${leadCode} received`
+          : "Website inquiry received";
+        statusElement.textContent = crmResult === "duplicate"
+          ? "We found your existing CRM inquiry and updated the follow-up path."
+          : "Added to the Booth Fairy Miami CRM for follow-up.";
+        confirmation.hidden = false;
+      })();
+    </script>
   </body>
 </html>

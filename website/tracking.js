@@ -1,5 +1,14 @@
 (function () {
   const googleMeasurementId = "G-8D92QEYZ5H";
+  // Fill these from Google Ads after creating conversion actions for form leads, call clicks, text clicks, and website calls.
+  const googleAdsConversions = {
+    conversionId: "",
+    completedInquiryLabel: "",
+    phoneClickLabel: "",
+    textClickLabel: "",
+    websiteCallLabel: "",
+    phoneConversionNumber: "1-786-315-9117",
+  };
   const trackedOnce = new Set();
 
   window.dataLayer = window.dataLayer || [];
@@ -15,6 +24,12 @@
     return (link.textContent || link.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ").slice(0, 100);
   }
 
+  function sanitizeTrackingValue(value) {
+    return String(value || "")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 80);
+  }
+
   function trackEvent(eventName, params = {}) {
     if (typeof window.gtag !== "function") return;
 
@@ -23,6 +38,51 @@
       page_path: getPagePath(),
       page_title: document.title,
       ...params,
+    });
+  }
+
+  function getGoogleAdsSendTo(label) {
+    const conversionId = sanitizeGoogleAdsValue(googleAdsConversions.conversionId);
+    const conversionLabel = sanitizeGoogleAdsValue(label);
+    return conversionId && conversionLabel ? `${conversionId}/${conversionLabel}` : "";
+  }
+
+  function sanitizeGoogleAdsValue(value) {
+    return String(value || "")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 120);
+  }
+
+  function trackGoogleAdsConversion(label, params = {}) {
+    const sendTo = getGoogleAdsSendTo(label);
+    if (!sendTo || typeof window.gtag !== "function") return;
+
+    window.gtag("event", "conversion", {
+      send_to: sendTo,
+      ...params,
+    });
+  }
+
+  function setupGoogleAdsPhoneCalls() {
+    const sendTo = getGoogleAdsSendTo(googleAdsConversions.websiteCallLabel);
+    if (!sendTo || typeof window.gtag !== "function") return;
+
+    window.gtag("config", sendTo, {
+      phone_conversion_number: googleAdsConversions.phoneConversionNumber,
+      phone_conversion_callback: updateGoogleForwardingPhoneLinks,
+    });
+  }
+
+  function updateGoogleForwardingPhoneLinks(formattedNumber, mobileNumber) {
+    const cleanMobileNumber = String(mobileNumber || "").trim();
+    const cleanFormattedNumber = String(formattedNumber || "").trim();
+    if (!cleanMobileNumber && !cleanFormattedNumber) return;
+
+    document.querySelectorAll('a[href^="tel:"]').forEach((link) => {
+      if (cleanMobileNumber) link.href = `tel:${cleanMobileNumber}`;
+      if (cleanFormattedNumber && /\d/.test(link.textContent || "")) {
+        link.textContent = cleanFormattedNumber;
+      }
     });
   }
 
@@ -42,12 +102,24 @@
 
   window.gtag("js", new Date());
   window.gtag("config", googleMeasurementId);
+  if (googleAdsConversions.conversionId) {
+    window.gtag("config", googleAdsConversions.conversionId);
+    setupGoogleAdsPhoneCalls();
+  }
 
   if (window.location.pathname.endsWith("/thank-you.html")) {
     const searchParams = new URLSearchParams(window.location.search);
+    const isWebsiteLead = searchParams.get("source") === "website_form";
+    const leadReference = sanitizeTrackingValue(searchParams.get("lead"));
+    const crmResult = sanitizeTrackingValue(searchParams.get("crm")) || "unknown";
+    const leadStatus = sanitizeTrackingValue(searchParams.get("status"));
+    const eventId = leadReference || `website-lead-${Date.now()}`;
 
     trackEvent("thank_you_view", {
       event_label: "website_inquiry",
+      lead_source: isWebsiteLead ? "website_form" : "unknown",
+      conversion_state: isWebsiteLead ? "completed" : "unverified",
+      lead_reference: leadReference,
     });
 
     if (searchParams.get("payment") === "success") {
@@ -55,10 +127,36 @@
         event_label: "stripe_checkout_success",
         booking_source: "stripe_checkout",
       });
-    } else {
+    } else if (isWebsiteLead) {
       trackEvent("generate_lead", {
         event_label: "website_inquiry",
         lead_source: "website_form",
+        crm_result: crmResult,
+        lead_status: leadStatus,
+        lead_reference: leadReference,
+        event_id: eventId,
+      });
+
+      trackGoogleAdsConversion(googleAdsConversions.completedInquiryLabel, {
+        transaction_id: eventId,
+        event_category: "lead",
+        event_label: "completed_inquiry_form",
+      });
+
+      trackEvent("crm_lead_completed", {
+        event_label: "website_inquiry",
+        lead_source: "website_form",
+        crm_result: crmResult,
+        lead_status: leadStatus,
+        lead_reference: leadReference,
+      });
+
+      window.fbq?.("track", "Lead", {
+        content_name: "Website inquiry",
+        lead_source: "website_form",
+        crm_result: crmResult,
+      }, {
+        eventID: eventId,
       });
     }
   }
@@ -79,6 +177,14 @@
         ...linkParams,
         contact_method: "phone",
       });
+      trackEvent("phone_call_click", {
+        ...linkParams,
+        contact_method: "phone",
+      });
+      trackGoogleAdsConversion(googleAdsConversions.phoneClickLabel, {
+        event_category: "lead",
+        event_label: "phone_click",
+      });
       return;
     }
 
@@ -86,6 +192,14 @@
       trackEvent("text_click", {
         ...linkParams,
         contact_method: "sms",
+      });
+      trackEvent("text_message_click", {
+        ...linkParams,
+        contact_method: "sms",
+      });
+      trackGoogleAdsConversion(googleAdsConversions.textClickLabel, {
+        event_category: "lead",
+        event_label: "text_click",
       });
       return;
     }
@@ -147,6 +261,6 @@
   script.src = "https://connect.facebook.net/en_US/fbevents.js";
   document.head.appendChild(script);
 
-  fbq("init", "2082384575668865");
+  fbq("init", "858672350435032");
   fbq("track", "PageView");
 })();

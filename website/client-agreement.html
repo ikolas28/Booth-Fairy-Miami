@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Secure Booth Fairy Miami service agreement for confirmed photo booth and DJ event clients."
+    />
     <title>Fillable Service Agreement | Booth Fairy Miami</title>
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
@@ -13,7 +17,7 @@
     <header class="site-header no-print">
       <div class="container nav-shell">
         <a class="brand" href="/">
-          <img class="brand-logo" src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" />
+          <img class="brand-logo" src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" width="560" height="347" />
         </a>
         <nav class="site-nav" aria-label="Agreement navigation">
           <a href="/service-agreement.html">Reference Terms</a>
@@ -25,7 +29,7 @@
     <main class="agreement-main fillable-agreement">
       <section class="container agreement-document agreement-form-shell">
         <div class="agreement-print-header">
-          <img src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" />
+          <img src="assets/booth-fairy-logo.png" alt="Booth Fairy Miami" width="560" height="347" />
           <div>
             <p class="eyebrow">Booth Fairy Miami</p>
             <h1>Service Agreement</h1>
@@ -43,15 +47,15 @@
           <section class="contract-section">
             <h2>Client And Event Details</h2>
             <div class="agreement-field-grid">
-              <label>Client full name<input name="clientName" required /></label>
-              <label>Email<input type="email" name="email" required /></label>
-              <label>Phone<input name="phone" /></label>
+              <label>Client full name<input type="text" name="clientName" autocomplete="name" required /></label>
+              <label>Email<input type="email" name="email" autocomplete="email" required /></label>
+              <label>Phone<input type="tel" name="phone" autocomplete="tel" /></label>
               <label>Event date<input type="date" name="eventDate" required /></label>
               <label>Start time<input type="time" name="startTime" /></label>
               <label>End time<input type="time" name="endTime" /></label>
-              <label>Event type<input name="eventType" placeholder="Wedding, birthday, corporate..." /></label>
-              <label>Venue / address<input name="venue" /></label>
-              <label>City<input name="city" /></label>
+              <label>Event type<input type="text" name="eventType" placeholder="Wedding, birthday, corporate..." /></label>
+              <label>Venue / address<input type="text" name="venue" autocomplete="street-address" /></label>
+              <label>City<input type="text" name="city" autocomplete="address-level2" /></label>
               <label>Selected services
                 <select name="services">
                   <option>DSLR Print Photo Booth</option>
@@ -59,8 +63,8 @@
                   <option>Photo Booth + DJ Bundle</option>
                 </select>
               </label>
-              <label>Package / hours<input name="packageInterest" placeholder="2 hours, 3 hours, 4 hours..." /></label>
-              <label>Total price<input name="totalPrice" placeholder="$450" /></label>
+              <label>Package / hours<input type="text" name="packageInterest" placeholder="2 hours, 3 hours, 4 hours..." /></label>
+              <label>Total price<input type="text" name="totalPrice" inputmode="decimal" placeholder="$450" /></label>
             </div>
           </section>
 
@@ -68,7 +72,7 @@
             <h2>Agreement Terms</h2>
             <p>
               Booth Fairy Miami agrees to provide the selected services for the event listed above. Photo booth
-              services include unlimited prints during the contracted service window, high-quality DSLR digital photos,
+              services include instant prints during the contracted service window, high-quality DSLR digital photos,
               and instant digital sharing when internet or cellular service allows it. Booth Fairy Miami does not
               currently offer 360 photo booth services.
             </p>
@@ -92,7 +96,7 @@
           <section class="contract-section" lang="es">
             <h2>Resumen En Español</h2>
             <p>
-              Booth Fairy Miami ofrece servicios de cabina fotográfica DSLR con impresiones ilimitadas y servicios de DJ.
+              Booth Fairy Miami ofrece servicios de cabina fotográfica DSLR con impresiones instantáneas y servicios de DJ.
               También ofrecemos envío digital instantáneo; no ofrecemos servicio de cabina 360 en este momento.
             </p>
             <p>
@@ -106,7 +110,7 @@
             <h2>Client Approval And Signature</h2>
             <label>Special notes or approved changes<textarea name="notes" rows="4"></textarea></label>
             <div class="agreement-field-grid">
-              <label>Client typed signature<input name="signature" required /></label>
+              <label>Client typed signature<input type="text" name="signature" autocomplete="name" required /></label>
               <label>Date signed<input type="date" name="signedDate" required /></label>
             </div>
             <p class="signature-disclaimer">
@@ -117,6 +121,7 @@
       </section>
     </main>
 
+    <script src="script.js"></script>
     <script src="client-agreement.js"></script>
   </body>
 </html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Private Client Gallery | Booth Fairy Miami</title>
+    <meta name="description" content="Private Booth Fairy Miami event gallery access for clients and guests." />
+    <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/gallery.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#gallery-main">Skip to gallery</a>
+    <header class="gallery-header">
+      <div class="gallery-container header-inner">
+        <a class="gallery-brand" href="/" aria-label="Booth Fairy Miami home">
+          <img src="/assets/booth-fairy-mark.png" alt="" width="566" height="622" />
+          <span><strong>Booth Fairy</strong><small>Miami</small></span>
+        </a>
+        <a class="header-contact" href="tel:17863159117">Need help? (786) 315-9117</a>
+      </div>
+    </header>
+
+    <main id="gallery-main">
+      <section class="gallery-intro">
+        <div class="gallery-container intro-inner">
+          <p class="eyebrow">Private client gallery</p>
+          <h1 id="gallery-title">Your event photos</h1>
+          <div class="event-meta" id="event-meta" hidden></div>
+          <p class="welcome-message" id="welcome-message">Loading your private gallery…</p>
+          <p class="expiration-notice" id="expiration-notice" hidden></p>
+        </div>
+      </section>
+
+      <section class="gallery-container gallery-state" id="loading-state" aria-live="polite">
+        <div class="state-card"><span class="loader" aria-hidden="true"></span><p>Preparing your gallery…</p></div>
+      </section>
+
+      <section class="gallery-container gallery-state" id="access-state" hidden>
+        <form class="state-card access-card" id="access-form">
+          <div class="lock-mark" aria-hidden="true">✦</div>
+          <p class="eyebrow">Guest access</p>
+          <h2>This gallery is private</h2>
+          <p>Enter the access code shared by Booth Fairy Miami or your event host.</p>
+          <label for="access-code">Access code</label>
+          <input id="access-code" name="access-code" type="password" autocomplete="current-password" required />
+          <button class="button button-primary" type="submit">View Photos</button>
+          <p class="form-error" id="access-error" role="alert" hidden></p>
+        </form>
+      </section>
+
+      <section class="gallery-container gallery-state" id="message-state" hidden>
+        <div class="state-card">
+          <div class="lock-mark" aria-hidden="true">✦</div>
+          <h2 id="message-title">Gallery unavailable</h2>
+          <p id="message-copy">Please contact Booth Fairy Miami for assistance.</p>
+          <a class="button button-primary" href="tel:17863159117">Contact Booth Fairy Miami</a>
+        </div>
+      </section>
+
+      <section class="gallery-container embed-section" id="embed-section" hidden>
+        <div class="embed-shell">
+          <iframe
+            id="touchpix-frame"
+            title="Touchpix event photo gallery"
+            loading="eager"
+            allow="fullscreen"
+            referrerpolicy="no-referrer"
+          ></iframe>
+        </div>
+      </section>
+
+      <section class="gallery-cta" id="gallery-cta" hidden>
+        <div class="gallery-container">
+          <div class="cta-copy">
+            <p class="eyebrow">Keep the celebration going</p>
+            <h2>Loved the experience?</h2>
+            <p>Share a kind word, follow the fun, or bring Booth Fairy Miami to your next celebration.</p>
+          </div>
+          <div class="cta-grid">
+            <a class="cta-card cta-primary" data-gallery-action="book_photo_booth" href="/?gallery_ref=#quote-form">
+              <strong>Book a Photo Booth</strong>
+              <span>Check your date</span>
+            </a>
+            <a class="cta-card" data-gallery-action="google_review" href="https://maps.app.goo.gl/J58XHk8V5N2ZDfx4A" target="_blank" rel="noreferrer">
+              <strong>Leave a Google Review</strong>
+              <span>Share your experience</span>
+            </a>
+            <a class="cta-card" data-gallery-action="view_packages" href="/#pricing">
+              <strong>View Our Packages</strong>
+              <span>2 hours $450 · 3 hours $575 · 4 hours $700</span>
+            </a>
+            <a class="cta-card" data-gallery-action="instagram" href="https://www.instagram.com/boothfairymiami" target="_blank" rel="noreferrer">
+              <strong>Follow Us on Instagram</strong>
+              <span>@boothfairymiami</span>
+            </a>
+          </div>
+          <p class="service-note">Every DSLR Print Photo Booth package includes instant prints and instant digital sharing. Premium DJ services are available as an elegant add-on.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="gallery-container footer-inner">
+        <div><strong>Booth Fairy Miami</strong><span>Luxury photo booth experiences across Miami &amp; South Florida</span></div>
+        <div><a href="tel:17863159117">(786) 315-9117</a><a href="mailto:info@boothfairymiami.com">info@boothfairymiami.com</a></div>
+      </div>
+    </footer>
+
+    <script src="/tracking.js"></script>
+    <script src="/gallery.js"></script>
+  </body>
+</html>

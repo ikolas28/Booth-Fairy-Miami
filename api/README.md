@@ -1,5 +1,23 @@
 # API Placeholders
 
+## Private client galleries
+
+The private gallery API is served from `/api/gallery/*`. It validates pasted
+Touchpix iframe URLs, keeps access codes server-side as salted hashes, returns
+the embed URL only after authorization, applies expiration rules, and records
+basic privacy-safe analytics.
+
+Required Vercel environment variables:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GALLERY_SESSION_SECRET` (a long random secret used to sign HttpOnly gallery sessions)
+
+Optional:
+
+- `TOUCHPIX_ALLOWED_HOSTS` for an exact comma-separated list of additional
+  Touchpix-owned embed hostnames if the provided iframe is not hosted on
+  `touchpix.com` or one of its subdomains
+
 This folder contains integration modules and server endpoints used by the private CRM.
 
 Integrations:
@@ -151,19 +169,21 @@ Route:
 
 Expected use:
 - only after calendar availability is checked open
-- creates a Stripe Checkout retainer link when `STRIPE_SECRET_KEY` is configured
+- creates a finalized Stripe-hosted 50% retainer invoice with Florida sales tax
+- keeps Stripe email sending disabled and creates a Gmail draft for owner review
 - creates a Gmail draft when Gmail is reconnected with compose permission
-- returns the contract URL, deposit amount, draft status, and payment link status
+- returns the contract URL, untaxed retainer, tax, taxed total, remaining balance, draft status, and invoice link status
 - defaults the service agreement link to the public read-only page at `/service-agreement.html`
 
 Additional Vercel environment variables:
 - `STRIPE_SECRET_KEY`
+- `STRIPE_SALES_TAX_RATE_ID` (the active exclusive Florida 7% Stripe tax rate, beginning with `txr_`)
 - `SERVICE_AGREEMENT_URL`
 - `SITE_URL`
 
 ## Stripe retainer payment confirmation
 
-Stripe Checkout should call the payment confirmation webhook:
+Stripe invoices and legacy Checkout Sessions call the payment confirmation webhook:
 
 - [api/stripe/webhook.js](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\api\stripe\webhook.js)
 
@@ -171,7 +191,7 @@ Route:
 - `/api/stripe/webhook`
 
 Expected use:
-- Stripe sends `checkout.session.completed` after the client pays the 50% retainer
+- Stripe sends `invoice.paid` or `invoice.payment_succeeded` after an invoice is paid; legacy Checkout uses `checkout.session.completed`
 - the matching CRM payment record is marked `Paid`
 - the lead payment status is marked `Paid`
 - the lead status becomes `Paid`, not `Booked`, so the receptionist still confirms the signed agreement before final booking confirmation

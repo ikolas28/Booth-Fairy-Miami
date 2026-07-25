@@ -11,6 +11,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/gallery/:path*",
+      "destination": "/api/admin/gallery-proxy"
+    },
+    {
       "source": "/api/tiktok/:path",
       "destination": "/api/admin/tiktok-:path"
     },
@@ -29,6 +33,18 @@
     {
       "source": "/admin/script.js",
       "destination": "/crm/script.js"
+    },
+    {
+      "source": "/gallery/:slug",
+      "destination": "/website/gallery.html"
+    },
+    {
+      "source": "/gallery.css",
+      "destination": "/website/gallery.css"
+    },
+    {
+      "source": "/gallery.js",
+      "destination": "/website/gallery.js"
     },
     {
       "source": "/",
@@ -121,6 +137,23 @@
   ],
   "headers": [
     {
+      "source": "/gallery/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
       "source": "/admin(.*)",
       "headers": [
         {
@@ -138,7 +171,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://formspree.io; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://code.tidio.co https://*.tidio.co https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://formspree.io https://connect.facebook.net https://www.facebook.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.tidio.co wss://*.tidio.co https://hwwhyrpwfewxevocjjzk.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://*.tidio.co https://challenges.cloudflare.com; media-src 'self' https:; manifest-src 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://formspree.io; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://code.tidio.co https://*.tidio.co https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://formspree.io https://connect.facebook.net https://www.facebook.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://*.tidio.co wss://*.tidio.co https://hwwhyrpwfewxevocjjzk.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://touchpix.com https://*.touchpix.com https://phtbth-upload.com https://*.phtbth-upload.com https://*.tidio.co https://challenges.cloudflare.com https://www.googletagmanager.com https://googleads.g.doubleclick.net; media-src 'self' https:; manifest-src 'self'; upgrade-insecure-requests"
         },
         {
           "key": "Referrer-Policy",

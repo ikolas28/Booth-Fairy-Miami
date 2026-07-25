@@ -35,7 +35,7 @@ Run [hubspot_content_library.sql](C:\Users\andyy\OneDrive\Documents\Andy's proje
 - status indexes for weekly social content planning
 - admin-only RLS policies for content library records
 
-The seeded package templates include the DSLR Print Photo Booth with unlimited prints and instant digital sharing:
+The seeded package templates include the DSLR Print Photo Booth with instant prints and instant digital sharing:
 
 - 2 hours: $450
 - 3 hours: $575
@@ -45,6 +45,17 @@ The seeded package templates include the DSLR Print Photo Booth with unlimited p
 
 Approved admin email in the current policy:
 - `boothfairyllc@gmail.com`
+
+## Private client gallery migration
+
+Run [client_galleries.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\client_galleries.sql) after `schema.sql` to add:
+
+- private gallery metadata and expiration settings
+- server-side access-code hashes (plain access codes are never stored)
+- gallery visit, button click, and booking inquiry analytics
+- admin-only Row Level Security policies
+
+Touchpix photos are not copied into Supabase. While a gallery is active, only the validated Touchpix iframe URL is stored.
 
 If you want to allow additional admin users later, update the `public.bfm_is_admin()` function in:
 - [schema.sql](C:\Users\andyy\OneDrive\Documents\Andy's projects\Photo Booth website\database\supabase\schema.sql)

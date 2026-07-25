@@ -272,11 +272,17 @@ function normalizeWebsiteLead(payload) {
   if (!phone) missing.push("phone number");
 
   const packageInterest = stringify(payload.packageInterest || payload["package-interest"]);
+  const addonInterest = stringify(payload.addonInterest || payload["addon-interest"]);
   const serviceRequested = normalizeServiceRequested(payload, packageInterest);
   const message = stringify(payload.message);
+  const galleryReferral = normalizeGalleryReferral(payload["gallery-referral"] || payload.galleryReferral);
   const notes = [
     message ? `Message: ${message}` : "",
     packageInterest ? `Package interest: ${packageInterest}` : "",
+    addonInterest && addonInterest !== "No keepsake add-on selected"
+      ? `Keepsake add-on interest: ${addonInterest}`
+      : "",
+    galleryReferral ? `Client gallery referral: /gallery/${galleryReferral}` : "",
     missing.length ? `Missing info to request: ${missing.join(", ")}` : "",
     "Website form lead. Do not confirm availability until calendar is checked."
   ].filter(Boolean).join("\n");
@@ -297,6 +303,11 @@ function normalizeWebsiteLead(payload) {
     notes,
     status: missing.length ? "Missing Info" : "New Lead"
   };
+}
+
+function normalizeGalleryReferral(value) {
+  const clean = stringify(value).toLowerCase();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(clean) ? clean.slice(0, 120) : "";
 }
 
 function normalizeServiceRequested(payload, packageInterest = "") {

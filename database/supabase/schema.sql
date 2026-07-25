@@ -223,11 +223,11 @@ create table if not exists public.package_templates (
 
 insert into public.package_templates (id, service, package_name, hours, base_price, includes, notes, active)
 values
-  ('PKG-001', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 2 Hours', 2, 450, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $225. No 360 booth.', true),
-  ('PKG-002', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 3 Hours', 3, 575, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $287.50. No 360 booth.', true),
-  ('PKG-003', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 4 Hours', 4, 700, 'DSLR booth; unlimited prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $350. No 360 booth.', true),
+  ('PKG-001', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 2 Hours', 2, 450, 'DSLR booth; instant prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $225. No 360 booth.', true),
+  ('PKG-002', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 3 Hours', 3, 575, 'DSLR booth; instant prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $287.50. No 360 booth.', true),
+  ('PKG-003', 'DSLR Print Photo Booth', 'DSLR Print Photo Booth - 4 Hours', 4, 700, 'DSLR booth; instant prints; instant digital sharing; premium backdrop; studio flash lighting; custom overlay; props; attendant; unlimited sessions; digital gallery', '50% retainer is $350. No 360 booth.', true),
   ('PKG-004', 'Premium DJ Services', 'Premium DJ Services', null, null, 'High-end DJ services for Miami and South Florida events', 'Quote per event. Do not publish paid ads or discounts without owner approval.', true),
-  ('PKG-005', 'Photo Booth + DJ Bundle', 'Photo Booth + DJ Bundle', null, null, 'DSLR print photo booth package with unlimited prints plus premium DJ services', 'Bundle quote requires owner-approved final pricing.', true)
+  ('PKG-005', 'Photo Booth + DJ Bundle', 'Photo Booth + DJ Bundle', null, null, 'DSLR print photo booth package with instant prints plus premium DJ services', 'Bundle quote requires owner-approved final pricing.', true)
 on conflict (id) do update
 set service = excluded.service,
     package_name = excluded.package_name,
@@ -251,10 +251,10 @@ create table if not exists public.quote_templates (
 
 insert into public.quote_templates (id, trigger, recommended_package, draft_copy, owner_approval_needed, active)
 values
-  ('QT-001', 'Client asks for photo booth pricing', 'DSLR Print Photo Booth', 'Thank you for reaching out to Booth Fairy Miami. Every DSLR Print Photo Booth package includes unlimited prints, instant digital sharing, a premium backdrop, studio flash lighting, custom overlay, props, an attendant, unlimited sessions, and digital gallery delivery. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.', false, true),
+  ('QT-001', 'Client asks for photo booth pricing', 'DSLR Print Photo Booth', 'Thank you for reaching out to Booth Fairy Miami. Every DSLR Print Photo Booth package includes instant prints, instant digital sharing, a premium backdrop, studio flash lighting, custom overlay, props, an attendant, unlimited sessions, and digital gallery delivery. Pricing is $450 for 2 hours, $575 for 3 hours, and $700 for 4 hours. To check availability, please send your event date, venue/city, phone number, and guest count.', false, true),
   ('QT-002', 'Client wants to book', 'Calendar availability check', 'I would love to help reserve your date. Before confirming, I need to check calendar availability. Once availability is confirmed, booking is secured with a signed agreement and a non-refundable 50% retainer. The remaining 50% is due on the day of the event.', false, true),
   ('QT-003', 'Client asks about DJ services', 'Premium DJ Services', 'We also offer premium DJ services for Miami and South Florida events. DJ pricing is quoted based on event date, venue, hours, sound needs, timeline, and whether you want to bundle DJ with the DSLR print photo booth.', true, true),
-  ('QT-004', 'Client asks about prints or 360 booth', 'DSLR Print Photo Booth', 'Every DSLR Print Photo Booth package includes unlimited prints and instant digital sharing. We do not currently offer 360 photo booth services.', false, true)
+  ('QT-004', 'Client asks about prints or 360 booth', 'DSLR Print Photo Booth', 'Every DSLR Print Photo Booth package includes instant prints and instant digital sharing. We do not currently offer 360 photo booth services.', false, true)
 on conflict (id) do update
 set trigger = excluded.trigger,
     recommended_package = excluded.recommended_package,
@@ -285,6 +285,9 @@ create table if not exists public.payments (
     type in ('Stripe Payment Link', 'Invoice', 'Deposit Request')
   ),
   amount numeric(10, 2) not null default 0 check (amount >= 0),
+  subtotal numeric(10, 2) not null default 0 check (subtotal >= 0),
+  tax_amount numeric(10, 2) not null default 0 check (tax_amount >= 0),
+  total_amount numeric(10, 2) not null default 0 check (total_amount >= 0),
   status text not null default 'Pending' check (
     status in ('Pending', 'Paid', 'Expired')
   ),
@@ -301,6 +304,23 @@ add column if not exists stripe_session_id text;
 
 alter table public.payments
 add column if not exists stripe_payment_intent_id text;
+
+alter table public.payments
+add column if not exists stripe_invoice_id text;
+
+alter table public.payments
+add column if not exists subtotal numeric(10, 2) not null default 0 check (subtotal >= 0);
+
+alter table public.payments
+add column if not exists tax_amount numeric(10, 2) not null default 0 check (tax_amount >= 0);
+
+alter table public.payments
+add column if not exists total_amount numeric(10, 2) not null default 0 check (total_amount >= 0);
+
+update public.payments
+set subtotal = amount,
+    total_amount = amount
+where subtotal = 0 and tax_amount = 0 and total_amount = 0 and amount > 0;
 
 create table if not exists public.campaigns (
   id uuid primary key default gen_random_uuid(),
@@ -439,6 +459,7 @@ create index if not exists followups_lead_id_idx on public.followups (lead_id);
 create index if not exists followups_due_date_idx on public.followups (due_date);
 create index if not exists payments_lead_id_idx on public.payments (lead_id);
 create index if not exists payments_stripe_session_id_idx on public.payments (stripe_session_id);
+create index if not exists payments_stripe_invoice_id_idx on public.payments (stripe_invoice_id);
 create index if not exists campaigns_status_idx on public.campaigns (status);
 create index if not exists gmail_imports_imported_at_idx on public.gmail_imports (imported_at);
 create index if not exists instagram_imports_lead_id_idx on public.instagram_imports (lead_id);

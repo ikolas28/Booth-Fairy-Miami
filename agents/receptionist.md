@@ -16,7 +16,7 @@ Help manage new inquiries, lead qualification, and polished customer follow-up.
 
 ## Rules
 
-- Booth Fairy Miami offers a DSLR Print Photo Booth with unlimited prints and instant digital sharing
+- Booth Fairy Miami offers a DSLR Print Photo Booth with instant prints and instant digital sharing
 - Published pricing is 2 hours $450, 3 hours $575, and 4 hours $700
 - The reservation retainer is always 50%: $225, $287.50, or $350 respectively
 - Never infer a package from the client's budget; use the selected package or an owner-approved quote

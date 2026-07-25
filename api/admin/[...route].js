@@ -15,6 +15,7 @@ const {
 } = require("../_hubspot-lib");
 const { getPhotoBoothPackageLabel } = require("../_packages");
 const handleTikTokRequest = require("../_tiktok-handler");
+const handleGalleryRequest = require("../_gallery-handler");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const CRON_SECRET = cleanEnvValue(process.env.CRON_SECRET);
@@ -27,6 +28,25 @@ const INSTAGRAM_GRAPH_VERSION = cleanEnvValue(process.env.INSTAGRAM_GRAPH_VERSIO
 
 module.exports = async (req, res) => {
   const route = getRoute(req);
+  const originalGalleryRoute = new URL(req.url, "https://www.boothfairymiami.com")
+    .pathname
+    .match(/^\/api\/gallery\/(.+)$/)?.[1];
+  if (originalGalleryRoute) {
+    return handleGalleryRequest(req, res, originalGalleryRoute);
+  }
+  if (route === "gallery-proxy") {
+    const queryPath = req.query?.galleryPath || req.query?.path;
+    const galleryPath = Array.isArray(queryPath)
+      ? queryPath.join("/")
+      : String(queryPath || "");
+    return handleGalleryRequest(req, res, galleryPath);
+  }
+  if (route.startsWith("gallery-")) {
+    return handleGalleryRequest(req, res, route.slice("gallery-".length));
+  }
+  if (route.startsWith("gallery/")) {
+    return handleGalleryRequest(req, res, route.slice("gallery/".length));
+  }
   const originalTikTokRoute = new URL(req.url, "https://www.boothfairymiami.com")
     .pathname
     .match(/^\/api\/tiktok\/([^/]+)$/)?.[1];
@@ -486,28 +506,38 @@ async function handleVerifyStripePayment(req, res) {
     }
 
     const payment = await getLatestLeadPayment(lead.id);
+    const invoiceId = stringify(body.stripeInvoiceId || body.stripe_invoice_id || payment?.stripe_invoice_id || extractStripeInvoiceId(payment?.link));
     const sessionId = stringify(body.stripeSessionId || body.stripe_session_id || payment?.stripe_session_id || extractStripeSessionId(payment?.link));
-    if (!sessionId) {
+    if (!invoiceId && !sessionId) {
       return setJson(res, 400, {
         ok: false,
-        error: "No Stripe Checkout Session ID found. Open the payment record and make sure it has a Stripe checkout link that starts with cs_live_ or cs_test_."
+        error: "No Stripe invoice or Checkout Session ID found on this payment record."
       });
     }
 
-    const session = await retrieveStripeCheckoutSession(sessionId, stripeSecretKey);
-    if (session.payment_status !== "paid") {
+    const stripePayment = invoiceId
+      ? await retrieveStripeInvoice(invoiceId, stripeSecretKey)
+      : await retrieveStripeCheckoutSession(sessionId, stripeSecretKey);
+    const isPaid = invoiceId ? stripePayment.status === "paid" : stripePayment.payment_status === "paid";
+    if (!isPaid) {
+      const paymentStatus = invoiceId ? stripePayment.status : stripePayment.payment_status;
       return setJson(res, 409, {
         ok: false,
         paid: false,
-        stripeSessionId: session.id,
-        paymentStatus: session.payment_status || "unknown",
-        error: `Stripe says this checkout session is ${session.payment_status || "not paid"} yet.`
+        stripeInvoiceId: invoiceId || "",
+        stripeSessionId: sessionId || "",
+        paymentStatus: paymentStatus || "unknown",
+        error: `Stripe says this ${invoiceId ? "invoice" : "checkout session"} is ${paymentStatus || "not paid"} yet.`
       });
     }
 
     const now = new Date().toISOString();
-    const paidSummary = buildStripePaidSummary(session);
-    await applyPaidStripeSessionToLead(lead, session, payment, paidSummary, now);
+    const paidSummary = invoiceId ? buildStripeInvoicePaidSummary(stripePayment) : buildStripePaidSummary(stripePayment);
+    if (invoiceId) {
+      await applyPaidStripeInvoiceToLead(lead, stripePayment, payment, paidSummary, now);
+    } else {
+      await applyPaidStripeSessionToLead(lead, stripePayment, payment, paidSummary, now);
+    }
 
     let booking = null;
     let calendarSync = null;
@@ -519,7 +549,8 @@ async function handleVerifyStripePayment(req, res) {
           ok: true,
           paid: true,
           needsCalendar: true,
-          stripeSessionId: session.id,
+          stripeInvoiceId: invoiceId || "",
+          stripeSessionId: sessionId || "",
           error: "Stripe payment is verified, but calendar availability must be checked before marking Booked."
         });
       }
@@ -550,9 +581,10 @@ async function handleVerifyStripePayment(req, res) {
       ok: true,
       paid: true,
       leadStatus: signedAgreement && lead.calendar_checked ? "Booked" : "Deposit Paid",
-      stripeSessionId: session.id,
-      stripePaymentIntentId: stringify(session.payment_intent),
-      amountPaid: session.amount_total ? Number(session.amount_total) / 100 : 0,
+      stripeInvoiceId: invoiceId || "",
+      stripeSessionId: sessionId || "",
+      stripePaymentIntentId: stringify(stripePayment.payment_intent),
+      amountPaid: invoiceId ? Number(stripePayment.amount_paid || 0) / 100 : Number(stripePayment.amount_total || 0) / 100,
       bookingId: booking?.id || "",
       calendarSync,
       confirmationDraft,
@@ -841,6 +873,20 @@ async function patchLeadHubSpotSync(leadId, sync) {
   });
 }
 
+async function retrieveStripeInvoice(invoiceId, stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY)) {
+  const response = await fetch(`https://api.stripe.com/v1/invoices/${encodeURIComponent(invoiceId)}`, {
+    headers: { Authorization: `Bearer ${stripeSecretKey}` }
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Stripe invoice lookup failed.");
+    error.details = payload;
+    error.statusCode = response.status;
+    throw error;
+  }
+  return payload;
+}
+
 async function retrieveStripeCheckoutSession(sessionId, stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY)) {
   const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
     headers: {
@@ -878,6 +924,70 @@ async function applyPaidStripeSessionToLead(lead, session, payment, paidSummary,
       notes: appendNotes(lead.notes, paidSummary)
     }
   });
+}
+
+async function applyPaidStripeInvoiceToLead(lead, invoice, payment, paidSummary, now) {
+  const subtotal = roundMoney(Number(invoice.subtotal || 0) / 100) || roundMoney(Number(invoice.metadata?.deposit_subtotal || 0));
+  const tax = roundMoney(Number(invoice.total_tax_amounts?.reduce((sum, item) => sum + Number(item.amount || 0), 0) || 0) / 100) || roundMoney(Number(invoice.metadata?.deposit_tax || 0));
+  const total = roundMoney(Number(invoice.amount_paid || invoice.total || 0) / 100) || roundMoney(Number(invoice.metadata?.deposit_total || 0));
+  const body = {
+    type: "Invoice",
+    amount: total,
+    subtotal,
+    tax_amount: tax,
+    total_amount: total,
+    status: "Paid",
+    link: payment?.link || invoice.hosted_invoice_url || invoice.invoice_pdf || null,
+    stripe_invoice_id: invoice.id,
+    stripe_payment_intent_id: stringify(invoice.payment_intent) || null,
+    notes: appendNotes(payment?.notes, paidSummary)
+  };
+
+  if (payment?.id) {
+    await patchInvoicePaymentWithFallback(payment.id, body);
+  } else {
+    await createInvoicePaymentWithFallback(lead.id, body);
+  }
+
+  const pending = await supabaseAdmin(`/payments?lead_id=eq.${encodeURIComponent(lead.id)}&status=eq.Pending&select=*`, { method: "GET" }).catch(() => []);
+  for (const row of pending || []) {
+    await patchInvoicePaymentWithFallback(row.id, { ...body, link: row.link || body.link, notes: appendNotes(row.notes, paidSummary) });
+  }
+
+  await createOrUpdateDepositPaidBooking(lead, {
+    id: invoice.id,
+    amount_total: Math.round(total * 100),
+    url: invoice.hosted_invoice_url || invoice.invoice_pdf || null,
+    metadata: invoice.metadata || {}
+  }, now);
+  await supabaseAdmin(`/leads?id=eq.${encodeURIComponent(lead.id)}`, {
+    method: "PATCH",
+    body: {
+      status: ["Booked", "Paid", "Completed", "Event Completed", "Review Requested", "Repeat Client"].includes(lead.status) ? lead.status : "Deposit Paid",
+      payment_status: "Paid",
+      notes: appendNotes(lead.notes, paidSummary)
+    }
+  });
+}
+
+async function patchInvoicePaymentWithFallback(paymentId, body) {
+  try {
+    await supabaseAdmin(`/payments?id=eq.${encodeURIComponent(paymentId)}`, { method: "PATCH", body });
+  } catch (error) {
+    if (!isMissingStripePaymentColumn(error)) throw error;
+    const { stripe_invoice_id, stripe_payment_intent_id, subtotal, tax_amount, total_amount, ...fallback } = body;
+    await supabaseAdmin(`/payments?id=eq.${encodeURIComponent(paymentId)}`, { method: "PATCH", body: fallback });
+  }
+}
+
+async function createInvoicePaymentWithFallback(leadId, body) {
+  try {
+    await supabaseAdmin("/payments", { method: "POST", body: { lead_id: leadId, ...body } });
+  } catch (error) {
+    if (!isMissingStripePaymentColumn(error)) throw error;
+    const { stripe_invoice_id, stripe_payment_intent_id, subtotal, tax_amount, total_amount, ...fallback } = body;
+    await supabaseAdmin("/payments", { method: "POST", body: { lead_id: leadId, ...fallback } });
+  }
 }
 
 async function patchPaymentPaid(payment, session, paidSummary) {
@@ -927,13 +1037,13 @@ async function createOrUpdateDepositPaidBooking(lead, session, now) {
     phone: lead.phone === "Not provided" ? null : lead.phone,
     event_type: lead.event_type || null,
     event_date: lead.event_date || null,
-    start_time: lead.start_time || "18:00",
-    end_time: lead.end_time || "22:00",
+    start_time: lead.start_time || null,
+    end_time: lead.end_time || null,
     venue: lead.venue || null,
     city: lead.city || null,
     service_requested: getBookingServiceRequested(lead),
     guest_count: lead.guest_count || 0,
-    total_quote: amountPaid ? amountPaid * 2 : Number(lead.budget || 0),
+    total_quote: roundMoney(Number(session.metadata?.package_total || 0)) || (amountPaid ? amountPaid * 2 : Number(lead.budget || 0)),
     deposit_required: amountPaid || roundMoney(Number(lead.budget || 0) * 0.5),
     deposit_status: "Paid",
     payment_link: session.url || null,
@@ -958,9 +1068,26 @@ function buildStripePaidSummary(session) {
   ].filter(Boolean).join("\n");
 }
 
+function buildStripeInvoicePaidSummary(invoice) {
+  const tax = Number(invoice.total_tax_amounts?.reduce((sum, item) => sum + Number(item.amount || 0), 0) || 0) / 100;
+  return [
+    `Stripe invoice verified paid: ${invoice.id}`,
+    invoice.number ? `Invoice number: ${invoice.number}` : "",
+    invoice.payment_intent ? `Payment intent: ${invoice.payment_intent}` : "",
+    invoice.amount_paid ? `Amount paid: $${(Number(invoice.amount_paid) / 100).toFixed(2)}` : "",
+    tax ? `Sales tax collected: $${tax.toFixed(2)}` : "",
+    "50% retainer/deposit payment confirmed by direct Stripe lookup."
+  ].filter(Boolean).join("\n");
+}
+
 function extractStripeSessionId(value) {
   const decoded = decodeURIComponent(stringify(value));
   return decoded.match(/\bcs_(?:live|test)_[A-Za-z0-9]+/i)?.[0] || "";
+}
+
+function extractStripeInvoiceId(value) {
+  const decoded = decodeURIComponent(stringify(value));
+  return decoded.match(/\bin_[A-Za-z0-9]+/i)?.[0] || "";
 }
 
 function isValidStripeSecretKey(value) {
@@ -1059,8 +1186,8 @@ async function createOrUpdateBookedRecord(lead, now) {
     phone: lead.phone === "Not provided" ? null : lead.phone,
     event_type: lead.event_type || null,
     event_date: lead.event_date || null,
-    start_time: lead.start_time || "18:00",
-    end_time: lead.end_time || "22:00",
+    start_time: lead.start_time || null,
+    end_time: lead.end_time || null,
     venue: lead.venue || null,
     city: lead.city || null,
     service_requested: getBookingServiceRequested(lead),
@@ -1177,6 +1304,9 @@ async function findExistingCalendarEventId(accessToken, calendarId, booking, lea
 }
 
 function buildCalendarEvent(booking, lead = {}) {
+  const eventDate = booking.event_date || lead.event_date;
+  const startTime = getCalendarEventTime(lead.start_time || booking.start_time, "start");
+  const endTime = getCalendarEventTime(lead.end_time || booking.end_time, "end");
   const titleParts = [
     "Booth Fairy Miami",
     booking.client_name || lead.client_name || "Client",
@@ -1196,11 +1326,11 @@ function buildCalendarEvent(booking, lead = {}) {
       booking.notes || lead.notes || ""
     ].join("\n"),
     start: {
-      dateTime: toRfc3339WithOffset(booking.event_date || lead.event_date, booking.start_time || lead.start_time || "18:00"),
+      dateTime: toRfc3339WithOffset(eventDate, startTime),
       timeZone: "America/New_York"
     },
     end: {
-      dateTime: toRfc3339WithOffset(booking.event_date || lead.event_date, booking.end_time || lead.end_time || "22:00"),
+      dateTime: toRfc3339WithOffset(eventDate, endTime),
       timeZone: "America/New_York"
     },
     extendedProperties: {
@@ -1210,6 +1340,16 @@ function buildCalendarEvent(booking, lead = {}) {
       }
     }
   };
+}
+
+function getCalendarEventTime(value, label) {
+  const normalized = normalizeTime(value);
+  if (!normalized) {
+    const error = new Error(`A valid ${label} time is required before calendar sync.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return normalized;
 }
 
 async function createBookingConfirmationDraftIfPossible(lead, booking, calendarSync, now) {
@@ -1569,7 +1709,7 @@ function defaultMarketingBody(campaign) {
       "",
       "If you are still planning entertainment for your event, Booth Fairy Miami can make the setup feel simple and polished with one coordinated team for music, energy, and guest photos.",
       "",
-      "Our luxury DSLR print photo booth includes unlimited prints, instant digital sharing, a premium backdrop, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
+      "Our luxury DSLR print photo booth includes instant prints, instant digital sharing, a premium backdrop, studio-style lighting, a custom overlay, props, and an attendant. Premium DJ services can also be added for a smoother guest experience from start to finish.",
       "",
       "Reply with your event date, venue or city, and guest count, and we can check availability before sending the best package option.",
       "",
@@ -1583,7 +1723,7 @@ function defaultMarketingBody(campaign) {
     "",
     "Booth Fairy Miami offers a luxury DSLR print photo booth experience for weddings, birthdays, corporate events, and private celebrations across Miami and South Florida.",
     "",
-    "Every package includes unlimited prints, instant digital sharing, polished lighting, a custom overlay, a premium backdrop, props, and an attendant.",
+    "Every package includes instant prints, instant digital sharing, polished lighting, a custom overlay, a premium backdrop, props, and an attendant.",
     "",
     "Reply with your event date, venue or city, and guest count, and we can check availability before sending package options.",
     "",
@@ -1696,6 +1836,7 @@ function toRfc3339WithOffset(date, time) {
 
 function normalizeTime(value) {
   const clean = stringify(value).slice(0, 5);
+  if (!clean) return "";
   if (/^\d{2}:\d{2}$/.test(clean)) return clean;
   if (/^\d{1}:\d{2}$/.test(clean)) return `0${clean}`;
   const error = new Error("Event times must use HH:MM format before calendar sync.");

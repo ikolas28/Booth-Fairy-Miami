@@ -4,12 +4,16 @@ const {
   verifyAdminRequest
 } = require("../gmail/_lib");
 const { resolvePhotoBoothPackage } = require("../_packages");
+const {
+  buildTaxedRetainerPricing,
+  createStripeRetainerInvoice
+} = require("../_stripe-invoice-lib");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_SALES_TAX_RATE_ID = normalizeTaxRateId(process.env.STRIPE_SALES_TAX_RATE_ID);
 const SERVICE_AGREEMENT_URL = process.env.SERVICE_AGREEMENT_URL || "https://www.boothfairymiami.com/client-agreement.html";
 const SERVICE_AGREEMENT_ENGLISH_PDF_URL = process.env.SERVICE_AGREEMENT_ENGLISH_PDF_URL || "https://www.boothfairymiami.com/assets/contracts/booth-fairy-miami-service-agreement-english.pdf";
 const SERVICE_AGREEMENT_SPANISH_PDF_URL = process.env.SERVICE_AGREEMENT_SPANISH_PDF_URL || "https://www.boothfairymiami.com/assets/contracts/booth-fairy-miami-acuerdo-de-servicios-espanol.pdf";
-const SITE_URL = process.env.SITE_URL || "https://www.boothfairymiami.com";
 const CRM_LEAD_LABELS = [
   "CRM-Lead",
   "CRM-Lead/Booked",
@@ -44,19 +48,33 @@ module.exports = async (req, res) => {
       return setJson(res, 400, { ok: false, error: "Calendar must be checked before preparing contract and deposit." });
     }
 
-    const pricing = normalizeRetainerPricing(body.depositAmount, lead);
+    const pricing = buildTaxedRetainerPricing(normalizeRetainerPricing(body.depositAmount, lead));
     if (body.dryRun === true) {
       return setJson(res, 200, {
         ok: true,
         dryRun: true,
         packageLabel: pricing.label,
-        packageTotal: pricing.total,
-        depositAmount: pricing.deposit,
+        packageSubtotal: pricing.packageSubtotal,
+        packageTax: pricing.packageTax,
+        packageTotal: pricing.packageTotal,
+        depositSubtotal: pricing.depositSubtotal,
+        depositTax: pricing.depositTax,
+        depositTotal: pricing.depositTotal,
+        balanceSubtotal: pricing.balanceSubtotal,
+        balanceTax: pricing.balanceTax,
+        balanceTotal: pricing.balanceTotal,
+        salesTaxPercent: pricing.salesTaxPercent,
+        taxRateConfigured: Boolean(STRIPE_SALES_TAX_RATE_ID),
         stripeKeyType: describeStripeKeyType(normalizeStripeSecretKey(STRIPE_SECRET_KEY)),
         calendarChecked: lead.calendarChecked === "Yes"
       });
     }
-    const payment = await createStripeCheckoutSession(lead, pricing);
+    const payment = await createStripeRetainerInvoice({
+      lead,
+      pricing,
+      secretKey: normalizeStripeSecretKey(STRIPE_SECRET_KEY),
+      taxRateId: STRIPE_SALES_TAX_RATE_ID
+    });
     let draft;
     try {
       draft = await createGmailDraftIfPossible(lead, pricing, payment.url);
@@ -70,10 +88,20 @@ module.exports = async (req, res) => {
     return setJson(res, 200, {
       ok: true,
       contractUrl: SERVICE_AGREEMENT_URL,
-      packageTotal: pricing.total,
-      depositAmount: pricing.deposit,
+      packageSubtotal: pricing.packageSubtotal,
+      packageTax: pricing.packageTax,
+      packageTotal: pricing.packageTotal,
+      depositSubtotal: pricing.depositSubtotal,
+      depositTax: pricing.depositTax,
+      depositTotal: pricing.depositTotal,
+      depositAmount: pricing.depositTotal,
+      balanceSubtotal: pricing.balanceSubtotal,
+      balanceTax: pricing.balanceTax,
+      balanceTotal: pricing.balanceTotal,
+      salesTaxPercent: pricing.salesTaxPercent,
       paymentUrl: payment.url,
-      stripeSessionId: payment.sessionId || "",
+      stripeInvoiceId: payment.invoiceId || "",
+      stripeInvoiceNumber: payment.invoiceNumber || "",
       stripePaymentIntentId: payment.paymentIntentId || "",
       paymentReady: Boolean(payment.url),
       paymentSkippedReason: payment.skippedReason || "",
@@ -125,64 +153,6 @@ function normalizeRetainerPricing(value, lead) {
   return { total: fixedPackage.total, deposit: fixedPackage.deposit, label: fixedPackage.label };
 }
 
-async function createStripeCheckoutSession(lead, pricing) {
-  const stripeSecretKey = normalizeStripeSecretKey(STRIPE_SECRET_KEY);
-  if (!stripeSecretKey) {
-    return { url: "", skippedReason: "Missing STRIPE_SECRET_KEY. Add it in Vercel to create Stripe deposit links automatically." };
-  }
-  if (!isValidStripeSecretKey(stripeSecretKey)) {
-    const error = new Error(`Stripe is using the wrong API key type (${describeStripeKeyType(stripeSecretKey)}). Set STRIPE_SECRET_KEY in Vercel to a secret key that starts with sk_live_ for production or sk_test_ for preview.`);
-    error.statusCode = 500;
-    throw error;
-  }
-
-  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${stripeSecretKey}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      mode: "payment",
-      "line_items[0][price_data][currency]": "usd",
-      "line_items[0][price_data][product_data][name]": `Booth Fairy Miami 50% Retainer - ${pricing.label}`,
-      "line_items[0][price_data][product_data][description]": buildPaymentDescription(lead, pricing),
-      "line_items[0][price_data][unit_amount]": String(Math.round(pricing.deposit * 100)),
-      "line_items[0][quantity]": "1",
-      customer_email: lead.email,
-      success_url: `${SITE_URL}/thank-you.html?payment=success`,
-      cancel_url: `${SITE_URL}/admin?payment=cancelled`,
-      "metadata[lead_id]": lead.id || "",
-      "metadata[lead_code]": lead.leadCode || "",
-      "metadata[payment_type]": "50_percent_retainer",
-      "metadata[package_total]": String(pricing.total),
-      "metadata[deposit_amount]": String(pricing.deposit),
-      "metadata[service_requested]": pricing.label,
-      "metadata[client_name]": lead.clientName || "",
-      "metadata[event_date]": lead.eventDate || ""
-    })
-  });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const error = new Error(payload?.error?.message || "Stripe checkout session failed.");
-    error.details = payload;
-    error.statusCode = response.status;
-    throw error;
-  }
-
-  return {
-    url: payload?.url || "",
-    sessionId: payload?.id || "",
-    paymentIntentId: payload?.payment_intent || "",
-    skippedReason: ""
-  };
-}
-
-function isValidStripeSecretKey(value) {
-  return /^sk_(live|test)_[A-Za-z0-9]/.test(normalizeStripeSecretKey(value));
-}
-
 function normalizeStripeSecretKey(value) {
   return String(value || "")
     .trim()
@@ -199,6 +169,14 @@ function describeStripeKeyType(value) {
   if (key.startsWith("whsec_")) return "webhook signing secret";
   if (key.startsWith("sk_")) return "unrecognized Stripe secret format";
   return "unknown key format";
+}
+
+function normalizeTaxRateId(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^STRIPE_SALES_TAX_RATE_ID=/, "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
 }
 
 async function createGmailDraftIfPossible(lead, pricing, paymentUrl) {
@@ -308,10 +286,16 @@ function buildEmailBody(lead, pricing, paymentUrl) {
     "",
     "Next steps:",
     `Package: ${pricing.label}`,
-    `Package total: $${pricing.total.toFixed(2)}`,
+    `Package subtotal: $${pricing.packageSubtotal.toFixed(2)}`,
+    `Florida sales tax (${pricing.salesTaxPercent}%): $${pricing.packageTax.toFixed(2)}`,
+    `Package total with tax: $${pricing.packageTotal.toFixed(2)}`,
     `1. Review the service agreement: ${SERVICE_AGREEMENT_URL}`,
     paymentUrl ? `2. Pay the 50% retainer: ${paymentUrl}` : "2. Pay the 50% retainer: [Add Stripe payment link before sending]",
-    `Retainer due today: $${pricing.deposit.toFixed(2)}`,
+    `Retainer subtotal: $${pricing.depositSubtotal.toFixed(2)}`,
+    `Tax on retainer: $${pricing.depositTax.toFixed(2)}`,
+    `Due now: $${pricing.depositTotal.toFixed(2)}`,
+    `Remaining balance due on the event date: $${pricing.balanceTotal.toFixed(2)}`,
+    "Your DSLR photo booth package includes instant prints and instant digital sharing.",
     "",
     "Please note: your booking is not confirmed until the signed agreement and retainer payment are received.",
     "",
@@ -336,10 +320,11 @@ function buildEmailHtml(lead, pricing, paymentUrl) {
     "<p><strong>Next steps:</strong></p>",
     "<ol>",
     `<li><a href="${escapeAttribute(SERVICE_AGREEMENT_URL)}">Review the service agreement</a> <span style="color:#6e647d;">(English and Spanish PDFs are available on this page)</span></li>`,
-    `<li>Selected package: <strong>${escapeHtml(pricing.label)}</strong> — $${pricing.total.toFixed(2)}</li>`,
-    `<li>Submit the 50% retainer: <strong>$${pricing.deposit.toFixed(2)}</strong></li>`,
+    `<li>Selected package: <strong>${escapeHtml(pricing.label)}</strong> - $${pricing.packageSubtotal.toFixed(2)} plus $${pricing.packageTax.toFixed(2)} Florida sales tax</li>`,
+    `<li>Submit the 50% retainer: $${pricing.depositSubtotal.toFixed(2)} plus $${pricing.depositTax.toFixed(2)} tax = <strong>$${pricing.depositTotal.toFixed(2)} due now</strong></li>`,
     "</ol>",
     paymentAction,
+    `<p>Remaining balance due on the event date: <strong>$${pricing.balanceTotal.toFixed(2)}</strong>. Your DSLR photo booth package includes instant prints and instant digital sharing.</p>`,
     "<p><strong>Please note:</strong> your booking is not confirmed until the signed agreement and retainer payment are received.</p>",
     "<p>Warmly,<br>Booth Fairy Miami<br>DSLR Photo Booth &amp; DJ Services<br>(786) 315-9117<br><a href=\"https://www.boothfairymiami.com\">www.boothfairymiami.com</a><br>info@boothfairymiami.com</p>"
   ].join("\n");
@@ -371,16 +356,6 @@ function escapeAttribute(value) {
 
 function encodeMimeSubject(subject) {
   return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
-}
-
-function buildPaymentDescription(lead, pricing) {
-  return [
-    pricing?.label,
-    lead.eventType,
-    lead.eventDate,
-    lead.serviceRequested,
-    lead.venue || lead.city
-  ].filter(Boolean).join(" | ").slice(0, 500);
 }
 
 function roundMoney(value) {

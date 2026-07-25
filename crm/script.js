@@ -5,6 +5,9 @@ const LOCAL_ADMIN_EMAIL = "admin@boothfairymiami.com";
 const LOCAL_ADMIN_PASSWORD = "BoothFairyAdmin!";
 const ALLOWED_ADMIN_EMAILS = ["boothfairyllc@gmail.com"];
 const AUTH_SESSION_KEY = "bfmSupabaseSession";
+const DEFAULT_GALLERY_WELCOME = "Welcome to your private Booth Fairy Miami gallery. We hope you enjoy reliving the fun, laughter, and special moments from your celebration. Please share this gallery only with invited guests.";
+const DEFAULT_GALLERY_EXPIRATION_NOTICE = "This gallery is available for a limited time. Please download and save any photos you would like to keep before the gallery expires.";
+const DEFAULT_GALLERY_EXPIRED_MESSAGE = "This online gallery is no longer available. Please contact Booth Fairy Miami if you need assistance accessing your event photos.";
 const STORAGE_KEYS = {
   leads: "bfmCrmLeads",
   followups: "bfmCrmFollowups",
@@ -243,7 +246,7 @@ const seedCampaigns = [
       "2. Slow pan of backdrop, props, and DSLR camera.",
       "3. Show instant digital sharing on a phone.",
       "Caption:",
-      "Luxury DSLR print photo booth for Miami events with unlimited prints, instant digital sharing, premium setup, and a polished guest experience. Send your event date to check availability. @boothfairymiami",
+      "Luxury DSLR print photo booth for Miami events with instant prints, instant digital sharing, premium setup, and a polished guest experience. Send your event date to check availability. @boothfairymiami",
       "Hashtags: #BoothFairyMiami #MiamiPhotoBooth #DigitalPhotoBooth #MiamiEvents",
       "CTA: DM your event date, venue/city, and guest count."
     ].join("\n"),
@@ -318,6 +321,8 @@ const state = {
   payments: loadData(STORAGE_KEYS.payments, seedPayments),
   campaigns: loadData(STORAGE_KEYS.campaigns, seedCampaigns),
   messageHistory: loadData(STORAGE_KEYS.messageHistory, []),
+  galleries: [],
+  galleriesLoaded: false,
   activeSection: "dashboard",
   leadSearch: "",
   leadStatusFilter: "all",
@@ -470,6 +475,8 @@ function attachEventListeners() {
   document.getElementById("new-followup-button").addEventListener("click", () => openFollowupModal());
   document.getElementById("new-payment-button").addEventListener("click", () => openPaymentModal());
   document.getElementById("new-campaign-button").addEventListener("click", () => openCampaignModal());
+  document.getElementById("new-gallery-button").addEventListener("click", () => openGalleryModal());
+  document.getElementById("gallery-refresh-button").addEventListener("click", () => loadClientGalleries({ force: true }));
   document.getElementById("generate-tiktok-plan-button").addEventListener("click", () => runAgentAutomation("marketing"));
   document.getElementById("refresh-marketing-audience-button").addEventListener("click", () => {
     renderMarketingAudience();
@@ -531,7 +538,7 @@ function attachEventListeners() {
     button.addEventListener("click", () => closeModal(button.dataset.closeModal));
   });
 
-  ["lead-modal", "followup-modal", "payment-modal", "campaign-modal"].forEach((id) => {
+  ["lead-modal", "followup-modal", "payment-modal", "campaign-modal", "gallery-modal"].forEach((id) => {
     const modal = document.getElementById(id);
     modal.addEventListener("click", (event) => {
       if (event.target.id === id) {
@@ -544,6 +551,9 @@ function attachEventListeners() {
   document.getElementById("followup-form").addEventListener("submit", handleFollowupSubmit);
   document.getElementById("payment-form").addEventListener("submit", handlePaymentSubmit);
   document.getElementById("campaign-form").addEventListener("submit", handleCampaignSubmit);
+  document.getElementById("gallery-form").addEventListener("submit", handleGallerySubmit);
+  document.getElementById("gallery-title-input").addEventListener("blur", suggestGallerySlug);
+  document.getElementById("gallery-event-date").addEventListener("change", suggestGalleryExpiration);
   document.getElementById("campaign-approve-button").addEventListener("click", approveCurrentCampaign);
   document.getElementById("campaign-published-button").addEventListener("click", markCurrentCampaignPublished);
 }
@@ -767,9 +777,7 @@ async function handleGmailSync() {
   try {
     const response = await fetch("/api/gmail/sync", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${authState.session.accessToken}`
-      }
+      headers: await getAdminAuthHeaders()
     });
     const payload = await parseResponse(response);
     if (!response.ok || !payload?.ok) {
@@ -804,9 +812,7 @@ async function handleGmailDisconnect() {
   try {
     const response = await fetch("/api/gmail/disconnect", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${authState.session.accessToken}`
-      }
+      headers: await getAdminAuthHeaders()
     });
     const payload = await parseResponse(response);
     if (!response.ok || !payload?.ok) {
@@ -866,11 +872,11 @@ async function hydrateData() {
     hideSetupBanner();
   }
 
-  await refreshTikTokStatus();
   await refreshLeadIntelligence();
   await refreshFinanceSummary();
   await refreshGmailStatus();
   await refreshInstagramStatus();
+  await refreshTikTokStatus();
   await refreshHubSpotStatus();
   updateConnectionIndicators();
   renderAll();
@@ -885,7 +891,7 @@ async function refreshFinanceSummary() {
 
   try {
     const response = await fetch("/api/admin/finance-summary", {
-      headers: { Authorization: `Bearer ${authState.session.accessToken}` }
+      headers: await getAdminAuthHeaders()
     });
     const payload = await parseResponse(response);
     state.financeSummary = payload || null;
@@ -1110,7 +1116,7 @@ async function refreshHubSpotStatus() {
 
   try {
     const response = await fetch("/api/admin/hubspot-status", {
-      headers: { Authorization: `Bearer ${authState.session.accessToken}` }
+      headers: await getAdminAuthHeaders()
     });
     const payload = await parseResponse(response);
     state.hubspot = {
@@ -1137,10 +1143,7 @@ async function refreshGmailDraftApprovals() {
   if (!authState.session?.accessToken || authState.isLocalFallback) return null;
   const response = await fetch("/api/gmail/refresh-drafts", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${authState.session.accessToken}`
-    }
+    headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
   });
   const payload = await parseResponse(response);
   if (!response.ok || !payload?.ok) {
@@ -1293,6 +1296,7 @@ async function handlePaymentSubmit(event) {
     link: document.getElementById("payment-link").value.trim(),
     stripeSessionId: existing?.stripeSessionId || "",
     stripePaymentIntentId: existing?.stripePaymentIntentId || "",
+    stripeInvoiceId: existing?.stripeInvoiceId || "",
     notes: document.getElementById("payment-notes").value.trim(),
     createdAt: existing?.createdAt || todayIso(),
     updatedAt: todayIso()
@@ -1307,6 +1311,11 @@ async function handlePaymentSubmit(event) {
       lead.updatedAt = todayIso();
       const savedLead = await upsertResource("leads", lead);
       upsertLocalItem(state.leads, savedLead);
+      if (!authState.isLocalFallback) {
+        await syncFinanceForBooking(savedLead.id, getBookingForLead(savedLead.id)?.id || "", { quiet: true }).catch((error) => {
+          console.warn("Finance sync after payment save skipped", error);
+        });
+      }
     }
     closeModal("payment-modal");
     renderAll();
@@ -1406,10 +1415,7 @@ async function prepareCampaignGmailDraft(campaignId, options = {}) {
   try {
     const response = await fetch("/api/admin/marketing-draft", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ campaignId, bulk: true, batchSize: 25 })
     });
     const payload = await parseResponse(response);
@@ -1492,10 +1498,7 @@ async function publishInstagramCampaign(campaignId) {
   try {
     const response = await fetch("/api/admin/instagram-publish", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ campaignId, mediaUrl, mediaType })
     });
     const payload = await parseResponse(response);
@@ -1560,10 +1563,7 @@ async function runAgentAutomation(agentName) {
   try {
     const response = await fetch(`/api/cron/${agentName}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      }
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" })
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.ok) {
@@ -1614,6 +1614,12 @@ function setSection(sectionName) {
     section.classList.toggle("active", section.dataset.section === sectionName);
   });
   sectionTitle.textContent = getSectionTitle(sectionName);
+  if (sectionName === "galleries") {
+    loadClientGalleries().catch((error) => {
+      console.error(error);
+      renderGalleryAdminError(getFriendlyError(error, "Client galleries could not be loaded."));
+    });
+  }
 }
 
 function getSectionTitle(sectionName) {
@@ -1629,6 +1635,7 @@ function getSectionTitle(sectionName) {
     tidio: "Tidio",
     instagram: "Instagram",
     content: "Content Library",
+    galleries: "Client Galleries",
     marketing: "Marketing"
   }[sectionName] || "Dashboard";
 }
@@ -1655,10 +1662,278 @@ function renderAll() {
   renderHubSpotStatus();
   renderTikTokIntegration();
   renderContentLibrary();
+  renderClientGalleries();
   refreshSelectMenus();
   persistAll();
   updateConnectionIndicators();
   updateGmailSection();
+}
+
+async function loadClientGalleries(options = {}) {
+  if (state.galleriesLoaded && !options.force) {
+    renderClientGalleries();
+    return;
+  }
+  if (!authState.session?.accessToken || authState.isLocalFallback) {
+    state.galleries = [];
+    state.galleriesLoaded = true;
+    renderGalleryAdminError("Sign in with the approved Supabase admin account to manage private galleries.");
+    return;
+  }
+
+  const container = document.getElementById("gallery-admin-grid");
+  if (container) container.innerHTML = emptyState("Loading galleries", "Fetching private gallery records and analytics.");
+  const response = await fetch("/api/gallery/admin", {
+    headers: await getAdminAuthHeaders({ Accept: "application/json" })
+  });
+  const payload = await parseResponse(response);
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || "Client galleries could not be loaded.");
+  }
+  state.galleries = payload.galleries || [];
+  state.galleriesLoaded = true;
+  renderClientGalleries();
+}
+
+function renderClientGalleries() {
+  const container = document.getElementById("gallery-admin-grid");
+  const summary = document.getElementById("gallery-admin-summary");
+  if (!container || !summary) return;
+
+  const galleries = state.galleries || [];
+  const totals = galleries.reduce((result, gallery) => {
+    result.visits += Number(gallery.analytics?.visits || 0);
+    result.buttonClicks += Number(gallery.analytics?.buttonClicks || 0);
+    result.bookingInquiries += Number(gallery.analytics?.bookingInquiries || 0);
+    return result;
+  }, { visits: 0, buttonClicks: 0, bookingInquiries: 0 });
+
+  summary.innerHTML = [
+    ["Galleries", galleries.length],
+    ["Visits", totals.visits],
+    ["Button clicks", totals.buttonClicks],
+    ["Booking inquiries", totals.bookingInquiries]
+  ].map(([label, value]) => `
+    <article class="gallery-metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${Number(value).toLocaleString()}</strong>
+    </article>
+  `).join("");
+
+  if (!galleries.length) {
+    container.innerHTML = emptyState("No client galleries yet", "Add a gallery, paste the Touchpix embed code, and share its private URL.");
+    return;
+  }
+
+  container.innerHTML = galleries.map((gallery) => {
+    const status = getGalleryAdminStatus(gallery);
+    const url = `${window.location.origin}/gallery/${gallery.slug}`;
+    return `
+      <article class="gallery-admin-card">
+        <div class="gallery-admin-card-head">
+          <div>
+            <span class="chip ${status.className}">${escapeHtml(status.label)}</span>
+            <h3>${escapeHtml(gallery.title)}</h3>
+            <p>${escapeHtml(gallery.clientName || "Client name not shown")}${gallery.eventDate ? ` · ${escapeHtml(formatDate(gallery.eventDate))}` : ""}</p>
+          </div>
+          <span class="gallery-lock-state">${gallery.hasPassword ? "Access code on" : "Private link only"}</span>
+        </div>
+        <a class="gallery-private-url" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
+        <div class="gallery-card-metrics">
+          <span><strong>${Number(gallery.analytics?.visits || 0).toLocaleString()}</strong> visits</span>
+          <span><strong>${Number(gallery.analytics?.buttonClicks || 0).toLocaleString()}</strong> clicks</span>
+          <span><strong>${Number(gallery.analytics?.bookingInquiries || 0).toLocaleString()}</strong> inquiries</span>
+        </div>
+        <p class="gallery-expiry-copy">${gallery.expiresAt ? `Expires ${escapeHtml(formatDateTime(gallery.expiresAt))}` : "No automatic expiration set"}</p>
+        <div class="card-actions">
+          <button class="button button-secondary button-small" data-gallery-copy="${escapeHtml(url)}">Copy URL</button>
+          <button class="button button-secondary button-small" data-gallery-edit="${escapeHtml(gallery.id)}">Edit</button>
+          <button class="button button-secondary button-small" data-gallery-toggle="${escapeHtml(gallery.id)}">${gallery.enabled ? "Disable" : "Enable"}</button>
+          <button class="button button-danger button-small" data-gallery-delete="${escapeHtml(gallery.id)}">Delete</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  container.querySelectorAll("[data-gallery-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(button.dataset.galleryCopy);
+      const original = button.textContent;
+      button.textContent = "Copied";
+      setTimeout(() => { button.textContent = original; }, 1200);
+    });
+  });
+  container.querySelectorAll("[data-gallery-edit]").forEach((button) => {
+    button.addEventListener("click", () => openGalleryModal(button.dataset.galleryEdit));
+  });
+  container.querySelectorAll("[data-gallery-toggle]").forEach((button) => {
+    button.addEventListener("click", () => toggleClientGallery(button.dataset.galleryToggle));
+  });
+  container.querySelectorAll("[data-gallery-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteClientGallery(button.dataset.galleryDelete));
+  });
+}
+
+function renderGalleryAdminError(message) {
+  const container = document.getElementById("gallery-admin-grid");
+  const summary = document.getElementById("gallery-admin-summary");
+  if (summary) summary.innerHTML = "";
+  if (container) container.innerHTML = emptyState("Gallery setup needed", message);
+}
+
+function getGalleryAdminStatus(gallery) {
+  if (!gallery.enabled) return { label: "Disabled", className: "chip-muted" };
+  if (gallery.expiresAt && Date.parse(gallery.expiresAt) <= Date.now()) {
+    return { label: "Expired", className: "chip-warning" };
+  }
+  return { label: "Active", className: "chip-success" };
+}
+
+function openGalleryModal(galleryId = "") {
+  const gallery = state.galleries.find((item) => item.id === galleryId);
+  document.getElementById("gallery-modal-title").textContent = gallery ? "Edit Client Gallery" : "Add Client Gallery";
+  document.getElementById("gallery-id").value = gallery?.id || "";
+  document.getElementById("gallery-title-input").value = gallery?.title || "";
+  document.getElementById("gallery-slug").value = gallery?.slug || "";
+  document.getElementById("gallery-client-name").value = gallery?.clientName || "";
+  document.getElementById("gallery-event-date").value = gallery?.eventDate || "";
+  document.getElementById("gallery-expires-at").value = toDateTimeLocal(gallery?.expiresAt);
+  document.getElementById("gallery-enabled").value = String(gallery?.enabled !== false);
+  document.getElementById("gallery-welcome-message").value = gallery?.welcomeMessage || DEFAULT_GALLERY_WELCOME;
+  document.getElementById("gallery-expiration-notice").value = gallery?.expirationNotice || DEFAULT_GALLERY_EXPIRATION_NOTICE;
+  document.getElementById("gallery-expired-message").value = gallery?.expiredMessage || DEFAULT_GALLERY_EXPIRED_MESSAGE;
+  document.getElementById("gallery-embed-code").value = gallery?.touchpixEmbedUrl || "";
+  document.getElementById("gallery-access-code").value = "";
+  document.getElementById("gallery-access-code").placeholder = gallery?.hasPassword ? "Leave blank to keep the current code" : "Optional, minimum 6 characters";
+  document.getElementById("gallery-remove-password").checked = false;
+  openModal("gallery-modal");
+}
+
+function suggestGallerySlug() {
+  const slugInput = document.getElementById("gallery-slug");
+  if (slugInput.value || document.getElementById("gallery-id").value) return;
+  const base = document.getElementById("gallery-title-input").value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  const suffix = Math.random().toString(36).slice(2, 6);
+  slugInput.value = `${base || "client-event"}-${suffix}`;
+}
+
+function suggestGalleryExpiration() {
+  const eventDateValue = document.getElementById("gallery-event-date").value;
+  const expirationInput = document.getElementById("gallery-expires-at");
+  if (!eventDateValue) return;
+  const currentExpiration = expirationInput.value ? new Date(expirationInput.value) : null;
+  if (currentExpiration && currentExpiration.getTime() > Date.now()) return;
+  const expiration = new Date(`${eventDateValue}T23:59:00`);
+  expiration.setMonth(expiration.getMonth() + 6);
+  const offset = expiration.getTimezoneOffset();
+  expirationInput.value = new Date(expiration.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
+
+async function handleGallerySubmit(event) {
+  event.preventDefault();
+  const id = document.getElementById("gallery-id").value;
+  const payload = getGalleryFormPayload();
+  const submit = event.currentTarget.querySelector("button[type='submit']");
+  const original = submit.textContent;
+  submit.disabled = true;
+  submit.textContent = "Saving…";
+  try {
+    const response = await fetch(id ? `/api/gallery/admin/${encodeURIComponent(id)}` : "/api/gallery/admin", {
+      method: id ? "PATCH" : "POST",
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+      body: JSON.stringify(payload)
+    });
+    const result = await parseResponse(response);
+    if (!response.ok || !result?.ok) throw new Error(result?.error || "Gallery could not be saved.");
+    closeModal("gallery-modal");
+    state.galleriesLoaded = false;
+    await loadClientGalleries({ force: true });
+  } catch (error) {
+    alert(getFriendlyError(error, "Gallery could not be saved."));
+  } finally {
+    submit.disabled = false;
+    submit.textContent = original;
+  }
+}
+
+function getGalleryFormPayload() {
+  const expirationValue = document.getElementById("gallery-expires-at").value;
+  return {
+    slug: document.getElementById("gallery-slug").value.trim().toLowerCase(),
+    title: document.getElementById("gallery-title-input").value.trim(),
+    clientName: document.getElementById("gallery-client-name").value.trim(),
+    eventDate: document.getElementById("gallery-event-date").value,
+    expiresAt: expirationValue ? new Date(expirationValue).toISOString() : "",
+    enabled: document.getElementById("gallery-enabled").value === "true",
+    welcomeMessage: document.getElementById("gallery-welcome-message").value.trim(),
+    expirationNotice: document.getElementById("gallery-expiration-notice").value.trim(),
+    expiredMessage: document.getElementById("gallery-expired-message").value.trim(),
+    touchpixEmbedCode: document.getElementById("gallery-embed-code").value.trim(),
+    accessCode: document.getElementById("gallery-access-code").value,
+    removePassword: document.getElementById("gallery-remove-password").checked
+  };
+}
+
+async function toggleClientGallery(id) {
+  const gallery = state.galleries.find((item) => item.id === id);
+  if (!gallery) return;
+  const payload = {
+    slug: gallery.slug,
+    title: gallery.title,
+    clientName: gallery.clientName,
+    eventDate: gallery.eventDate,
+    expiresAt: gallery.expiresAt,
+    enabled: !gallery.enabled,
+    welcomeMessage: gallery.welcomeMessage,
+    expirationNotice: gallery.expirationNotice,
+    expiredMessage: gallery.expiredMessage,
+    touchpixEmbedCode: gallery.touchpixEmbedUrl
+  };
+  try {
+    const response = await fetch(`/api/gallery/admin/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+      body: JSON.stringify(payload)
+    });
+    const result = await parseResponse(response);
+    if (!response.ok || !result?.ok) throw new Error(result?.error || "Gallery status could not be changed.");
+    state.galleriesLoaded = false;
+    await loadClientGalleries({ force: true });
+  } catch (error) {
+    alert(getFriendlyError(error, "Gallery status could not be changed."));
+  }
+}
+
+async function deleteClientGallery(id) {
+  const gallery = state.galleries.find((item) => item.id === id);
+  if (!gallery) return;
+  if (!confirm(`Delete "${gallery.title}"?\n\nThis permanently removes the gallery record and its analytics. It does not delete anything from Touchpix.`)) return;
+  try {
+    const response = await fetch(`/api/gallery/admin/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: await getAdminAuthHeaders({ Accept: "application/json" })
+    });
+    const result = await parseResponse(response);
+    if (!response.ok || !result?.ok) throw new Error(result?.error || "Gallery could not be deleted.");
+    state.galleriesLoaded = false;
+    await loadClientGalleries({ force: true });
+  } catch (error) {
+    alert(getFriendlyError(error, "Gallery could not be deleted."));
+  }
+}
+
+function toDateTimeLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
 function renderLeadIntelligence() {
@@ -2854,10 +3129,7 @@ async function updateLeadStatus(leadId, nextStatus) {
     try {
       const response = await fetch("/api/admin/confirm-booking", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authState.session.accessToken}`
-        },
+        headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ leadId, paymentVerified: false })
       });
       const payload = await response.json().catch(() => null);
@@ -2906,10 +3178,7 @@ async function reconcileLeadPaymentState(lead) {
   if (authState.session?.accessToken && !authState.isLocalFallback) {
     const response = await fetch("/api/admin/reconcile-payment", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId: lead.id })
     });
     const payload = await response.json().catch(() => null);
@@ -2969,10 +3238,7 @@ async function verifyStripePayment(leadId, signedAgreement = false) {
   try {
     const response = await fetch("/api/admin/verify-stripe-payment", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId, signedAgreement })
     });
     const payload = await response.json().catch(() => null);
@@ -3005,10 +3271,7 @@ async function syncBookingCalendar(leadId, bookingId = "") {
   try {
     const response = await fetch("/api/admin/calendar-sync", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId, bookingId })
     });
     const payload = await response.json().catch(() => null);
@@ -3024,7 +3287,7 @@ async function syncBookingCalendar(leadId, bookingId = "") {
   }
 }
 
-async function syncFinanceForBooking(leadId, bookingId = "") {
+async function syncFinanceForBooking(leadId, bookingId = "", options = {}) {
   if (!authState.session?.accessToken) {
     alert("Sign in with Supabase before syncing finance data.");
     return;
@@ -3032,10 +3295,7 @@ async function syncFinanceForBooking(leadId, bookingId = "") {
   try {
     const response = await fetch("/api/admin/finance-sync", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId, bookingId })
     });
     const payload = await parseResponse(response);
@@ -3044,10 +3304,11 @@ async function syncFinanceForBooking(leadId, bookingId = "") {
     }
     await refreshFinanceSummary();
     renderFinanceSummary();
-    alert(`Finance tracker synced to row ${payload.rowNumber || "updated"}.`);
+    if (!options.quiet) alert(`Finance tracker synced to row ${payload.rowNumber || "updated"}.`);
   } catch (error) {
     console.error(error);
-    alert(getFriendlyError(error, "Could not sync finance tracker."));
+    if (!options.quiet) alert(getFriendlyError(error, "Could not sync finance tracker."));
+    throw error;
   }
 }
 
@@ -3059,10 +3320,7 @@ async function syncLeadHubSpot(leadId) {
   try {
     const response = await fetch("/api/admin/hubspot-sync-lead", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId })
     });
     const payload = await parseResponse(response);
@@ -3095,10 +3353,7 @@ async function repairPendingCalendarSyncs() {
     try {
       const response = await fetch("/api/admin/calendar-sync", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authState.session.accessToken}`
-        },
+        headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ leadId: booking.leadId, bookingId: booking.id })
       });
       const payload = await response.json().catch(() => null);
@@ -3128,10 +3383,7 @@ async function checkLeadAvailability(leadId) {
   try {
     const response = await fetch("/api/calendar/availability", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         date: lead.eventDate,
         startTime: lead.startTime || "00:00",
@@ -3172,6 +3424,11 @@ async function checkLeadAvailability(leadId) {
 async function prepareContractAndDeposit(leadId) {
   const lead = getLeadById(leadId);
   if (!lead) return;
+  const existingPendingPayment = state.payments.find((payment) => payment.leadId === lead.id && payment.status === "Pending" && payment.link);
+  if (existingPendingPayment) {
+    alert("This lead already has a pending Stripe invoice or payment link. Open Payments to review or verify it before creating another invoice.");
+    return;
+  }
   if (lead.calendarChecked !== "Yes") {
     alert("Check calendar availability before preparing contract and deposit.");
     return;
@@ -3189,10 +3446,7 @@ async function prepareContractAndDeposit(leadId) {
     const depositAmount = calculateDepositAmount(lead);
     const response = await fetch("/api/receptionist/prepare-booking", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ lead: { ...lead, serviceRequested: getDisplayServiceRequested(lead) }, depositAmount })
     });
     const payload = await response.json().catch(() => null);
@@ -3218,12 +3472,16 @@ async function prepareContractAndDeposit(leadId) {
       leadId: lead.id,
       type: "Deposit Request",
       amount: payload.depositAmount,
+      subtotal: payload.depositSubtotal || payload.depositAmount,
+      taxAmount: payload.depositTax || 0,
+      totalAmount: payload.depositTotal || payload.depositAmount,
       status: "Pending",
       link: payload.paymentUrl || "",
       stripeSessionId: payload.stripeSessionId || "",
       stripePaymentIntentId: payload.stripePaymentIntentId || "",
+      stripeInvoiceId: payload.stripeInvoiceId || "",
       notes: payload.paymentReady
-        ? "50% retainer checkout link created by receptionist automation."
+        ? `50% retainer Stripe invoice created. Subtotal $${Number(payload.depositSubtotal || 0).toFixed(2)}, tax $${Number(payload.depositTax || 0).toFixed(2)}, total due $${Number(payload.depositTotal || payload.depositAmount || 0).toFixed(2)}. Stripe will not email it; review and send the Gmail draft.`
         : `Payment link still needed. ${payload.paymentSkippedReason || "Add Stripe payment link manually."}`,
       createdAt: todayIso(),
       updatedAt: todayIso()
@@ -3272,7 +3530,7 @@ async function prepareContractAndDeposit(leadId) {
     alert([
       "Contract/deposit step prepared.",
       payload.gmailDraftReady ? "Gmail draft created." : payload.gmailDraftSkippedReason,
-      payload.paymentReady ? "Stripe retainer link created." : payload.paymentSkippedReason,
+      payload.paymentReady ? `Stripe retainer invoice created for ${formatCurrency(payload.depositTotal || payload.depositAmount)} including tax.` : payload.paymentSkippedReason,
       "Lead moved to Deposit Pending."
     ].filter(Boolean).join("\n"));
   } catch (error) {
@@ -3328,10 +3586,7 @@ async function confirmSignedBooking(leadId) {
   try {
     const response = await fetch("/api/admin/confirm-booking", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authState.session.accessToken}`
-      },
+      headers: await getAdminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ leadId, paymentVerified: !paymentVerified })
     });
     const payload = await response.json().catch(() => null);
@@ -3498,21 +3753,27 @@ async function upsertResource(resourceKey, item) {
   const config = COLLECTION_CONFIG[resourceKey];
   const existing = state[resourceKey].some((entry) => entry.id === item.id);
   const payload = config.toDb(item);
+  const save = async (body) => {
+    try {
+      return await supabaseRest(existing ? `/${config.table}?id=eq.${encodeURIComponent(item.id)}` : `/${config.table}`, {
+        method: existing ? "PATCH" : "POST",
+        body,
+        prefer: "return=representation"
+      });
+    } catch (error) {
+      const missingTaxColumns = resourceKey === "payments"
+        && /subtotal|tax_amount|total_amount|schema cache|column/i.test(error.message || "");
+      if (!missingTaxColumns) throw error;
+      const { subtotal, tax_amount, total_amount, ...fallback } = body;
+      return supabaseRest(existing ? `/${config.table}?id=eq.${encodeURIComponent(item.id)}` : `/${config.table}`, {
+        method: existing ? "PATCH" : "POST",
+        body: fallback,
+        prefer: "return=representation"
+      });
+    }
+  };
 
-  if (existing) {
-    const rows = await supabaseRest(`/${config.table}?id=eq.${encodeURIComponent(item.id)}`, {
-      method: "PATCH",
-      body: payload,
-      prefer: "return=representation"
-    });
-    return config.fromDb(rows[0] || payload);
-  }
-
-  const rows = await supabaseRest(`/${config.table}`, {
-    method: "POST",
-    body: payload,
-    prefer: "return=representation"
-  });
+  const rows = await save(payload);
   return config.fromDb(rows[0] || payload);
 }
 
@@ -3948,12 +4209,40 @@ async function refreshSession(refreshToken) {
 
   authState.session = {
     accessToken: payload.access_token,
-    refreshToken: payload.refresh_token,
+    refreshToken: payload.refresh_token || refreshToken,
     tokenType: payload.token_type || "bearer",
     expiresAt: Date.now() + Math.max((payload.expires_in || 3600) - 60, 60) * 1000
   };
   saveSession(authState.session);
   return true;
+}
+
+async function getFreshAccessToken() {
+  if (!authState.session?.accessToken) {
+    throw new Error("Supabase session missing.");
+  }
+
+  if (!authState.isLocalFallback && needsRefresh(authState.session)) {
+    const refreshed = authState.session.refreshToken
+      ? await refreshSession(authState.session.refreshToken)
+      : false;
+    if (!refreshed) {
+      authState.session = null;
+      authState.user = null;
+      clearSavedSession();
+      throw new Error("Your CRM sign-in expired. Please sign in again.");
+    }
+  }
+
+  return authState.session.accessToken;
+}
+
+async function getAdminAuthHeaders(headers = {}) {
+  const accessToken = await getFreshAccessToken();
+  return {
+    ...headers,
+    Authorization: `Bearer ${accessToken}`
+  };
 }
 
 async function fetchCurrentUser(accessToken) {
@@ -3994,22 +4283,45 @@ async function supabaseRest(path, options = {}) {
     throw new Error("Supabase session missing.");
   }
 
-  const response = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+  let accessToken = await getFreshAccessToken();
+  let response = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
     method: options.method || "GET",
     headers: {
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${authState.session.accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
       Prefer: options.prefer || "return=representation"
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
 
-  const payload = await parseResponse(response);
+  let payload = await parseResponse(response);
+  if (!response.ok && isExpiredJwtResponse(payload) && authState.session?.refreshToken) {
+    const refreshed = await refreshSession(authState.session.refreshToken);
+    if (refreshed) {
+      accessToken = authState.session.accessToken;
+      response = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+        method: options.method || "GET",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Prefer: options.prefer || "return=representation"
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+      payload = await parseResponse(response);
+    }
+  }
   if (!response.ok) {
     throw new Error(payload?.message || payload?.hint || "Supabase data request failed.");
   }
   return payload;
+}
+
+function isExpiredJwtResponse(payload) {
+  const message = `${payload?.message || ""} ${payload?.msg || ""} ${payload?.hint || ""}`.toLowerCase();
+  return message.includes("jwt expired") || message.includes("token is expired");
 }
 
 async function parseResponse(response) {
@@ -4026,7 +4338,12 @@ async function parseResponse(response) {
 }
 
 function getFriendlyError(error, fallback) {
-  const message = error?.message || "";
+  const rawMessage = error?.message;
+  const message = typeof rawMessage === "string"
+    ? rawMessage
+    : typeof rawMessage?.message === "string"
+      ? rawMessage.message
+      : "";
   if (message.includes("Invalid login credentials")) {
     return "Supabase did not accept that email or password yet. Create the admin user in Supabase Auth first, then try again.";
   }
@@ -4036,7 +4353,7 @@ function getFriendlyError(error, fallback) {
   if (message.includes("relation") && message.includes("does not exist")) {
     return "The CRM tables are not created yet in Supabase. Run database/supabase/schema.sql in the SQL Editor first.";
   }
-  return message || fallback;
+  return message && message !== "[object Object]" ? message : fallback;
 }
 
 function mapLeadToDb(lead) {
@@ -4191,11 +4508,14 @@ function mapBookingFromDb(row) {
 }
 
 function mapPaymentToDb(payment) {
-  return {
+  const record = {
     id: payment.id,
     lead_id: payment.leadId,
     type: payment.type,
     amount: payment.amount || 0,
+    subtotal: payment.subtotal || payment.amount || 0,
+    tax_amount: payment.taxAmount || 0,
+    total_amount: payment.totalAmount || payment.amount || 0,
     status: payment.status,
     link: payment.link || null,
     stripe_session_id: payment.stripeSessionId || null,
@@ -4204,6 +4524,10 @@ function mapPaymentToDb(payment) {
     created_at: payment.createdAt || todayIso(),
     updated_at: todayIso()
   };
+  if (payment.stripeInvoiceId) {
+    record.stripe_invoice_id = payment.stripeInvoiceId;
+  }
+  return record;
 }
 
 function mapPaymentFromDb(row) {
@@ -4212,10 +4536,14 @@ function mapPaymentFromDb(row) {
     leadId: row.lead_id,
     type: row.type || "Stripe Payment Link",
     amount: Number(row.amount || 0),
+    subtotal: Number(row.subtotal || row.amount || 0),
+    taxAmount: Number(row.tax_amount || 0),
+    totalAmount: Number(row.total_amount || row.amount || 0),
     status: row.status || "Pending",
     link: row.link || "",
     stripeSessionId: row.stripe_session_id || "",
     stripePaymentIntentId: row.stripe_payment_intent_id || "",
+    stripeInvoiceId: row.stripe_invoice_id || "",
     notes: row.notes || "",
     createdAt: normalizeDateValue(row.created_at) || todayIso(),
     updatedAt: normalizeDateValue(row.updated_at) || todayIso()

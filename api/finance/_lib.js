@@ -78,7 +78,7 @@ async function getFinancialSummary() {
 }
 
 function buildIncomeRow(lead, booking, payment, rowNumber) {
-  const invoiceTotal = money(booking.total_quote) || money(lead.budget) || defaultPackageTotal(lead.service_requested || booking.service_requested);
+  const invoiceTotal = money(booking.total_quote) || money(lead.budget) || money(payment?.amount) || defaultPackageTotal(lead.service_requested || booking.service_requested);
   const depositReceived = getPaidDepositAmount(lead, booking, payment, invoiceTotal);
   const service = booking.service_requested || lead.service_requested || "DSLR Print Photo Booth - 2 Hours ($450)";
   const packageBooked = booking.package_interest || inferPackage(service, invoiceTotal);

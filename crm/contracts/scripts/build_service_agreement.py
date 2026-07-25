@@ -22,7 +22,7 @@ ES_PDF = PUBLIC_DIR / "booth-fairy-miami-acuerdo-de-servicios-espanol.pdf"
 
 ENGLISH = {
     "title": "Booth Fairy Miami Service Agreement",
-    "subtitle": "DSLR print photo booth, unlimited prints, instant digital sharing, and premium DJ services",
+    "subtitle": "DSLR print photo booth, instant prints, instant digital sharing, and premium DJ services",
     "client_info": "Client Information",
     "event_details": "Event Details",
     "services_selected": "Services Selected",
@@ -68,21 +68,21 @@ ENGLISH = {
     },
     "clauses": [
         ("DSLR Print Photo Booth", [
-            "Every DSLR Print Photo Booth package includes unlimited prints, instant digital sharing, a premium backdrop, studio flash lighting, custom event overlay, props, an attendant, unlimited sessions, and digital gallery delivery.",
+            "Every DSLR Print Photo Booth package includes instant prints, instant digital sharing, a premium backdrop, studio flash lighting, custom event overlay, props, an attendant, unlimited sessions, and digital gallery delivery.",
             "Pricing: 2 hours is $450, 3 hours is $575, and 4 hours is $700. Additional time, travel, parking, venue fees, premium add-ons, or DJ services must be confirmed in writing and may increase the total service fee.",
         ]),
         ("Agreement", [
             "This Service Agreement is between the client listed above (Client) and Booth Fairy Miami (Company). Company agrees to provide the event services selected in this Agreement and any attached written quote or invoice. This Agreement, together with any written quote, invoice, or approved addendum, is the entire agreement between the parties. Any change must be confirmed in writing by both parties.",
-            "Company provides DSLR print photo booth services with unlimited prints, digital gallery delivery, and instant digital sharing. Company does not provide 360 photo booth services under this Agreement. Company also provides premium DJ services when selected in the Services Selected section or in an attached written quote.",
+            "Company provides DSLR print photo booth services with instant prints, digital gallery delivery, and instant digital sharing. Company does not provide 360 photo booth services under this Agreement. Company also provides premium DJ services when selected in the Services Selected section or in an attached written quote.",
         ]),
         ("Service Period", [
             "Company will provide the selected services during the service period listed in the Event Details. Setup and breakdown time are not included in the paid service period unless expressly stated in the written quote.",
             "Additional event time must be requested by Client and approved by Company. Overtime is subject to Company availability and will be billed at the overtime rate stated in the quote or invoice, or at a rate mutually confirmed in writing before overtime begins.",
         ]),
         ("DSLR Print Photo Booth Services", [
-            "When DSLR print photo booth services are selected, Company will provide a professional DSLR photo booth setup designed to capture high-quality photographs. The experience includes unlimited prints during the booked service period, studio flash lighting, camera, booth station, attendant, digital gallery, and instant digital sharing.",
+            "When DSLR print photo booth services are selected, Company will provide a professional DSLR photo booth setup designed to capture high-quality photographs. The experience includes instant prints during the booked service period, studio flash lighting, camera, booth station, attendant, digital gallery, and instant digital sharing.",
             "Digital sharing may include text, email, QR code, online gallery, or similar delivery methods, subject to venue internet access, mobile carrier availability, device compatibility, and third-party platform performance. Company will make commercially reasonable efforts to support instant digital sharing during the event, but cannot guarantee uninterrupted wireless or internet-dependent delivery.",
-            "Client understands that unlimited prints are included during the booked service period. A 360 photo booth service is not included.",
+            "Client understands that instant prints are included during the booked service period. A 360 photo booth service is not included.",
         ]),
         ("Premium DJ Services", [
             "When DJ services are selected, Company will provide professional DJ entertainment for the service period listed in the Agreement or quote. DJ services may include music playback, basic event announcements, sound equipment, microphones, and lighting elements depending on the package selected.",
@@ -136,7 +136,7 @@ ENGLISH = {
 
 SPANISH = {
     "title": "Acuerdo de Servicios de Booth Fairy Miami",
-    "subtitle": "Cabina fotografica DSLR con impresiones ilimitadas, envio digital instantaneo y servicios premium de DJ",
+    "subtitle": "Cabina fotografica DSLR con impresiones instantaneas, envio digital instantaneo y servicios premium de DJ",
     "client_info": "Informacion del Cliente",
     "event_details": "Detalles del Evento",
     "services_selected": "Servicios Seleccionados",
@@ -182,21 +182,21 @@ SPANISH = {
     },
     "clauses": [
         ("Cabina Fotografica DSLR con Impresiones", [
-            "Cada paquete incluye impresiones ilimitadas, envio digital instantaneo, fondo premium, iluminacion de flash de estudio, overlay personalizado, accesorios, asistente, sesiones ilimitadas y entrega de galeria digital.",
+            "Cada paquete incluye impresiones instantaneas, envio digital instantaneo, fondo premium, iluminacion de flash de estudio, overlay personalizado, accesorios, asistente, sesiones ilimitadas y entrega de galeria digital.",
             "Precios: 2 horas $450, 3 horas $575 y 4 horas $700. Tiempo adicional, viajes, estacionamiento, cargos del lugar, servicios adicionales premium o servicios de DJ deben confirmarse por escrito y pueden aumentar la tarifa total.",
         ]),
         ("Acuerdo", [
             "Este Acuerdo de Servicios es entre el cliente indicado arriba (Cliente) y Booth Fairy Miami (Compania). La Compania acepta proporcionar los servicios seleccionados en este Acuerdo y en cualquier cotizacion o factura escrita adjunta. Este Acuerdo, junto con cualquier cotizacion, factura o anexo aprobado por escrito, constituye el acuerdo completo entre las partes. Cualquier cambio debe confirmarse por escrito por ambas partes.",
-            "La Compania ofrece servicios de cabina fotografica DSLR con impresiones ilimitadas, entrega de galeria digital y envio digital instantaneo. La Compania no ofrece servicio de cabina 360 bajo este Acuerdo. La Compania tambien ofrece servicios premium de DJ cuando sean seleccionados en este Acuerdo o en una cotizacion escrita.",
+            "La Compania ofrece servicios de cabina fotografica DSLR con impresiones instantaneas, entrega de galeria digital y envio digital instantaneo. La Compania no ofrece servicio de cabina 360 bajo este Acuerdo. La Compania tambien ofrece servicios premium de DJ cuando sean seleccionados en este Acuerdo o en una cotizacion escrita.",
         ]),
         ("Periodo de Servicio", [
             "La Compania proporcionara los servicios seleccionados durante el periodo indicado en los Detalles del Evento. El tiempo de montaje y desmontaje no esta incluido en el periodo pagado del servicio, a menos que se indique expresamente en la cotizacion escrita.",
             "Cualquier tiempo adicional debe ser solicitado por el Cliente y aprobado por la Compania. El tiempo extra esta sujeto a disponibilidad y se cobrara segun la tarifa indicada en la cotizacion o factura, o segun una tarifa confirmada por escrito antes de comenzar.",
         ]),
         ("Servicios de Cabina Fotografica Digital DSLR", [
-            "Cuando se seleccionan servicios de cabina fotografica DSLR con impresiones, la Compania proporcionara una configuracion profesional disenada para capturar fotografias de alta calidad. La experiencia incluye impresiones ilimitadas durante el periodo contratado, iluminacion, camara, estacion de cabina, asistente, galeria digital y envio digital instantaneo.",
+            "Cuando se seleccionan servicios de cabina fotografica DSLR con impresiones, la Compania proporcionara una configuracion profesional disenada para capturar fotografias de alta calidad. La experiencia incluye impresiones instantaneas durante el periodo contratado, iluminacion, camara, estacion de cabina, asistente, galeria digital y envio digital instantaneo.",
             "El envio digital puede incluir texto, correo electronico, codigo QR, galeria en linea u otros metodos similares, sujeto al acceso de internet del lugar, senal celular, compatibilidad de dispositivos y plataformas de terceros. La Compania hara esfuerzos comercialmente razonables para apoyar el envio digital instantaneo durante el evento, pero no garantiza servicio ininterrumpido dependiente de internet o senal inalambrica.",
-            "El Cliente entiende que las impresiones ilimitadas estan incluidas durante el periodo contratado. El servicio de cabina 360 no esta incluido.",
+            "El Cliente entiende que las impresiones instantaneas estan incluidas durante el periodo contratado. El servicio de cabina 360 no esta incluido.",
         ]),
         ("Servicios Premium de DJ", [
             "Cuando se seleccionan servicios de DJ, la Compania proporcionara entretenimiento profesional de DJ durante el periodo indicado en el Acuerdo o cotizacion. Los servicios pueden incluir reproduccion de musica, anuncios basicos, equipo de sonido, microfonos y elementos de iluminacion segun el paquete seleccionado.",

@@ -278,7 +278,7 @@ async function createLead(lead) {
     lead.instagramUserId ? `Instagram user ID: ${lead.instagramUserId}` : "",
     lead.sourceReference ? `Instagram reference: ${lead.sourceReference}` : "",
     lead.missing.length ? `Missing info to request: ${lead.missing.join(", ")}` : "",
-    "Instagram lead. Do not confirm availability until calendar is checked. DSLR photo booth packages include unlimited prints and instant digital sharing."
+    "Instagram lead. Do not confirm availability until calendar is checked. DSLR photo booth packages include instant prints and instant digital sharing."
   ].filter(Boolean).join("\n");
 
   const rows = await insertLeadWithFallback(supabaseAdmin, withLeadIntelligence({
