@@ -59,6 +59,14 @@
       "destination": "/website/script.js"
     },
     {
+      "source": "/gallery-items.js",
+      "destination": "/website/gallery-items.js"
+    },
+    {
+      "source": "/gallery-carousel.js",
+      "destination": "/website/gallery-carousel.js"
+    },
+    {
       "source": "/tracking.js",
       "destination": "/website/tracking.js"
     },
