@@ -3486,6 +3486,7 @@ body.page-dj .seo-hero .seo-card::before {
 .contact-form label {
   display: grid;
   gap: 0.45rem;
+  min-width: 0;
   font-weight: 700;
 }
 
@@ -3493,12 +3494,20 @@ body.page-dj .seo-hero .seo-card::before {
 .contact-form select,
 .contact-form textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 3.2rem;
   padding: 0.95rem 1rem;
   border-radius: 16px;
   border: 1px solid rgba(109, 72, 152, 0.16);
   background: rgba(255, 255, 255, 0.88);
   color: var(--text);
+}
+
+.contact-form input[type="date"] {
+  display: block;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .contact-form input:focus,
