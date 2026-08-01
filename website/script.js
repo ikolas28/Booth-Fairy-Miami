@@ -5,6 +5,7 @@ setupMobileCtaViewport();
 setupRevealEffects();
 setupMarketingAttribution();
 setupFormPresets();
+setupAccessibleDisclosures();
 stabilizeHashNavigation();
 
 function setupMobileCtaViewport() {
@@ -85,6 +86,45 @@ function setupDeferredTidio() {
   if (!document.body?.matches("[data-tidio='deferred']")) return;
 
   let loaded = false;
+  let pendingOpen = false;
+  let visitorOpenedChat = false;
+  const launcher = document.querySelector("[data-chat-launcher]");
+
+  const openChat = () => {
+    const api = window.tidioChatApi;
+    if (!api) {
+      pendingOpen = true;
+      loadTidio();
+      return;
+    }
+
+    visitorOpenedChat = true;
+    launcher?.setAttribute("hidden", "");
+    api.show();
+    api.open();
+  };
+
+  const onTidioReady = () => {
+    const api = window.tidioChatApi;
+    if (!api) return;
+
+    // Official Widget API methods prevent Tidio flows from exposing an expanded
+    // window or an artificial unread badge before the visitor chooses to chat.
+    api.close();
+    api.hide();
+    launcher?.removeAttribute("hidden");
+    api.on("close", () => {
+      if (!visitorOpenedChat) return;
+      api.hide();
+      launcher?.removeAttribute("hidden");
+    });
+
+    if (pendingOpen) {
+      pendingOpen = false;
+      openChat();
+    }
+  };
+
   const loadTidio = () => {
     if (loaded || document.querySelector("script[data-bfm-tidio]")) return;
     loaded = true;
@@ -96,13 +136,35 @@ function setupDeferredTidio() {
     document.body.appendChild(script);
   };
 
-  ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
-    window.addEventListener(eventName, loadTidio, { once: true, passive: true });
-  });
+  launcher?.addEventListener("click", openChat);
+  window.setTimeout(() => launcher?.classList.add("has-notification-dot"), 18000);
 
-  if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(loadTidio, { timeout: 5000 });
+  if (launcher && "IntersectionObserver" in window) {
+    const obstructibleSections = new Set();
+    const launcherGuard = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) obstructibleSections.add(entry.target);
+        else obstructibleSections.delete(entry.target);
+      });
+      launcher.classList.toggle("is-suppressed", obstructibleSections.size > 0);
+    }, { threshold: 0.08 });
+
+    ["#gallery", "#keepsake-addons", "#faq", "#quote-form"].forEach((selector) => {
+      const section = document.querySelector(selector);
+      if (section) launcherGuard.observe(section);
+    });
+  }
+
+  if (window.tidioChatApi) {
+    onTidioReady();
   } else {
+    document.addEventListener("tidioChat-ready", onTidioReady, { once: true });
+  }
+
+  const isProductionSite = ["www.boothfairymiami.com", "boothfairymiami.com"].includes(window.location.hostname);
+  if (isProductionSite && "requestIdleCallback" in window) {
+    window.requestIdleCallback(loadTidio, { timeout: 5000 });
+  } else if (isProductionSite) {
     window.setTimeout(loadTidio, 3500);
   }
 }
@@ -298,7 +360,9 @@ function setupFormPresets() {
 
   const eventDate = form.querySelector("[name='event-date']");
   if (eventDate && !eventDate.min) {
-    eventDate.min = new Date().toISOString().slice(0, 10);
+    const localToday = new Date();
+    localToday.setMinutes(localToday.getMinutes() - localToday.getTimezoneOffset());
+    eventDate.min = localToday.toISOString().slice(0, 10);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -313,6 +377,26 @@ function setupFormPresets() {
     setSelectValue("#package-interest", "DJ + Photo Booth Bundle");
   }
   setSelectValue("#addon-interest", params.get("addon"));
+
+  if (service || params.get("addon")) {
+    form.querySelector(".form-optional-details")?.setAttribute("open", "");
+  }
+}
+
+function setupAccessibleDisclosures() {
+  document.querySelectorAll(".faq-list summary, .form-optional-details summary").forEach((summary) => {
+    summary.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const details = summary.closest("details");
+      if (details) details.open = !details.open;
+    });
+  });
+}
+
+function revealOptionalFormDetails() {
+  const details = document.querySelector("#quote-form .form-optional-details");
+  if (details) details.open = true;
 }
 
 function setupMarketingAttribution() {
@@ -451,6 +535,7 @@ document.querySelectorAll("[data-addon]").forEach((button) => {
       serviceSelect.value = "Photo Booth + DJ Bundle";
       serviceSelect.dispatchEvent(new Event("change", { bubbles: true }));
     }
+    revealOptionalFormDetails();
     moveToQuoteForm(`${button.closest(".keepsake-card")?.querySelector(".keepsake-label")?.textContent || "Keepsake add-on"} selected. You can adjust it below.`);
 
     window.setTimeout(() => addonSelect.focus({ preventScroll: true }), 550);
@@ -489,6 +574,7 @@ document.querySelectorAll("[data-service]").forEach((button) => {
       setSelectValue("#package-interest", "DJ + Photo Booth Bundle");
     }
 
+    revealOptionalFormDetails();
     moveToQuoteForm(`${serviceValue} selected. Share your event details for a tailored quote.`);
     window.setTimeout(() => document.querySelector("#service-requested")?.focus({ preventScroll: true }), 550);
 
@@ -525,9 +611,8 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
   try {
     const formData = new FormData(form);
     const email = String(formData.get("email") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    if (!email && !phone) {
-      throw new Error("Please include an email or phone number.");
+    if (!email) {
+      throw new Error("Please include a valid email address.");
     }
     const turnstileToken = formData.get("cf-turnstile-response");
     if (requiresTurnstile && !turnstileToken) {
@@ -623,8 +708,8 @@ document.querySelector(".contact-form")?.addEventListener("submit", async (event
     showFormStatus(
       error?.message === "Please complete the verification."
         ? "Please complete the verification, then try again."
-        : error?.message === "Please include an email or phone number."
-          ? "Please include an email address or phone number so we can reply."
+        : error?.message === "Please include a valid email address."
+          ? "Please include a valid email address so we can reply. Phone is optional."
           : "We couldn’t send your inquiry. Your information is still here—please try again or text us at (786) 315-9117.",
       "error"
     );

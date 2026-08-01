@@ -32,6 +32,7 @@
     <meta name="twitter:image" content="https://www.boothfairymiami.com/assets/share-card-premium.jpg" />
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="preload" as="image" href="assets/gallery/white-dslr-booth-800.webp" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -108,7 +109,7 @@
         ]
       }
     </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260731-6" />
   </head>
   <body data-tidio="deferred">
     <noscript
@@ -351,74 +352,45 @@
       </section>
 
       <section class="section section-gallery" id="gallery">
-        <div class="container">
-          <div class="section-intro reveal">
+        <div class="container gallery-carousel" data-gallery-carousel>
+          <div class="section-intro reveal gallery-carousel-intro">
             <p class="eyebrow">Gallery</p>
-            <h2>A photo booth that looks as good as the party.</h2>
+            <h2>Real moments. Beautiful memories.</h2>
             <p>
-              Real Booth Fairy Miami setups with studio lighting, custom welcome screens, playful
-              props, and premium backdrop options. Every event also includes instant digital sharing.
+              Explore real Booth Fairy Miami events—from the booth setup to the smiles, prints,
+              and personalized keepsakes guests take home.
             </p>
           </div>
-          <div class="gallery-grid">
-            <figure class="gallery-item large reveal">
-              <img
-                src="assets/print-booth/print-booth-03.webp"
-                alt="Booth Fairy Miami photo booth with studio flash lighting"
-                width="1350"
-                height="1800"
-                loading="lazy"
-              />
-              <figcaption>DSLR booth setup with studio flash lighting</figcaption>
-            </figure>
-            <figure class="gallery-item reveal">
-              <img
-                src="assets/print-booth/video-thumb-04.webp"
-                alt="Photo booth props styled for a birthday celebration"
-                width="1080"
-                height="1440"
-                loading="lazy"
-              />
-              <figcaption>Event-ready props and guest details</figcaption>
-            </figure>
-            <figure class="gallery-item reveal">
-              <img
-                src="assets/print-booth/print-booth-04.webp"
-                alt="Custom photo booth welcome screen for a birthday party"
-                width="1350"
-                height="1800"
-                loading="lazy"
-              />
-              <figcaption>Custom welcome screen and event branding</figcaption>
-            </figure>
-            <figure class="gallery-item reveal">
-              <img
-                src="assets/print-booth/video-thumb-05.webp"
-                alt="Premium greenery backdrop for a photo booth event"
-                width="1080"
-                height="1440"
-                loading="lazy"
-              />
-              <figcaption>Premium greenery backdrop</figcaption>
-            </figure>
-            <figure class="gallery-item wide reveal">
-              <img
-                src="assets/print-booth/print-booth-01.webp"
-                alt="Luxury DSLR photo booth glowing pink at a Miami event"
-                width="1350"
-                height="1800"
-                loading="lazy"
-              />
-              <figcaption>Booth Fairy Miami after dark</figcaption>
-            </figure>
+          <div class="gallery-filters reveal" data-gallery-filters role="group" aria-label="Filter gallery media"></div>
+          <div
+            class="gallery-carousel-stage reveal"
+            data-gallery-track
+            role="group"
+            aria-roledescription="carousel"
+            aria-label="Booth Fairy Miami event gallery"
+          >
+            <div class="gallery-loading-placeholder" aria-hidden="true"><span></span></div>
           </div>
-          <p class="gallery-mobile-note">
+          <div class="gallery-carousel-controls reveal" role="group" aria-label="Gallery controls">
+            <button class="gallery-arrow" type="button" data-gallery-previous aria-label="Show previous gallery item"><span aria-hidden="true">←</span></button>
+            <p class="sr-only" data-gallery-status role="status" aria-live="polite"></p>
+            <button class="gallery-arrow" type="button" data-gallery-next aria-label="Show next gallery item"><span aria-hidden="true">→</span></button>
+          </div>
+          <p class="gallery-mobile-note reveal">
             <a href="https://www.instagram.com/boothfairymiami" target="_blank" rel="noopener noreferrer">
               See more real Miami events on Instagram
             </a>
           </p>
         </div>
       </section>
+
+      <dialog class="gallery-lightbox" id="gallery-lightbox" aria-labelledby="gallery-lightbox-caption">
+        <div class="gallery-lightbox-panel">
+          <button class="gallery-lightbox-close" type="button" data-lightbox-close aria-label="Close gallery lightbox">×</button>
+          <div class="gallery-lightbox-media" data-lightbox-media></div>
+          <p id="gallery-lightbox-caption" data-lightbox-caption></p>
+        </div>
+      </dialog>
 
       <section class="section section-process" id="how-it-works">
         <div class="container process-layout">
@@ -727,6 +699,46 @@
         </div>
       </section>
 
+      <section class="section section-faq" id="faq" aria-labelledby="faq-heading">
+        <div class="container faq-layout">
+          <div class="section-intro reveal narrow">
+            <p class="eyebrow">Frequently asked questions</p>
+            <h2 id="faq-heading">Helpful details before you check your date.</h2>
+            <p>Clear answers about our DSLR Print Photo Booth, instant sharing, keepsakes, and premium DJ add-on.</p>
+          </div>
+          <div class="faq-list reveal">
+            <details>
+              <summary>What is included in every DSLR Photo Booth package?</summary>
+              <p>Every package includes the DSLR booth, instant prints, instant digital sharing, a premium backdrop, studio flash lighting, props, an attendant, unlimited sessions, a custom event overlay, and digital gallery delivery.</p>
+            </details>
+            <details>
+              <summary>Are instant prints included?</summary>
+              <p>Yes. Instant prints are included in the published 2-hour, 3-hour, and 4-hour DSLR Print Photo Booth packages.</p>
+            </details>
+            <details>
+              <summary>Can guests receive their pictures digitally?</summary>
+              <p>Yes. Guests can use instant digital sharing during the event, and after the event you will receive a link to the digital gallery.</p>
+            </details>
+            <details>
+              <summary>How do I reserve my event date?</summary>
+              <p>Send your event date and location first so we can check calendar availability. After availability is confirmed, the 50% reservation retainer is $225 for 2 hours, $287.50 for 3 hours, or $350 for 4 hours. A booking is confirmed only after the retainer status is verified.</p>
+            </details>
+            <details>
+              <summary>What areas does Booth Fairy Miami serve?</summary>
+              <p>Booth Fairy Miami serves events throughout Miami-Dade and Broward County.</p>
+            </details>
+            <details>
+              <summary>Can I add photo keychains or magnetic photo strips?</summary>
+              <p>Yes. The current add-ons are 50 custom photo keychains for $100 or 50 magnetic 2x6 photo strips for $100. Tell us which keepsake you want and how many you need so we can confirm the right total.</p>
+            </details>
+            <details>
+              <summary>Can I combine the Photo Booth with DJ services?</summary>
+              <p>Of course. Premium DJ and MC services can be added to the DSLR Photo Booth for one polished entertainment experience. Bundle pricing is provided after the owner approves the custom total.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
       <section class="section section-contact" id="contact">
         <div class="container contact-layout">
           <div class="contact-copy reveal">
@@ -784,40 +796,20 @@
                 <input id="inquiry-name" type="text" name="name" autocomplete="name" placeholder="Your name" required />
               </label>
               <label>
-                Email <span class="field-hint">(email or phone required)</span>
-                <input id="inquiry-email" type="email" name="email" autocomplete="email" placeholder="you@example.com" />
+                Email <span class="field-hint">(required)</span>
+                <input id="inquiry-email" type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
               </label>
               <label>
-                Phone <span class="field-hint">(email or phone required)</span>
-                <input id="inquiry-phone" type="tel" name="phone" autocomplete="tel" placeholder="(786) 315-9117" />
+                Phone <span class="field-hint">(optional)</span>
+                <input id="inquiry-phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="(786) 315-9117" />
               </label>
               <label>
                 Event date <span class="field-hint">(if known)</span>
                 <input id="event-date" type="date" name="event-date" autocomplete="off" />
               </label>
               <label>
-                Event type
-                <select id="event-type" name="event-type">
-                  <option>Wedding</option>
-                  <option>Birthday</option>
-                  <option>Quinceañera</option>
-                  <option>Baby Shower</option>
-                  <option>Corporate Event</option>
-                  <option>Brand Activation</option>
-                  <option>Luxury Party</option>
-                </select>
-              </label>
-              <label>
-                Venue or neighborhood <span class="field-hint">(if known)</span>
-                <input id="event-venue" type="text" name="venue" autocomplete="street-address" placeholder="Brickell, Miami Beach, Coconut Grove..." />
-              </label>
-              <label>
-                Service requested
-                <select id="service-requested" name="service-requested">
-                  <option>DSLR Print Photo Booth</option>
-                  <option>Premium DJ Services</option>
-                  <option>Photo Booth + DJ Bundle</option>
-                </select>
+                Venue, city, or neighborhood <span class="field-hint">(if known)</span>
+                <input id="event-venue" type="text" name="venue" autocomplete="address-level2" placeholder="Brickell, Miami Beach, Coconut Grove..." />
               </label>
               <label>
                 Package interest
@@ -829,29 +821,58 @@
                   <option>Custom Quote</option>
                 </select>
               </label>
-              <label>
-                Optional keepsake add-on
-                <select name="addon-interest" id="addon-interest">
-                  <option value="No keepsake add-on selected">No keepsake add-on selected</option>
-                  <option value="50 Custom Photo Keychains (+$100)">Photo keychains — 50 (+$100)</option>
-                  <option value="50 Magnetic 2x6 Photo Strip Magnets (+$100)">2x6 strip magnets — 50 (+$100)</option>
-                  <option value="Both Keepsake Add-Ons (+$200)">Both keepsake add-ons (+$200)</option>
-                </select>
-              </label>
-              <label>
-                Guest count <span class="field-hint">(estimate is fine)</span>
-                <input id="guest-count" type="number" name="guest-count" min="0" inputmode="numeric" placeholder="Approx. number of guests" />
-              </label>
               <label class="form-field-wide">
-                Anything else we should know? <span class="field-hint">(optional)</span>
+                Message <span class="field-hint">(optional)</span>
                 <textarea
                   id="event-message"
                   name="message"
-                  rows="5"
-                  placeholder="Event style, timing, backdrop ideas, music needs, or special details."
+                  rows="4"
+                  placeholder="Tell us anything helpful about your event."
                 ></textarea>
               </label>
             </div>
+            <details class="form-optional-details">
+              <summary>Add more event details — optional</summary>
+              <div class="form-grid">
+                <label>
+                  Event type
+                  <select id="event-type" name="event-type">
+                    <option>Wedding</option>
+                    <option>Birthday</option>
+                    <option>Quinceañera</option>
+                    <option>Baby Shower</option>
+                    <option>Corporate Event</option>
+                    <option>Brand Activation</option>
+                    <option>Luxury Party</option>
+                  </select>
+                </label>
+                <label>
+                  Guest count <span class="field-hint">(estimate is fine)</span>
+                  <input id="guest-count" type="number" name="guest-count" min="0" inputmode="numeric" placeholder="Approx. number of guests" />
+                </label>
+                <label>
+                  Service requested
+                  <select id="service-requested" name="service-requested">
+                    <option>DSLR Print Photo Booth</option>
+                    <option>Premium DJ Services</option>
+                    <option>Photo Booth + DJ Bundle</option>
+                  </select>
+                </label>
+                <label>
+                  Keepsake add-on
+                  <select name="addon-interest" id="addon-interest">
+                    <option value="No keepsake add-on selected">No keepsake add-on selected</option>
+                    <option value="50 Custom Photo Keychains (+$100)">Photo keychains — 50 (+$100)</option>
+                    <option value="50 Magnetic 2x6 Photo Strip Magnets (+$100)">2x6 strip magnets — 50 (+$100)</option>
+                    <option value="Both Keepsake Add-Ons (+$200)">Both keepsake add-ons (+$200)</option>
+                  </select>
+                </label>
+                <label class="form-field-wide">
+                  Additional preferences <span class="field-hint">(optional)</span>
+                  <textarea id="additional-preferences" name="additional-preferences" rows="3" placeholder="Backdrop, overlay, print, music, or styling preferences."></textarea>
+                </label>
+              </div>
+            </details>
             <div
               class="cf-turnstile"
               data-sitekey="0x4AAAAAADU_O0m_oOHTHiVT"
@@ -894,6 +915,17 @@
       </div>
     </footer>
 
+    <button
+      class="bfm-chat-launcher"
+      type="button"
+      data-chat-launcher
+      aria-label="Open chat. Hi! Planning an event? Send us your date and location, and we’ll help you check availability."
+      title="Hi! Planning an event? Send us your date and location, and we’ll help you check availability."
+    >
+      <span class="bfm-chat-launcher-icon" aria-hidden="true">✦</span>
+      <span>Chat</span>
+    </button>
+
     <div class="mobile-cta">
       <a class="button button-secondary" href="tel:17863159117">Call</a>
       <a class="button button-secondary" href="sms:17863159117?body=Hi%20Booth%20Fairy%20Miami,%20I%27d%20like%20to%20check%20availability%20for%20my%20event.">Text</a>
@@ -901,6 +933,8 @@
     </div>
 
     <script src="tracking.js"></script>
-    <script src="script.js"></script>
+    <script src="gallery-items.js?v=20260731-6"></script>
+    <script src="gallery-carousel.js?v=20260731-7"></script>
+    <script src="script.js?v=20260731-6"></script>
   </body>
 </html>
