@@ -35,6 +35,7 @@ window.BFM_GALLERY_ITEMS = Object.freeze([
   {
     src: "assets/gallery/countdown.mp4",
     type: "video",
+    mimeType: "video/mp4",
     category: "Videos",
     alt: "Booth Fairy Miami photo booth countdown screen in action",
     caption: "The booth countdown before the camera captures the moment",
